@@ -11,7 +11,9 @@ import {
   LogOut,
   Moon,
   Sun,
-  Menu
+  Menu,
+  Settings,
+  Users
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -57,6 +59,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/products', label: 'Products', icon: Package },
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
+    { path: '/users', label: 'Team', icon: Users },
+    { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   const NavContent = () => (

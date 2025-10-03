@@ -12,6 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
 
 interface PeriodStats {
   sales: number;
@@ -20,6 +30,7 @@ interface PeriodStats {
 }
 
 interface ProductStats {
+  product_id?: string;
   product_name: string;
   total_quantity: number;
   total_sales: number;
@@ -226,10 +237,47 @@ const Reports = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="products">
+          <TabsContent value="products" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Sales by Product</CardTitle>
+                <CardTitle>Sales by Product - Chart View</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {productStats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={productStats.slice(0, 10)}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="product_name" 
+                        className="text-xs"
+                        angle={-45}
+                        textAnchor="end"
+                        height={100}
+                      />
+                      <YAxis className="text-xs" />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px'
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="total_sales" fill="hsl(var(--primary))" name="Sales (UGX)" />
+                      <Bar dataKey="total_profit" fill="hsl(var(--success))" name="Profit (UGX)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No sales data available
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales by Product - Detailed Table</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>

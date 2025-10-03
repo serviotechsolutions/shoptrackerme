@@ -12,6 +12,17 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface DashboardStats {
   totalProducts: number;
@@ -28,6 +39,12 @@ interface LowStockProduct {
   low_stock_threshold: number;
 }
 
+interface ChartData {
+  name: string;
+  sales: number;
+  profit: number;
+}
+
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
@@ -38,6 +55,7 @@ const Dashboard = () => {
   });
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -77,6 +95,35 @@ const Dashboard = () => {
 
       const todaySales = transactions?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
       const todayProfit = transactions?.reduce((sum, t) => sum + Number(t.profit), 0) || 0;
+
+      // Fetch last 7 days data for chart
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const { data: weekTransactions } = await supabase
+        .from('transactions')
+        .select('created_at, total_amount, profit')
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: true });
+
+      // Group by day
+      const dailyData: { [key: string]: { sales: number; profit: number } } = {};
+      weekTransactions?.forEach((t) => {
+        const date = new Date(t.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+        if (!dailyData[date]) {
+          dailyData[date] = { sales: 0, profit: 0 };
+        }
+        dailyData[date].sales += Number(t.total_amount);
+        dailyData[date].profit += Number(t.profit);
+      });
+
+      const chartDataArray = Object.keys(dailyData).map((key) => ({
+        name: key,
+        sales: dailyData[key].sales,
+        profit: dailyData[key].profit,
+      }));
+
+      setChartData(chartDataArray);
 
       setStats({
         totalProducts,
@@ -209,6 +256,45 @@ const Dashboard = () => {
               </Link>
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Sales Chart */}
+        {chartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales & Profit Trend (Last 7 Days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    name="Sales"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="profit" 
+                    stroke="hsl(var(--success))" 
+                    strokeWidth={2}
+                    name="Profit"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         )}
 
         {/* Quick Actions */}
