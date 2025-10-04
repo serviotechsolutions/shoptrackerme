@@ -13,7 +13,8 @@ import {
   Sun,
   Menu,
   Settings,
-  Users
+  Users,
+  CreditCard
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/pos', label: 'POS', icon: CreditCard },
     { path: '/products', label: 'Products', icon: Package },
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
     { path: '/reports', label: 'Reports', icon: BarChart3 },

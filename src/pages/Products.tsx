@@ -22,7 +22,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface Product {
@@ -42,6 +42,7 @@ const Products = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [tenantId, setTenantId] = useState<string>('');
+  const [importing, setImporting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -162,6 +163,95 @@ const Products = () => {
     }).format(amount);
   };
 
+  const handleExportCSV = () => {
+    const headers = ["Name", "Description", "Buying Price", "Selling Price", "Stock", "Low Stock Threshold"];
+    const rows = products.map(p => [
+      p.name,
+      p.description || "",
+      p.buying_price,
+      p.selling_price,
+      p.stock,
+      p.low_stock_threshold
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `products-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Success",
+      description: `Exported ${products.length} products to CSV`,
+    });
+  };
+
+  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !tenantId) return;
+
+    setImporting(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split("\n");
+
+        const productsToImport = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+
+          const values = lines[i].split(",").map(v => v.trim().replace(/"/g, ""));
+          
+          const product = {
+            name: values[0],
+            description: values[1] || null,
+            buying_price: parseFloat(values[2]) || 0,
+            selling_price: parseFloat(values[3]) || 0,
+            stock: parseInt(values[4]) || 0,
+            low_stock_threshold: parseInt(values[5]) || 10,
+            tenant_id: tenantId,
+          };
+
+          productsToImport.push(product);
+        }
+
+        if (productsToImport.length > 0) {
+          const { error } = await supabase.from("products").insert(productsToImport);
+
+          if (error) throw error;
+
+          toast({
+            title: "Success",
+            description: `Imported ${productsToImport.length} products successfully`,
+          });
+
+          fetchProducts();
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to import CSV",
+          variant: "destructive",
+        });
+      } finally {
+        setImporting(false);
+        event.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -181,13 +271,31 @@ const Products = () => {
             <p className="text-muted-foreground">Manage your inventory</p>
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditingProduct(null)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Product
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportCSV} disabled={products.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+            <Button variant="outline" disabled={importing} asChild>
+              <label className="cursor-pointer flex items-center">
+                <Upload className="h-4 w-4 mr-2" />
+                {importing ? "Importing..." : "Import CSV"}
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleImportCSV}
+                  disabled={importing}
+                />
+              </label>
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingProduct(null)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Product
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
@@ -268,7 +376,8 @@ const Products = () => {
                 </DialogFooter>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <div className="border rounded-lg">
