@@ -1,1 +1,16 @@
 project_id = "mqsnuicquepuegexvmrq"
+
+[functions.ai-sales-forecast]
+verify_jwt = true
+
+[functions.ai-reorder-alerts]
+verify_jwt = true
+
+[functions.ai-product-recommendations]
+verify_jwt = true
+
+[functions.ai-customer-insights]
+verify_jwt = true
+
+[functions.ai-fraud-detection]
+verify_jwt = true
