@@ -204,7 +204,11 @@ const AIInsights = () => {
                           <CardTitle>Key Trends</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-muted-foreground">{forecast.trends}</p>
+                          <p className="text-muted-foreground">
+                            {typeof forecast.trends === 'string' 
+                              ? forecast.trends 
+                              : JSON.stringify(forecast.trends, null, 2)}
+                          </p>
                         </CardContent>
                       </Card>
                     )}
@@ -215,7 +219,11 @@ const AIInsights = () => {
                           <CardTitle>AI Recommendations</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-muted-foreground">{forecast.recommendations}</p>
+                          <p className="text-muted-foreground whitespace-pre-wrap">
+                            {typeof forecast.recommendations === 'string' 
+                              ? forecast.recommendations 
+                              : JSON.stringify(forecast.recommendations, null, 2)}
+                          </p>
                         </CardContent>
                       </Card>
                     )}
@@ -299,14 +307,16 @@ const AIInsights = () => {
                   </Card>
                 )}
 
-                {customerInsights.insights && typeof customerInsights.insights === 'string' && (
+                {customerInsights.insights && (
                   <Card>
                     <CardHeader>
                       <CardTitle>AI Analysis</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground whitespace-pre-line">
-                        {customerInsights.insights}
+                      <p className="text-muted-foreground whitespace-pre-wrap">
+                        {typeof customerInsights.insights === 'string'
+                          ? customerInsights.insights
+                          : JSON.stringify(customerInsights.insights, null, 2)}
                       </p>
                     </CardContent>
                   </Card>
@@ -318,7 +328,11 @@ const AIInsights = () => {
                       <CardTitle>Top Performer Insights</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground">{customerInsights.topClerk}</p>
+                      <p className="text-muted-foreground whitespace-pre-wrap">
+                        {typeof customerInsights.topClerk === 'string'
+                          ? customerInsights.topClerk
+                          : JSON.stringify(customerInsights.topClerk, null, 2)}
+                      </p>
                     </CardContent>
                   </Card>
                 )}
@@ -329,7 +343,11 @@ const AIInsights = () => {
                       <CardTitle>Recommendations</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground">{customerInsights.recommendations}</p>
+                      <p className="text-muted-foreground whitespace-pre-wrap">
+                        {typeof customerInsights.recommendations === 'string'
+                          ? customerInsights.recommendations
+                          : JSON.stringify(customerInsights.recommendations, null, 2)}
+                      </p>
                     </CardContent>
                   </Card>
                 )}
