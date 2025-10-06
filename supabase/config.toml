@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.daily-sales-summary]
 verify_jwt = false
+
+[functions.send-user-invitation]
+verify_jwt = true

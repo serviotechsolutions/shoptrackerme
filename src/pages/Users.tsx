@@ -93,11 +93,44 @@ const Users = () => {
 
   const handleInviteUser = async () => {
     try {
-      // In a real implementation, you would send an invitation email
-      // For now, we'll create the user directly (requires admin privileges)
+      if (!newUser.email || !newUser.full_name) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please fill in all required fields',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Get current user and tenant info
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, tenant_id, tenants(name)')
+        .single();
+
+      if (!profile) {
+        throw new Error('Could not fetch user profile');
+      }
+
+      const shopName = (profile.tenants as any)?.name || 'Our Shop';
+      const inviterName = profile.full_name || 'Your colleague';
+
+      // Send invitation email
+      const { error } = await supabase.functions.invoke('send-user-invitation', {
+        body: {
+          email: newUser.email,
+          full_name: newUser.full_name,
+          role: newUser.role,
+          shop_name: shopName,
+          inviter_name: inviterName,
+        },
+      });
+
+      if (error) throw error;
+
       toast({
-        title: 'Feature Coming Soon',
-        description: 'User invitation functionality will be available soon. Please contact support to add new users.',
+        title: 'Invitation Sent',
+        description: `An invitation has been sent to ${newUser.email}`,
       });
       
       setDialogOpen(false);
@@ -111,7 +144,7 @@ const Users = () => {
       console.error('Error inviting user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to invite user',
+        description: 'Failed to send invitation',
         variant: 'destructive',
       });
     }
