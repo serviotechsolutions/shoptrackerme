@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.ai-fraud-detection]
 verify_jwt = true
+
+[functions.check-low-stock]
+verify_jwt = false
+
+[functions.daily-sales-summary]
+verify_jwt = false

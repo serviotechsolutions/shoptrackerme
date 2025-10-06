@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          tenant_id: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          tenant_id: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          tenant_id?: string
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           buying_price: number
@@ -212,6 +248,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_low_stock_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_user_tenant_id: {
         Args: { _user_id: string }
         Returns: string
