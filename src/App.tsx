@@ -14,8 +14,8 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import AIInsights from "./pages/AIInsights";
-import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
+import Payments from "./pages/Payments";
 
 const queryClient = new QueryClient();
 
