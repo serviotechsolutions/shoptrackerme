@@ -57,6 +57,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/ai-insights', label: 'AI Insights', icon: Brain },
+    { path: '/payments', label: 'Payments', icon: CreditCard },
     { path: '/users', label: 'Team', icon: Users },
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
