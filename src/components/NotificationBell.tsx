@@ -31,6 +31,12 @@ export const NotificationBell = () => {
         return "🔄";
       case "sales_summary":
         return "📊";
+      case "high_profit":
+        return "💰";
+      case "fast_selling":
+        return "🔥";
+      case "stale_product":
+        return "⚠️";
       case "system":
         return "⚙️";
       default:
