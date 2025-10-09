@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { 
   LayoutDashboard, 
   Package, 
@@ -36,6 +37,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  // Initialize smart notifications monitoring
+  useSmartNotifications();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'light';
