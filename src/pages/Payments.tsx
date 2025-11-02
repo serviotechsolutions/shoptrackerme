@@ -8,33 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { CreditCard, Plus, DollarSign, Calendar } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 interface Payment {
   id: string;
   amount: number;
@@ -45,7 +24,6 @@ interface Payment {
   customer_phone: string | null;
   created_at: string;
 }
-
 interface Subscription {
   id: string;
   customer_name: string;
@@ -59,24 +37,23 @@ interface Subscription {
   next_billing_date: string;
   end_date: string | null;
 }
-
 const Payments = () => {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
-
   const [newPayment, setNewPayment] = useState({
     amount: '',
     payment_method: 'cash',
     customer_name: '',
     customer_phone: '',
     reference_number: '',
-    notes: '',
+    notes: ''
   });
-
   const [newSubscription, setNewSubscription] = useState({
     customer_name: '',
     customer_email: '',
@@ -84,34 +61,22 @@ const Payments = () => {
     plan_name: '',
     amount: '',
     billing_cycle: 'monthly',
-    start_date: format(new Date(), 'yyyy-MM-dd'),
+    start_date: format(new Date(), 'yyyy-MM-dd')
   });
-
   useEffect(() => {
     fetchData();
   }, []);
-
   const fetchData = async () => {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .single();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('tenant_id').single();
       if (profile) {
-        const [paymentsResult, subscriptionsResult] = await Promise.all([
-          supabase
-            .from('payments')
-            .select('*')
-            .eq('tenant_id', profile.tenant_id)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('subscriptions')
-            .select('*')
-            .eq('tenant_id', profile.tenant_id)
-            .order('created_at', { ascending: false }),
-        ]);
-
+        const [paymentsResult, subscriptionsResult] = await Promise.all([supabase.from('payments').select('*').eq('tenant_id', profile.tenant_id).order('created_at', {
+          ascending: false
+        }), supabase.from('subscriptions').select('*').eq('tenant_id', profile.tenant_id).order('created_at', {
+          ascending: false
+        })]);
         if (paymentsResult.data) setPayments(paymentsResult.data);
         if (subscriptionsResult.data) setSubscriptions(subscriptionsResult.data);
       }
@@ -120,32 +85,29 @@ const Payments = () => {
       toast({
         title: 'Error',
         description: 'Failed to load data',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleCreatePayment = async () => {
     try {
       if (!newPayment.amount) {
         toast({
           title: 'Validation Error',
           description: 'Please enter an amount',
-          variant: 'destructive',
+          variant: 'destructive'
         });
         return;
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .single();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('tenant_id').single();
       if (!profile) throw new Error('Could not fetch profile');
-
-      const { error } = await supabase.from('payments').insert({
+      const {
+        error
+      } = await supabase.from('payments').insert({
         tenant_id: profile.tenant_id,
         amount: parseFloat(newPayment.amount),
         payment_method: newPayment.payment_method,
@@ -153,16 +115,13 @@ const Payments = () => {
         customer_name: newPayment.customer_name || null,
         customer_phone: newPayment.customer_phone || null,
         reference_number: newPayment.reference_number || null,
-        notes: newPayment.notes || null,
+        notes: newPayment.notes || null
       });
-
       if (error) throw error;
-
       toast({
         title: 'Success',
-        description: 'Payment recorded successfully',
+        description: 'Payment recorded successfully'
       });
-
       setPaymentDialogOpen(false);
       setNewPayment({
         amount: '',
@@ -170,7 +129,7 @@ const Payments = () => {
         customer_name: '',
         customer_phone: '',
         reference_number: '',
-        notes: '',
+        notes: ''
       });
       fetchData();
     } catch (error) {
@@ -178,32 +137,26 @@ const Payments = () => {
       toast({
         title: 'Error',
         description: 'Failed to record payment',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
   const handleCreateSubscription = async () => {
     try {
       if (!newSubscription.customer_name || !newSubscription.plan_name || !newSubscription.amount) {
         toast({
           title: 'Validation Error',
           description: 'Please fill in all required fields',
-          variant: 'destructive',
+          variant: 'destructive'
         });
         return;
       }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .single();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('tenant_id').single();
       if (!profile) throw new Error('Could not fetch profile');
-
       const startDate = new Date(newSubscription.start_date);
       let nextBillingDate = new Date(startDate);
-
       switch (newSubscription.billing_cycle) {
         case 'daily':
           nextBillingDate.setDate(nextBillingDate.getDate() + 1);
@@ -218,8 +171,9 @@ const Payments = () => {
           nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
           break;
       }
-
-      const { error } = await supabase.from('subscriptions').insert({
+      const {
+        error
+      } = await supabase.from('subscriptions').insert({
         tenant_id: profile.tenant_id,
         customer_name: newSubscription.customer_name,
         customer_email: newSubscription.customer_email || null,
@@ -229,16 +183,13 @@ const Payments = () => {
         billing_cycle: newSubscription.billing_cycle,
         status: 'active',
         start_date: newSubscription.start_date,
-        next_billing_date: format(nextBillingDate, 'yyyy-MM-dd'),
+        next_billing_date: format(nextBillingDate, 'yyyy-MM-dd')
       });
-
       if (error) throw error;
-
       toast({
         title: 'Success',
-        description: 'Subscription created successfully',
+        description: 'Subscription created successfully'
       });
-
       setSubscriptionDialogOpen(false);
       setNewSubscription({
         customer_name: '',
@@ -247,7 +198,7 @@ const Payments = () => {
         plan_name: '',
         amount: '',
         billing_cycle: 'monthly',
-        start_date: format(new Date(), 'yyyy-MM-dd'),
+        start_date: format(new Date(), 'yyyy-MM-dd')
       });
       fetchData();
     } catch (error) {
@@ -255,73 +206,60 @@ const Payments = () => {
       toast({
         title: 'Error',
         description: 'Failed to create subscription',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
   const handleUpdateSubscriptionStatus = async (id: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('subscriptions')
-        .update({ status })
-        .eq('id', id);
-
+      const {
+        error
+      } = await supabase.from('subscriptions').update({
+        status
+      }).eq('id', id);
       if (error) throw error;
-
       toast({
         title: 'Success',
-        description: 'Subscription status updated',
+        description: 'Subscription status updated'
       });
-
       fetchData();
     } catch (error) {
       console.error('Error updating subscription:', error);
       toast({
         title: 'Error',
         description: 'Failed to update subscription',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
       active: 'default',
       paused: 'secondary',
       cancelled: 'destructive',
-      expired: 'destructive',
+      expired: 'destructive'
     };
     return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>;
   };
-
   const getTotalRevenue = () => {
     return payments.reduce((sum, payment) => sum + payment.amount, 0);
   };
-
   const getActiveSubscriptionsRevenue = () => {
-    return subscriptions
-      .filter((sub) => sub.status === 'active')
-      .reduce((sum, sub) => sum + sub.amount, 0);
+    return subscriptions.filter(sub => sub.status === 'active').reduce((sum, sub) => sum + sub.amount, 0);
   };
-
   if (loading) {
-    return (
-      <DashboardLayout>
+    return <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
-    );
+      </DashboardLayout>;
   }
-
-  return (
-    <DashboardLayout>
+  return <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Payments & Subscriptions</h1>
-            <p className="text-muted-foreground">Track payments and manage recurring subscriptions</p>
+            <h1 className="font-bold tracking-tight text-xl text-center">Payments & Subscriptions</h1>
+            <p className="text-muted-foreground text-center">Track payments and manage recurring subscriptions</p>
           </div>
         </div>
 
@@ -344,7 +282,7 @@ const Payments = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {subscriptions.filter((s) => s.status === 'active').length}
+                {subscriptions.filter(s => s.status === 'active').length}
               </div>
               <p className="text-xs text-muted-foreground">
                 ${getActiveSubscriptionsRevenue().toFixed(2)}/period
@@ -387,24 +325,18 @@ const Payments = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="amount">Amount *</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="0.01"
-                        value={newPayment.amount}
-                        onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                        placeholder="0.00"
-                      />
+                      <Input id="amount" type="number" step="0.01" value={newPayment.amount} onChange={e => setNewPayment({
+                      ...newPayment,
+                      amount: e.target.value
+                    })} placeholder="0.00" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="payment_method">Payment Method</Label>
-                      <Select
-                        value={newPayment.payment_method}
-                        onValueChange={(value) =>
-                          setNewPayment({ ...newPayment, payment_method: value })
-                        }
-                      >
+                      <Select value={newPayment.payment_method} onValueChange={value => setNewPayment({
+                      ...newPayment,
+                      payment_method: value
+                    })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -419,48 +351,34 @@ const Payments = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="customer_name">Customer Name</Label>
-                      <Input
-                        id="customer_name"
-                        value={newPayment.customer_name}
-                        onChange={(e) =>
-                          setNewPayment({ ...newPayment, customer_name: e.target.value })
-                        }
-                        placeholder="John Doe"
-                      />
+                      <Input id="customer_name" value={newPayment.customer_name} onChange={e => setNewPayment({
+                      ...newPayment,
+                      customer_name: e.target.value
+                    })} placeholder="John Doe" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="customer_phone">Customer Phone</Label>
-                      <Input
-                        id="customer_phone"
-                        value={newPayment.customer_phone}
-                        onChange={(e) =>
-                          setNewPayment({ ...newPayment, customer_phone: e.target.value })
-                        }
-                        placeholder="+1234567890"
-                      />
+                      <Input id="customer_phone" value={newPayment.customer_phone} onChange={e => setNewPayment({
+                      ...newPayment,
+                      customer_phone: e.target.value
+                    })} placeholder="+1234567890" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="reference_number">Reference Number</Label>
-                      <Input
-                        id="reference_number"
-                        value={newPayment.reference_number}
-                        onChange={(e) =>
-                          setNewPayment({ ...newPayment, reference_number: e.target.value })
-                        }
-                        placeholder="REF-12345"
-                      />
+                      <Input id="reference_number" value={newPayment.reference_number} onChange={e => setNewPayment({
+                      ...newPayment,
+                      reference_number: e.target.value
+                    })} placeholder="REF-12345" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="notes">Notes</Label>
-                      <Textarea
-                        id="notes"
-                        value={newPayment.notes}
-                        onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
-                        placeholder="Additional notes..."
-                      />
+                      <Textarea id="notes" value={newPayment.notes} onChange={e => setNewPayment({
+                      ...newPayment,
+                      notes: e.target.value
+                    })} placeholder="Additional notes..." />
                     </div>
 
                     <Button onClick={handleCreatePayment} className="w-full">
@@ -487,8 +405,7 @@ const Payments = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments.map((payment) => (
-                      <TableRow key={payment.id}>
+                    {payments.map(payment => <TableRow key={payment.id}>
                         <TableCell>
                           {format(new Date(payment.created_at), 'MMM dd, yyyy HH:mm')}
                         </TableCell>
@@ -500,15 +417,12 @@ const Payments = () => {
                         <TableCell className="text-right font-medium">
                           ${payment.amount.toFixed(2)}
                         </TableCell>
-                      </TableRow>
-                    ))}
-                    {payments.length === 0 && (
-                      <TableRow>
+                      </TableRow>)}
+                    {payments.length === 0 && <TableRow>
                         <TableCell colSpan={5} className="text-center text-muted-foreground">
                           No payments recorded yet
                         </TableCell>
-                      </TableRow>
-                    )}
+                      </TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -532,75 +446,50 @@ const Payments = () => {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="sub_customer_name">Customer Name *</Label>
-                      <Input
-                        id="sub_customer_name"
-                        value={newSubscription.customer_name}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, customer_name: e.target.value })
-                        }
-                        placeholder="John Doe"
-                      />
+                      <Input id="sub_customer_name" value={newSubscription.customer_name} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      customer_name: e.target.value
+                    })} placeholder="John Doe" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="sub_customer_email">Customer Email</Label>
-                      <Input
-                        id="sub_customer_email"
-                        type="email"
-                        value={newSubscription.customer_email}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, customer_email: e.target.value })
-                        }
-                        placeholder="john@example.com"
-                      />
+                      <Input id="sub_customer_email" type="email" value={newSubscription.customer_email} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      customer_email: e.target.value
+                    })} placeholder="john@example.com" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="sub_customer_phone">Customer Phone</Label>
-                      <Input
-                        id="sub_customer_phone"
-                        value={newSubscription.customer_phone}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, customer_phone: e.target.value })
-                        }
-                        placeholder="+1234567890"
-                      />
+                      <Input id="sub_customer_phone" value={newSubscription.customer_phone} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      customer_phone: e.target.value
+                    })} placeholder="+1234567890" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="plan_name">Plan Name *</Label>
-                      <Input
-                        id="plan_name"
-                        value={newSubscription.plan_name}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, plan_name: e.target.value })
-                        }
-                        placeholder="Premium Plan"
-                      />
+                      <Input id="plan_name" value={newSubscription.plan_name} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      plan_name: e.target.value
+                    })} placeholder="Premium Plan" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="sub_amount">Amount *</Label>
-                      <Input
-                        id="sub_amount"
-                        type="number"
-                        step="0.01"
-                        value={newSubscription.amount}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, amount: e.target.value })
-                        }
-                        placeholder="0.00"
-                      />
+                      <Input id="sub_amount" type="number" step="0.01" value={newSubscription.amount} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      amount: e.target.value
+                    })} placeholder="0.00" />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="billing_cycle">Billing Cycle</Label>
-                      <Select
-                        value={newSubscription.billing_cycle}
-                        onValueChange={(value) =>
-                          setNewSubscription({ ...newSubscription, billing_cycle: value })
-                        }
-                      >
+                      <Select value={newSubscription.billing_cycle} onValueChange={value => setNewSubscription({
+                      ...newSubscription,
+                      billing_cycle: value
+                    })}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -615,14 +504,10 @@ const Payments = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="start_date">Start Date</Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        value={newSubscription.start_date}
-                        onChange={(e) =>
-                          setNewSubscription({ ...newSubscription, start_date: e.target.value })
-                        }
-                      />
+                      <Input id="start_date" type="date" value={newSubscription.start_date} onChange={e => setNewSubscription({
+                      ...newSubscription,
+                      start_date: e.target.value
+                    })} />
                     </div>
 
                     <Button onClick={handleCreateSubscription} className="w-full">
@@ -651,16 +536,13 @@ const Payments = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {subscriptions.map((subscription) => (
-                      <TableRow key={subscription.id}>
+                    {subscriptions.map(subscription => <TableRow key={subscription.id}>
                         <TableCell>
                           <div>
                             <div className="font-medium">{subscription.customer_name}</div>
-                            {subscription.customer_email && (
-                              <div className="text-xs text-muted-foreground">
+                            {subscription.customer_email && <div className="text-xs text-muted-foreground">
                                 {subscription.customer_email}
-                              </div>
-                            )}
+                              </div>}
                           </div>
                         </TableCell>
                         <TableCell>{subscription.plan_name}</TableCell>
@@ -671,38 +553,19 @@ const Payments = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(subscription.status)}</TableCell>
                         <TableCell>
-                          {subscription.status === 'active' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateSubscriptionStatus(subscription.id, 'paused')
-                              }
-                            >
+                          {subscription.status === 'active' && <Button variant="ghost" size="sm" onClick={() => handleUpdateSubscriptionStatus(subscription.id, 'paused')}>
                               Pause
-                            </Button>
-                          )}
-                          {subscription.status === 'paused' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateSubscriptionStatus(subscription.id, 'active')
-                              }
-                            >
+                            </Button>}
+                          {subscription.status === 'paused' && <Button variant="ghost" size="sm" onClick={() => handleUpdateSubscriptionStatus(subscription.id, 'active')}>
                               Resume
-                            </Button>
-                          )}
+                            </Button>}
                         </TableCell>
-                      </TableRow>
-                    ))}
-                    {subscriptions.length === 0 && (
-                      <TableRow>
+                      </TableRow>)}
+                    {subscriptions.length === 0 && <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground">
                           No subscriptions yet
                         </TableCell>
-                      </TableRow>
-                    )}
+                      </TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -710,8 +573,6 @@ const Payments = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
-  );
+    </DashboardLayout>;
 };
-
 export default Payments;
