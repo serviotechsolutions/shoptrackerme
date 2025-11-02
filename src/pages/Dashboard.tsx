@@ -163,7 +163,7 @@ const Dashboard = () => {
               <ShoppingCart className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.todaySales)}</div>
+              <div className="text-2xl -bottom-1.5 ">{formatCurrency(stats.todaySales)}</div>
               <p className="text-xs text-muted-foreground">
                 Total revenue today
               </p>
@@ -266,7 +266,7 @@ const Dashboard = () => {
           <Link to="/products">
             <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-2xl">
                   <Package className="h-5 w-5 text-primary" />
                   Manage Products
                 </CardTitle>
