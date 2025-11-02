@@ -79,8 +79,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               : 'hover:bg-primary/10'
           }`}
         >
-          <item.icon className="h-5 w-5" />
-          <span className="font-medium">{item.label}</span>
+          <item.icon className="h-4 w-4" />
+          <span className="text-sm">{item.label}</span>
         </Link>
       ))}
     </>
@@ -102,8 +102,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <div className="flex flex-col h-full bg-card">
                   <div className="p-6 border-b">
                     <div className="flex items-center gap-2">
-                      <Store className="h-6 w-6 text-primary" />
-                      <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      <Store className="h-5 w-5 text-primary" />
+                      <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                         Shop Tracker
                       </span>
                     </div>
@@ -116,8 +116,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             </Sheet>
             
             <Link to="/dashboard" className="flex items-center gap-2">
-              <Store className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline">
+              <Store className="h-5 w-5 text-primary" />
+              <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline">
                 Shop Tracker
               </span>
             </Link>
