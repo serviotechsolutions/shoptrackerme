@@ -6,31 +6,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  TrendingUp,
-  Package,
-  ShoppingBag,
-  Users,
-  AlertTriangle,
-  Brain,
-  RefreshCw,
-} from 'lucide-react';
+import { TrendingUp, Package, ShoppingBag, Users, AlertTriangle, Brain, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-
 const AIInsights = () => {
   const [loading, setLoading] = useState(false);
   const [forecast, setForecast] = useState<any>(null);
   const [reorderAlerts, setReorderAlerts] = useState<any>(null);
   const [customerInsights, setCustomerInsights] = useState<any>(null);
   const [fraudAlerts, setFraudAlerts] = useState<any>(null);
-
   const fetchSalesForecast = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-sales-forecast', {
-        body: {},
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('ai-sales-forecast', {
+        body: {}
       });
-
       if (error) throw error;
       setForecast(data);
       toast.success('Sales forecast updated');
@@ -41,14 +33,15 @@ const AIInsights = () => {
       setLoading(false);
     }
   };
-
   const fetchReorderAlerts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-reorder-alerts', {
-        body: {},
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('ai-reorder-alerts', {
+        body: {}
       });
-
       if (error) throw error;
       setReorderAlerts(data);
       toast.success('Reorder alerts updated');
@@ -59,14 +52,15 @@ const AIInsights = () => {
       setLoading(false);
     }
   };
-
   const fetchCustomerInsights = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-customer-insights', {
-        body: {},
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('ai-customer-insights', {
+        body: {}
       });
-
       if (error) throw error;
       setCustomerInsights(data);
       toast.success('Customer insights updated');
@@ -77,14 +71,15 @@ const AIInsights = () => {
       setLoading(false);
     }
   };
-
   const fetchFraudAlerts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-fraud-detection', {
-        body: {},
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('ai-fraud-detection', {
+        body: {}
       });
-
       if (error) throw error;
       setFraudAlerts(data);
       toast.success('Fraud detection updated');
@@ -95,44 +90,37 @@ const AIInsights = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchSalesForecast();
     fetchReorderAlerts();
     fetchCustomerInsights();
     fetchFraudAlerts();
   }, []);
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   };
-
-  return (
-    <DashboardLayout>
+  return <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <h1 className="font-bold tracking-tight flex items-center gap-2 text-xl text-center">
               <Brain className="h-8 w-8 text-primary" />
               AI Insights
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-center">
               AI-powered analytics and recommendations for your business
             </p>
           </div>
-          <Button
-            onClick={() => {
-              fetchSalesForecast();
-              fetchReorderAlerts();
-              fetchCustomerInsights();
-              fetchFraudAlerts();
-            }}
-            disabled={loading}
-          >
+          <Button onClick={() => {
+          fetchSalesForecast();
+          fetchReorderAlerts();
+          fetchCustomerInsights();
+          fetchFraudAlerts();
+        }} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh All
           </Button>
@@ -160,18 +148,13 @@ const AIInsights = () => {
 
           {/* Sales Forecast Tab */}
           <TabsContent value="forecast" className="space-y-4">
-            {forecast && (
-              <>
-                {forecast.forecast && typeof forecast.forecast === 'string' ? (
-                  <Alert>
+            {forecast && <>
+                {forecast.forecast && typeof forecast.forecast === 'string' ? <Alert>
                     <TrendingUp className="h-4 w-4" />
                     <AlertDescription>{forecast.forecast}</AlertDescription>
-                  </Alert>
-                ) : (
-                  <>
+                  </Alert> : <>
                     <div className="grid gap-4 md:grid-cols-2">
-                      {forecast.nextWeekDaily && (
-                        <Card>
+                      {forecast.nextWeekDaily && <Card>
                           <CardHeader>
                             <CardTitle>Next Week Forecast</CardTitle>
                             <CardDescription>Predicted daily average</CardDescription>
@@ -181,10 +164,8 @@ const AIInsights = () => {
                               {formatCurrency(Number(forecast.nextWeekDaily))}
                             </div>
                           </CardContent>
-                        </Card>
-                      )}
-                      {forecast.nextMonthTotal && (
-                        <Card>
+                        </Card>}
+                      {forecast.nextMonthTotal && <Card>
                           <CardHeader>
                             <CardTitle>Next Month Forecast</CardTitle>
                             <CardDescription>Predicted monthly total</CardDescription>
@@ -194,63 +175,42 @@ const AIInsights = () => {
                               {formatCurrency(Number(forecast.nextMonthTotal))}
                             </div>
                           </CardContent>
-                        </Card>
-                      )}
+                        </Card>}
                     </div>
 
-                    {forecast.trends && (
-                      <Card>
+                    {forecast.trends && <Card>
                         <CardHeader>
                           <CardTitle>Key Trends</CardTitle>
                         </CardHeader>
                         <CardContent>
                           <p className="text-muted-foreground">
-                            {typeof forecast.trends === 'string' 
-                              ? forecast.trends 
-                              : JSON.stringify(forecast.trends, null, 2)}
+                            {typeof forecast.trends === 'string' ? forecast.trends : JSON.stringify(forecast.trends, null, 2)}
                           </p>
                         </CardContent>
-                      </Card>
-                    )}
+                      </Card>}
 
-                    {forecast.recommendations && (
-                      <Card>
+                    {forecast.recommendations && <Card>
                         <CardHeader>
                           <CardTitle>AI Recommendations</CardTitle>
                         </CardHeader>
                         <CardContent>
                           <p className="text-muted-foreground whitespace-pre-wrap">
-                            {typeof forecast.recommendations === 'string' 
-                              ? forecast.recommendations 
-                              : JSON.stringify(forecast.recommendations, null, 2)}
+                            {typeof forecast.recommendations === 'string' ? forecast.recommendations : JSON.stringify(forecast.recommendations, null, 2)}
                           </p>
                         </CardContent>
-                      </Card>
-                    )}
-                  </>
-                )}
-              </>
-            )}
+                      </Card>}
+                  </>}
+              </>}
           </TabsContent>
 
           {/* Reorder Alerts Tab */}
           <TabsContent value="reorder" className="space-y-4">
-            {reorderAlerts?.alerts && reorderAlerts.alerts.length > 0 ? (
-              <div className="grid gap-4">
-                {reorderAlerts.alerts.map((alert: any, index: number) => (
-                  <Card key={index}>
+            {reorderAlerts?.alerts && reorderAlerts.alerts.length > 0 ? <div className="grid gap-4">
+                {reorderAlerts.alerts.map((alert: any, index: number) => <Card key={index}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">{alert.productName}</CardTitle>
-                        <Badge
-                          variant={
-                            alert.urgency === 'Critical'
-                              ? 'destructive'
-                              : alert.urgency === 'High'
-                              ? 'default'
-                              : 'secondary'
-                          }
-                        >
+                        <Badge variant={alert.urgency === 'Critical' ? 'destructive' : alert.urgency === 'High' ? 'default' : 'secondary'}>
                           {alert.urgency}
                         </Badge>
                       </div>
@@ -262,32 +222,25 @@ const AIInsights = () => {
                       </div>
                       <p className="text-sm text-muted-foreground">{alert.reason}</p>
                     </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Alert>
+                  </Card>)}
+              </div> : <Alert>
                 <Package className="h-4 w-4" />
                 <AlertDescription>
                   No reorder alerts. All products have sufficient stock levels.
                 </AlertDescription>
-              </Alert>
-            )}
+              </Alert>}
           </TabsContent>
 
           {/* Customer Insights Tab */}
           <TabsContent value="customers" className="space-y-4">
-            {customerInsights && (
-              <>
-                {customerInsights.topClerks && (
-                  <Card>
+            {customerInsights && <>
+                {customerInsights.topClerks && <Card>
                     <CardHeader>
                       <CardTitle>Top Performing Staff</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {customerInsights.topClerks.map((clerk: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between border-b pb-2">
+                        {customerInsights.topClerks.map((clerk: any, index: number) => <div key={index} className="flex items-center justify-between border-b pb-2">
                             <div>
                               <p className="font-medium">{clerk.name}</p>
                               <p className="text-sm text-muted-foreground">
@@ -300,82 +253,56 @@ const AIInsights = () => {
                                 Profit: {formatCurrency(clerk.totalProfit)}
                               </p>
                             </div>
-                          </div>
-                        ))}
+                          </div>)}
                       </div>
                     </CardContent>
-                  </Card>
-                )}
+                  </Card>}
 
-                {customerInsights.insights && (
-                  <Card>
+                {customerInsights.insights && <Card>
                     <CardHeader>
                       <CardTitle>AI Analysis</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.insights === 'string'
-                          ? customerInsights.insights
-                          : JSON.stringify(customerInsights.insights, null, 2)}
+                        {typeof customerInsights.insights === 'string' ? customerInsights.insights : JSON.stringify(customerInsights.insights, null, 2)}
                       </p>
                     </CardContent>
-                  </Card>
-                )}
+                  </Card>}
 
-                {customerInsights.topClerk && (
-                  <Card>
+                {customerInsights.topClerk && <Card>
                     <CardHeader>
                       <CardTitle>Top Performer Insights</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.topClerk === 'string'
-                          ? customerInsights.topClerk
-                          : JSON.stringify(customerInsights.topClerk, null, 2)}
+                        {typeof customerInsights.topClerk === 'string' ? customerInsights.topClerk : JSON.stringify(customerInsights.topClerk, null, 2)}
                       </p>
                     </CardContent>
-                  </Card>
-                )}
+                  </Card>}
 
-                {customerInsights.recommendations && (
-                  <Card>
+                {customerInsights.recommendations && <Card>
                     <CardHeader>
                       <CardTitle>Recommendations</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.recommendations === 'string'
-                          ? customerInsights.recommendations
-                          : JSON.stringify(customerInsights.recommendations, null, 2)}
+                        {typeof customerInsights.recommendations === 'string' ? customerInsights.recommendations : JSON.stringify(customerInsights.recommendations, null, 2)}
                       </p>
                     </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
+                  </Card>}
+              </>}
           </TabsContent>
 
           {/* Fraud Detection Tab */}
           <TabsContent value="fraud" className="space-y-4">
-            {fraudAlerts?.suspiciousTransactions &&
-            fraudAlerts.suspiciousTransactions.length > 0 ? (
-              <div className="grid gap-4">
-                {fraudAlerts.suspiciousTransactions.map((alert: any, index: number) => (
-                  <Card key={index}>
+            {fraudAlerts?.suspiciousTransactions && fraudAlerts.suspiciousTransactions.length > 0 ? <div className="grid gap-4">
+                {fraudAlerts.suspiciousTransactions.map((alert: any, index: number) => <Card key={index}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">
                           Transaction {alert.transactionId}
                         </CardTitle>
-                        <Badge
-                          variant={
-                            alert.riskLevel === 'High'
-                              ? 'destructive'
-                              : alert.riskLevel === 'Medium'
-                              ? 'default'
-                              : 'secondary'
-                          }
-                        >
+                        <Badge variant={alert.riskLevel === 'High' ? 'destructive' : alert.riskLevel === 'Medium' ? 'default' : 'secondary'}>
                           {alert.riskLevel} Risk
                         </Badge>
                       </div>
@@ -388,22 +315,16 @@ const AIInsights = () => {
                         <span className="font-semibold">Action:</span> {alert.action}
                       </p>
                     </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Alert>
+                  </Card>)}
+              </div> : <Alert>
                 <ShoppingBag className="h-4 w-4" />
                 <AlertDescription>
                   No suspicious transactions detected. All transactions appear normal.
                 </AlertDescription>
-              </Alert>
-            )}
+              </Alert>}
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardLayout>
-  );
+    </DashboardLayout>;
 };
-
 export default AIInsights;
