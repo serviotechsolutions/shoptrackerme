@@ -132,7 +132,7 @@ const Dashboard = () => {
   return <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-bold tracking-tight text-sm text-center">Dashboard</h1>
+          <h1 className="tracking-tight text-center text-2xl font-semibold">Dashboard</h1>
           <p className="text-muted-foreground">
             Welcome back! Here's what's happening with your shop today.
           </p>
