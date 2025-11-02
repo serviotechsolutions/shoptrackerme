@@ -2,28 +2,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Package, 
-  ShoppingCart, 
-  TrendingUp, 
-  AlertTriangle,
-  DollarSign
-} from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 interface DashboardStats {
   totalProducts: number;
   lowStockCount: number;
@@ -31,106 +14,100 @@ interface DashboardStats {
   todayProfit: number;
   totalStock: number;
 }
-
 interface LowStockProduct {
   id: string;
   name: string;
   stock: number;
   low_stock_threshold: number;
 }
-
 interface ChartData {
   name: string;
   sales: number;
   profit: number;
 }
-
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     lowStockCount: 0,
     todaySales: 0,
     todayProfit: 0,
-    totalStock: 0,
+    totalStock: 0
   });
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<ChartData[]>([]);
-
   useEffect(() => {
     fetchDashboardData();
   }, []);
-
   const fetchDashboardData = async () => {
     try {
       // Fetch products stats
-      const { data: products } = await supabase
-        .from('products')
-        .select('stock, low_stock_threshold');
-
+      const {
+        data: products
+      } = await supabase.from('products').select('stock, low_stock_threshold');
       const totalProducts = products?.length || 0;
       const totalStock = products?.reduce((sum, p) => sum + p.stock, 0) || 0;
       const lowStock = products?.filter(p => p.stock <= p.low_stock_threshold) || [];
 
       // Fetch low stock products details
-      const { data: allProducts } = await supabase
-        .from('products')
-        .select('id, name, stock, low_stock_threshold')
-        .order('stock', { ascending: true });
-      
-      const lowStockDetails = allProducts?.filter(
-        p => p.stock <= p.low_stock_threshold
-      ).slice(0, 5) || [];
-
+      const {
+        data: allProducts
+      } = await supabase.from('products').select('id, name, stock, low_stock_threshold').order('stock', {
+        ascending: true
+      });
+      const lowStockDetails = allProducts?.filter(p => p.stock <= p.low_stock_threshold).slice(0, 5) || [];
       setLowStockProducts(lowStockDetails || []);
 
       // Fetch today's transactions
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('total_amount, profit')
-        .gte('created_at', today.toISOString());
-
+      const {
+        data: transactions
+      } = await supabase.from('transactions').select('total_amount, profit').gte('created_at', today.toISOString());
       const todaySales = transactions?.reduce((sum, t) => sum + Number(t.total_amount), 0) || 0;
       const todayProfit = transactions?.reduce((sum, t) => sum + Number(t.profit), 0) || 0;
 
       // Fetch last 7 days data for chart
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
-      const { data: weekTransactions } = await supabase
-        .from('transactions')
-        .select('created_at, total_amount, profit')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: true });
+      const {
+        data: weekTransactions
+      } = await supabase.from('transactions').select('created_at, total_amount, profit').gte('created_at', sevenDaysAgo.toISOString()).order('created_at', {
+        ascending: true
+      });
 
       // Group by day
-      const dailyData: { [key: string]: { sales: number; profit: number } } = {};
-      weekTransactions?.forEach((t) => {
-        const date = new Date(t.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      const dailyData: {
+        [key: string]: {
+          sales: number;
+          profit: number;
+        };
+      } = {};
+      weekTransactions?.forEach(t => {
+        const date = new Date(t.created_at).toLocaleDateString('en-US', {
+          weekday: 'short'
+        });
         if (!dailyData[date]) {
-          dailyData[date] = { sales: 0, profit: 0 };
+          dailyData[date] = {
+            sales: 0,
+            profit: 0
+          };
         }
         dailyData[date].sales += Number(t.total_amount);
         dailyData[date].profit += Number(t.profit);
       });
-
-      const chartDataArray = Object.keys(dailyData).map((key) => ({
+      const chartDataArray = Object.keys(dailyData).map(key => ({
         name: key,
         sales: dailyData[key].sales,
-        profit: dailyData[key].profit,
+        profit: dailyData[key].profit
       }));
-
       setChartData(chartDataArray);
-
       setStats({
         totalProducts,
         lowStockCount: lowStock.length,
         todaySales,
         todayProfit,
-        totalStock,
+        totalStock
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -138,30 +115,24 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
       style: 'currency',
       currency: 'UGX',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   };
-
   if (loading) {
-    return (
-      <DashboardLayout>
+    return <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
-    );
+      </DashboardLayout>;
   }
-
-  return (
-    <DashboardLayout>
+  return <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="font-bold tracking-tight text-base text-center">Dashboard</h1>
           <p className="text-muted-foreground">
             Welcome back! Here's what's happening with your shop today.
           </p>
@@ -207,7 +178,7 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">{formatCurrency(stats.todayProfit)}</div>
+              <div className="-bottom-1.5 font-bold text-success">{formatCurrency(stats.todayProfit)}</div>
               <p className="text-xs text-muted-foreground">
                 Net profit today
               </p>
@@ -231,36 +202,28 @@ const Dashboard = () => {
         </div>
 
         {/* Low Stock Alert */}
-        {lowStockProducts.length > 0 && (
-          <Alert variant="destructive">
+        {lowStockProducts.length > 0 && <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <div className="font-medium mb-2">
                 {lowStockProducts.length} product(s) are running low on stock
               </div>
               <div className="space-y-2">
-                {lowStockProducts.map((product) => (
-                  <div key={product.id} className="flex items-center justify-between text-sm">
+                {lowStockProducts.map(product => <div key={product.id} className="flex items-center justify-between text-sm">
                     <span>{product.name}</span>
                     <Badge variant="destructive">
                       {product.stock} / {product.low_stock_threshold} left
                     </Badge>
-                  </div>
-                ))}
+                  </div>)}
               </div>
-              <Link 
-                to="/products" 
-                className="text-sm underline mt-2 inline-block hover:text-destructive-foreground"
-              >
+              <Link to="/products" className="text-sm underline mt-2 inline-block hover:text-destructive-foreground">
                 View all products →
               </Link>
             </AlertDescription>
-          </Alert>
-        )}
+          </Alert>}
 
         {/* Sales Chart */}
-        {chartData.length > 0 && (
-          <Card>
+        {chartData.length > 0 && <Card>
             <CardHeader>
               <CardTitle>Sales & Profit Trend (Last 7 Days)</CardTitle>
             </CardHeader>
@@ -270,32 +233,17 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
                   <YAxis className="text-xs" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px'
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="sales" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    name="Sales"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="profit" 
-                    stroke="hsl(var(--success))" 
-                    strokeWidth={2}
-                    name="Profit"
-                  />
+                  <Tooltip contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px'
+              }} />
+                  <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} name="Sales" />
+                  <Line type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} name="Profit" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -348,8 +296,6 @@ const Dashboard = () => {
           </Link>
         </div>
       </div>
-    </DashboardLayout>
-  );
+    </DashboardLayout>;
 };
-
 export default Dashboard;
