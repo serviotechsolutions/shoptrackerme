@@ -132,7 +132,7 @@ const Dashboard = () => {
   return <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-bold tracking-tight text-base text-center">Dashboard</h1>
+          <h1 className="font-bold tracking-tight text-sm text-center">Dashboard</h1>
           <p className="text-muted-foreground">
             Welcome back! Here's what's happening with your shop today.
           </p>
@@ -148,7 +148,7 @@ const Dashboard = () => {
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalProducts}</div>
+              <div className="text-lg font-bold">{stats.totalProducts}</div>
               <p className="text-xs text-muted-foreground">
                 {stats.totalStock} items in stock
               </p>
@@ -163,7 +163,7 @@ const Dashboard = () => {
               <ShoppingCart className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl -bottom-1.5 ">{formatCurrency(stats.todaySales)}</div>
+              <div className="text-lg -bottom-1.5 ">{formatCurrency(stats.todaySales)}</div>
               <p className="text-xs text-muted-foreground">
                 Total revenue today
               </p>
@@ -178,7 +178,7 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="-bottom-1.5 font-bold text-success">{formatCurrency(stats.todayProfit)}</div>
+              <div className="text-lg -bottom-1.5 font-bold text-success">{formatCurrency(stats.todayProfit)}</div>
               <p className="text-xs text-muted-foreground">
                 Net profit today
               </p>
@@ -193,7 +193,7 @@ const Dashboard = () => {
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.lowStockCount}</div>
+              <div className="text-lg font-bold">{stats.lowStockCount}</div>
               <p className="text-xs text-muted-foreground">
                 Items need restocking
               </p>
@@ -266,7 +266,7 @@ const Dashboard = () => {
           <Link to="/products">
             <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl">
+                <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-primary" />
                   Manage Products
                 </CardTitle>

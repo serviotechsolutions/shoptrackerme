@@ -192,7 +192,7 @@ const Sales = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Record Sale</h1>
+          <h1 className="text-xl font-bold tracking-tight">Record Sale</h1>
           <p className="text-muted-foreground">Process new transactions</p>
         </div>
 
@@ -272,7 +272,7 @@ const Sales = () => {
                         <span>Quantity:</span>
                         <span className="font-medium">{quantity}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                      <div className="flex justify-between text-base font-bold pt-2 border-t">
                         <span>Total:</span>
                         <span className="text-primary">{formatCurrency(calculateTotal())}</span>
                       </div>

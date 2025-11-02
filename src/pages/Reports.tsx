@@ -147,16 +147,16 @@ const Reports = () => {
         <div className="space-y-2">
           <div>
             <p className="text-xs text-muted-foreground">Sales</p>
-            <p className="text-2xl font-bold text-primary">{formatCurrency(stats.sales)}</p>
+            <p className="text-lg font-bold text-primary">{formatCurrency(stats.sales)}</p>
           </div>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t">
             <div>
               <p className="text-xs text-muted-foreground">Profit</p>
-              <p className="text-lg font-semibold text-success">{formatCurrency(stats.profit)}</p>
+              <p className="text-base font-semibold text-success">{formatCurrency(stats.profit)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Transactions</p>
-              <p className="text-lg font-semibold">{stats.transactions}</p>
+              <p className="text-base font-semibold">{stats.transactions}</p>
             </div>
           </div>
         </div>
@@ -178,7 +178,7 @@ const Reports = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
+          <h1 className="text-xl font-bold tracking-tight">Reports & Analytics</h1>
           <p className="text-muted-foreground">Track your business performance</p>
         </div>
 
@@ -205,13 +205,13 @@ const Reports = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="text-center p-4 rounded-lg bg-primary/10">
                       <p className="text-sm text-muted-foreground">Avg Daily Sales</p>
-                      <p className="text-2xl font-bold text-primary">
+                      <p className="text-lg font-bold text-primary">
                         {formatCurrency(weekStats.sales / 7)}
                       </p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-success/10">
                       <p className="text-sm text-muted-foreground">Avg Profit Margin</p>
-                      <p className="text-2xl font-bold text-success">
+                      <p className="text-lg font-bold text-success">
                         {monthStats.sales > 0 
                           ? `${((monthStats.profit / monthStats.sales) * 100).toFixed(1)}%`
                           : '0%'
@@ -220,11 +220,11 @@ const Reports = () => {
                     </div>
                     <div className="text-center p-4 rounded-lg bg-accent/10">
                       <p className="text-sm text-muted-foreground">Total Transactions</p>
-                      <p className="text-2xl font-bold">{yearStats.transactions}</p>
+                      <p className="text-lg font-bold">{yearStats.transactions}</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-primary/10">
                       <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                      <p className="text-2xl font-bold text-primary">
+                      <p className="text-lg font-bold text-primary">
                         {yearStats.transactions > 0
                           ? formatCurrency(yearStats.sales / yearStats.transactions)
                           : formatCurrency(0)
