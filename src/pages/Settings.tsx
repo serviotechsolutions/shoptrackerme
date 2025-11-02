@@ -96,7 +96,7 @@ const Settings = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-center">Settings</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-center">
             Manage your shop information and preferences
           </p>
         </div>
