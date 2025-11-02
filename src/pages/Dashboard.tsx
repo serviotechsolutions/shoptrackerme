@@ -247,10 +247,10 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Link to="/sales">
-            <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer">
+          <Link to="/sales" className="group">
+            <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary/50 hover:bg-accent/5">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
                   <ShoppingCart className="h-5 w-5 text-primary" />
                   Record Sale
                 </CardTitle>
@@ -263,10 +263,10 @@ const Dashboard = () => {
             </Card>
           </Link>
 
-          <Link to="/products">
-            <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer">
+          <Link to="/products" className="group">
+            <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary/50 hover:bg-accent/5">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
                   <Package className="h-5 w-5 text-primary" />
                   Manage Products
                 </CardTitle>
@@ -279,10 +279,10 @@ const Dashboard = () => {
             </Card>
           </Link>
 
-          <Link to="/reports">
-            <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer">
+          <Link to="/reports" className="group">
+            <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary/50 hover:bg-accent/5">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 group-hover:text-primary transition-colors">
                   <TrendingUp className="h-5 w-5 text-primary" />
                   View Reports
                 </CardTitle>
