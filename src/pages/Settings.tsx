@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Store, Save } from 'lucide-react';
-
 interface TenantSettings {
   id: string;
   name: string;
@@ -17,9 +16,10 @@ interface TenantSettings {
   address: string;
   logo_url: string;
 }
-
 const Settings = () => {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<TenantSettings>({
@@ -28,27 +28,20 @@ const Settings = () => {
     email: '',
     phone: '',
     address: '',
-    logo_url: '',
+    logo_url: ''
   });
-
   useEffect(() => {
     fetchSettings();
   }, []);
-
   const fetchSettings = async () => {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .single();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('tenant_id').single();
       if (profile) {
-        const { data: tenant } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', profile.tenant_id)
-          .single();
-
+        const {
+          data: tenant
+        } = await supabase.from('tenants').select('*').eq('id', profile.tenant_id).single();
         if (tenant) {
           setSettings(tenant);
         }
@@ -58,60 +51,51 @@ const Settings = () => {
       toast({
         title: 'Error',
         description: 'Failed to load settings',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
   };
-
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('tenants')
-        .update({
-          name: settings.name,
-          email: settings.email,
-          phone: settings.phone,
-          address: settings.address,
-          logo_url: settings.logo_url,
-        })
-        .eq('id', settings.id);
-
+      const {
+        error
+      } = await supabase.from('tenants').update({
+        name: settings.name,
+        email: settings.email,
+        phone: settings.phone,
+        address: settings.address,
+        logo_url: settings.logo_url
+      }).eq('id', settings.id);
       if (error) throw error;
-
       toast({
         title: 'Success',
-        description: 'Settings saved successfully',
+        description: 'Settings saved successfully'
       });
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
         title: 'Error',
         description: 'Failed to save settings',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setSaving(false);
     }
   };
-
   if (loading) {
-    return (
-      <DashboardLayout>
+    return <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
-    );
+      </DashboardLayout>;
   }
-
-  return (
-    <DashboardLayout>
+  return <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+          <h1 className="text-xl font-bold tracking-tight text-center">Settings</h1>
           <p className="text-muted-foreground">
             Manage your shop information and preferences
           </p>
@@ -130,54 +114,42 @@ const Settings = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Shop Name</Label>
-              <Input
-                id="name"
-                value={settings.name}
-                onChange={(e) => setSettings({ ...settings, name: e.target.value })}
-                placeholder="Enter shop name"
-              />
+              <Input id="name" value={settings.name} onChange={e => setSettings({
+              ...settings,
+              name: e.target.value
+            })} placeholder="Enter shop name" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={settings.email || ''}
-                onChange={(e) => setSettings({ ...settings, email: e.target.value })}
-                placeholder="shop@example.com"
-              />
+              <Input id="email" type="email" value={settings.email || ''} onChange={e => setSettings({
+              ...settings,
+              email: e.target.value
+            })} placeholder="shop@example.com" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={settings.phone || ''}
-                onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
-                placeholder="+256 XXX XXX XXX"
-              />
+              <Input id="phone" value={settings.phone || ''} onChange={e => setSettings({
+              ...settings,
+              phone: e.target.value
+            })} placeholder="+256 XXX XXX XXX" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="address">Address</Label>
-              <Textarea
-                id="address"
-                value={settings.address || ''}
-                onChange={(e) => setSettings({ ...settings, address: e.target.value })}
-                placeholder="Enter shop address"
-                rows={3}
-              />
+              <Textarea id="address" value={settings.address || ''} onChange={e => setSettings({
+              ...settings,
+              address: e.target.value
+            })} placeholder="Enter shop address" rows={3} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="logo">Logo URL</Label>
-              <Input
-                id="logo"
-                value={settings.logo_url || ''}
-                onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })}
-                placeholder="https://example.com/logo.png"
-              />
+              <Input id="logo" value={settings.logo_url || ''} onChange={e => setSettings({
+              ...settings,
+              logo_url: e.target.value
+            })} placeholder="https://example.com/logo.png" />
             </div>
 
             <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
@@ -187,8 +159,6 @@ const Settings = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
-  );
+    </DashboardLayout>;
 };
-
 export default Settings;
