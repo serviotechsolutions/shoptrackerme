@@ -16,6 +16,7 @@ interface Product {
   selling_price: number;
   buying_price: number;
   stock: number;
+  image_url: string | null;
 }
 interface CartItem extends Product {
   quantity: number;
@@ -216,8 +217,19 @@ const POS = () => {
                   <Input placeholder="Search products by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full" />
                   {filteredProducts.length > 0 && <Card className="absolute z-10 w-full mt-1 max-h-64 overflow-auto">
                       <CardContent className="p-2">
-                        {filteredProducts.map(product => <div key={product.id} className="p-3 hover:bg-accent rounded-lg cursor-pointer flex justify-between items-center" onClick={() => addToCart(product)}>
-                            <div>
+                        {filteredProducts.map(product => <div key={product.id} className="p-3 hover:bg-accent rounded-lg cursor-pointer flex gap-3 items-center" onClick={() => addToCart(product)}>
+                            {product.image_url ? (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name}
+                                className="h-12 w-12 object-cover rounded-lg border"
+                              />
+                            ) : (
+                              <div className="h-12 w-12 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Search className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1">
                               <p className="font-medium">{product.name}</p>
                               <p className="text-sm text-muted-foreground">
                                 {formatCurrency(product.selling_price)} • Stock: {product.stock}
@@ -254,9 +266,24 @@ const POS = () => {
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
+                     <TableBody>
                       {cart.map(item => <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {item.image_url ? (
+                                <img 
+                                  src={item.image_url} 
+                                  alt={item.name}
+                                  className="h-10 w-10 object-cover rounded-lg border"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                          </TableCell>
                           <TableCell>{formatCurrency(item.selling_price)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

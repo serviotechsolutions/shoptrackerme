@@ -109,6 +109,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           low_stock_threshold: number
           name: string
           selling_price: number
@@ -121,6 +122,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           low_stock_threshold?: number
           name: string
           selling_price: number
@@ -133,6 +135,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           low_stock_threshold?: number
           name?: string
           selling_price?: number
@@ -355,14 +358,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      check_low_stock_notifications: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_user_tenant_id: {
-        Args: { _user_id: string }
-        Returns: string
-      }
+      check_low_stock_notifications: { Args: never; Returns: undefined }
+      get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
