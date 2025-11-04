@@ -17,7 +17,8 @@ import {
   Settings,
   Users,
   CreditCard,
-  Brain
+  Brain,
+  User
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -150,6 +151,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
