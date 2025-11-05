@@ -20,6 +20,7 @@ export const useNotifications = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const audioContextRef = useRef<AudioContext | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
   // Initialize audio context
   useEffect(() => {
@@ -29,6 +30,19 @@ export const useNotifications = () => {
         audioContextRef.current.close();
       }
     };
+  }, []);
+
+  // Request notification permission
+  useEffect(() => {
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+      
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((permission) => {
+          setNotificationPermission(permission);
+        });
+      }
+    }
   }, []);
 
   const playNotificationSound = () => {
@@ -53,6 +67,34 @@ export const useNotifications = () => {
       oscillator.stop(context.currentTime + 0.3);
     } catch (error) {
       console.error("Error playing notification sound:", error);
+    }
+  };
+
+  const showBrowserNotification = (notification: Notification) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        const browserNotification = new window.Notification(notification.title, {
+          body: notification.message,
+          icon: "/favicon.ico",
+          badge: "/favicon.ico",
+          tag: notification.id,
+          requireInteraction: false,
+          silent: false,
+        });
+
+        browserNotification.onclick = () => {
+          window.focus();
+          browserNotification.close();
+          markAsRead(notification.id);
+        };
+
+        // Auto close after 10 seconds
+        setTimeout(() => {
+          browserNotification.close();
+        }, 10000);
+      } catch (error) {
+        console.error("Error showing browser notification:", error);
+      }
     }
   };
 
@@ -157,6 +199,9 @@ export const useNotifications = () => {
 
           // Play notification sound
           playNotificationSound();
+
+          // Show browser notification
+          showBrowserNotification(newNotification);
 
           // Show toast for new notification
           toast({
