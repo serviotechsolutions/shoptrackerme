@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +19,42 @@ export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Initialize audio context
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  const playNotificationSound = () => {
+    if (!audioContextRef.current) return;
+
+    try {
+      const context = audioContextRef.current;
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      // Create a pleasant notification sound (two-tone)
+      oscillator.frequency.setValueAtTime(800, context.currentTime);
+      oscillator.frequency.setValueAtTime(600, context.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+
+      oscillator.start(context.currentTime);
+      oscillator.stop(context.currentTime + 0.3);
+    } catch (error) {
+      console.error("Error playing notification sound:", error);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -118,6 +154,9 @@ export const useNotifications = () => {
           const newNotification = payload.new as Notification;
           setNotifications((prev) => [newNotification, ...prev]);
           setUnreadCount((prev) => prev + 1);
+
+          // Play notification sound
+          playNotificationSound();
 
           // Show toast for new notification
           toast({
