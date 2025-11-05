@@ -19,6 +19,7 @@ interface Product {
   low_stock_threshold: number;
   tenant_id: string;
   image_url: string | null;
+  barcode: string | null;
 }
 const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -125,7 +126,8 @@ const Products = () => {
       stock: parseInt(formData.get('stock') as string),
       low_stock_threshold: parseInt(formData.get('low_stock_threshold') as string),
       tenant_id: tenantId,
-      image_url: imageUrl
+      image_url: imageUrl,
+      barcode: formData.get('barcode') as string || null
     };
     
     try {
@@ -304,6 +306,10 @@ const Products = () => {
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Input id="description" name="description" defaultValue={editingProduct?.description || ''} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="barcode">Barcode</Label>
+                  <Input id="barcode" name="barcode" defaultValue={editingProduct?.barcode || ''} placeholder="Enter or scan barcode" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="image">Product Image</Label>

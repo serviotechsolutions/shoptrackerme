@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Search, ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
+
 interface Product {
   id: string;
   name: string;
@@ -17,6 +19,7 @@ interface Product {
   buying_price: number;
   stock: number;
   image_url: string | null;
+  barcode: string | null;
 }
 interface CartItem extends Product {
   quantity: number;
@@ -70,6 +73,23 @@ const POS = () => {
       return;
     }
     setProducts(data || []);
+  };
+
+  const handleBarcodeScanned = async (barcode: string) => {
+    const product = products.find(p => p.barcode === barcode);
+    if (product) {
+      addToCart(product);
+      toast({
+        title: "Product Found",
+        description: `Added ${product.name} to cart`
+      });
+    } else {
+      toast({
+        title: "Not Found",
+        description: "No product found with this barcode",
+        variant: "destructive"
+      });
+    }
   };
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.id === product.id);
@@ -214,7 +234,10 @@ const POS = () => {
               </CardHeader>
               <CardContent>
                 <div className="relative">
-                  <Input placeholder="Search products by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full" />
+                  <div className="flex gap-2">
+                    <Input placeholder="Search products by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1" />
+                    <BarcodeScanner onScan={handleBarcodeScanned} />
+                  </div>
                   {filteredProducts.length > 0 && <Card className="absolute z-10 w-full mt-1 max-h-64 overflow-auto">
                       <CardContent className="p-2">
                         {filteredProducts.map(product => <div key={product.id} className="p-3 hover:bg-accent rounded-lg cursor-pointer flex gap-3 items-center" onClick={() => addToCart(product)}>
