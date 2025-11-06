@@ -194,6 +194,51 @@ export type Database = {
           },
         ]
       }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          is_active: boolean
+          tenant_id: string
+          times_used: number
+          updated_at: string
+          usage_limit: number | null
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          id?: string
+          is_active?: boolean
+          tenant_id: string
+          times_used?: number
+          updated_at?: string
+          usage_limit?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          tenant_id?: string
+          times_used?: number
+          updated_at?: string
+          usage_limit?: number | null
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number
@@ -285,11 +330,15 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          discount_amount: number | null
+          discount_type: string | null
+          discount_value: number | null
           id: string
           payment_method: string
           product_id: string
           product_name: string
           profit: number
+          promo_code: string | null
           quantity: number
           tenant_id: string
           total_amount: number
@@ -298,11 +347,15 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           payment_method: string
           product_id: string
           product_name: string
           profit: number
+          promo_code?: string | null
           quantity: number
           tenant_id: string
           total_amount: number
@@ -311,11 +364,15 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           payment_method?: string
           product_id?: string
           product_name?: string
           profit?: number
+          promo_code?: string | null
           quantity?: number
           tenant_id?: string
           total_amount?: number

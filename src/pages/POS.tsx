@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShoppingCart, X, Plus, Minus } from "lucide-react";
+import { Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 
@@ -48,6 +48,11 @@ const POS = () => {
     transactionsToday: 0,
     topItem: "N/A"
   });
+  const [discountType, setDiscountType] = useState<"percentage" | "fixed" | "promo">("percentage");
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [promoCode, setPromoCode] = useState<string>("");
+  const [validatedPromo, setValidatedPromo] = useState<any>(null);
+  const [customerName, setCustomerName] = useState<string>("");
 
   const categories = ["All Products", "Drinks", "Snacks", "Electronics"];
   // Update time every second
@@ -221,11 +226,93 @@ const POS = () => {
   const removeFromCart = (productId: string) => {
     setCart(cart.filter(item => item.id !== productId));
   };
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return cart.reduce((sum, item) => sum + item.selling_price * item.quantity, 0);
   };
+
+  const calculateDiscount = () => {
+    const subtotal = calculateSubtotal();
+    if (discountType === "promo" && validatedPromo) {
+      if (validatedPromo.discount_type === "percentage") {
+        return (subtotal * validatedPromo.discount_value) / 100;
+      } else {
+        return Math.min(validatedPromo.discount_value, subtotal);
+      }
+    } else if (discountType === "percentage" && discountValue) {
+      const percent = parseFloat(discountValue);
+      if (!isNaN(percent) && percent > 0 && percent <= 100) {
+        return (subtotal * percent) / 100;
+      }
+    } else if (discountType === "fixed" && discountValue) {
+      const amount = parseFloat(discountValue);
+      if (!isNaN(amount) && amount > 0) {
+        return Math.min(amount, subtotal);
+      }
+    }
+    return 0;
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() - calculateDiscount();
+  };
   const calculateProfit = () => {
-    return cart.reduce((sum, item) => sum + (item.selling_price - item.buying_price) * item.quantity, 0);
+    const profit = cart.reduce((sum, item) => sum + (item.selling_price - item.buying_price) * item.quantity, 0);
+    return profit - calculateDiscount();
+  };
+
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a promo code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("promo_codes")
+      .select("*")
+      .eq("code", promoCode.toUpperCase())
+      .eq("is_active", true)
+      .single();
+
+    if (error || !data) {
+      toast({
+        title: "Invalid Code",
+        description: "Promo code not found or inactive",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check validity period
+    const now = new Date();
+    if (data.valid_until && new Date(data.valid_until) < now) {
+      toast({
+        title: "Expired",
+        description: "This promo code has expired",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check usage limit
+    if (data.usage_limit && data.times_used >= data.usage_limit) {
+      toast({
+        title: "Limit Reached",
+        description: "This promo code has reached its usage limit",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setValidatedPromo(data);
+    setDiscountType("promo");
+    toast({
+      title: "Success",
+      description: `Applied ${data.discount_type === "percentage" ? data.discount_value + "%" : formatCurrency(data.discount_value)} discount`
+    });
   };
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -246,10 +333,24 @@ const POS = () => {
     }
     setLoading(true);
     try {
+      const discountAmount = calculateDiscount();
+      const subtotal = calculateSubtotal();
+      
+      // Update promo code usage if applied
+      if (discountType === "promo" && validatedPromo) {
+        await supabase
+          .from("promo_codes")
+          .update({ times_used: validatedPromo.times_used + 1 })
+          .eq("id", validatedPromo.id);
+      }
+
       // Process each cart item as a separate transaction
       for (const item of cart) {
-        const totalAmount = item.selling_price * item.quantity;
-        const profit = (item.selling_price - item.buying_price) * item.quantity;
+        const itemSubtotal = item.selling_price * item.quantity;
+        const itemDiscountRatio = subtotal > 0 ? itemSubtotal / subtotal : 0;
+        const itemDiscount = discountAmount * itemDiscountRatio;
+        const totalAmount = itemSubtotal - itemDiscount;
+        const profit = (item.selling_price - item.buying_price) * item.quantity - itemDiscount;
 
         // Record transaction
         const {
@@ -263,7 +364,11 @@ const POS = () => {
           total_amount: totalAmount,
           profit: profit,
           payment_method: paymentMethod,
-          created_by: user.id // Clerk ID
+          created_by: user.id,
+          discount_type: discountAmount > 0 ? discountType : null,
+          discount_value: discountAmount > 0 ? (discountType === "promo" ? validatedPromo?.discount_value : parseFloat(discountValue)) : 0,
+          promo_code: discountType === "promo" ? promoCode.toUpperCase() : null,
+          discount_amount: itemDiscount
         });
         if (transactionError) throw transactionError;
 
@@ -283,6 +388,11 @@ const POS = () => {
       // Clear cart and refresh products
       setCart([]);
       setPaymentMethod("cash");
+      setDiscountType("percentage");
+      setDiscountValue("");
+      setPromoCode("");
+      setValidatedPromo(null);
+      setCustomerName("");
       fetchProducts();
       fetchQuickStats();
     } catch (error: any) {
@@ -474,22 +584,96 @@ const POS = () => {
               <div className="space-y-2 border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
-                  <span className="font-semibold">{formatCurrency(calculateTotal())}</span>
+                  <span className="font-semibold">{formatCurrency(calculateSubtotal())}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>Tax</span>
-                  <span className="font-semibold">--</span>
-                </div>
+                {calculateDiscount() > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount</span>
+                    <span className="font-semibold">-{formatCurrency(calculateDiscount())}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Total</span>
                   <span>{formatCurrency(calculateTotal())}</span>
                 </div>
               </div>
 
-              {/* Discount & Customer */}
-              <div className="mt-4 space-y-2">
-                <Input placeholder="Discount" disabled />
-                <Input placeholder="Customer" disabled />
+              {/* Discount Section */}
+              <div className="mt-4 space-y-3">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={discountType === "percentage" ? "default" : "outline"}
+                    onClick={() => {
+                      setDiscountType("percentage");
+                      setValidatedPromo(null);
+                    }}
+                    className="flex-1"
+                  >
+                    <Percent className="h-4 w-4 mr-1" />
+                    %
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={discountType === "fixed" ? "default" : "outline"}
+                    onClick={() => {
+                      setDiscountType("fixed");
+                      setValidatedPromo(null);
+                    }}
+                    className="flex-1"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    UGX
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={discountType === "promo" ? "default" : "outline"}
+                    onClick={() => setDiscountType("promo")}
+                    className="flex-1"
+                  >
+                    <Tag className="h-4 w-4 mr-1" />
+                    Code
+                  </Button>
+                </div>
+
+                {discountType === "promo" ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      disabled={validatedPromo !== null}
+                    />
+                    <Button
+                      type="button"
+                      onClick={validatedPromo ? () => {
+                        setValidatedPromo(null);
+                        setPromoCode("");
+                      } : validatePromoCode}
+                      variant={validatedPromo ? "destructive" : "default"}
+                    >
+                      {validatedPromo ? "Clear" : "Apply"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Input
+                    type="number"
+                    placeholder={discountType === "percentage" ? "Enter %" : "Enter amount"}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    min="0"
+                    max={discountType === "percentage" ? "100" : undefined}
+                  />
+                )}
+
+                <Input 
+                  placeholder="Customer Name (Optional)" 
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
               </div>
 
               {/* Payment Buttons */}
