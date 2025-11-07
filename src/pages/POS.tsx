@@ -54,7 +54,18 @@ const POS = () => {
   const [validatedPromo, setValidatedPromo] = useState<any>(null);
   const [customerName, setCustomerName] = useState<string>("");
 
-  const categories = ["All Products", "Drinks", "Snacks", "Electronics"];
+  const categories = [
+    "All Products",
+    "Groceries",
+    "Beverages",
+    "Electronics",
+    "Cosmetics & Beauty",
+    "Household Items",
+    "Stationery",
+    "Snacks",
+    "Hardware Tools",
+    "Others"
+  ];
   // Update time every second
   useEffect(() => {
     const updateTime = () => {
