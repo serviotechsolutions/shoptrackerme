@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag } from "lucide-react";
+import { Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 
@@ -430,9 +430,20 @@ const POS = () => {
       {/* Top Navigation Bar */}
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="h-6 w-6" />
-            <h1 className="text-xl font-bold">Shop Tracker POS</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate("/dashboard")}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-6 w-6" />
+              <h1 className="text-xl font-bold">Shop Tracker POS</h1>
+            </div>
           </div>
           <div className="text-center">
             <p className="text-sm font-medium">{currentTime}</p>
