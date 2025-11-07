@@ -442,14 +442,16 @@ const POS = () => {
             </Button>
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-6 w-6" />
-              <h1 className="text-xl font-bold">Shop Tracker POS</h1>
+              <h1 className="text-xl font-bold">Shop POS</h1>
             </div>
           </div>
           <div className="text-center">
             <p className="text-sm font-medium">{currentTime}</p>
           </div>
           <div className="flex items-center gap-4">
-            <span className="font-medium">{userName}</span>
+            <div className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-semibold">
+              {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+            </div>
             <Button 
               variant="secondary" 
               size="sm"
