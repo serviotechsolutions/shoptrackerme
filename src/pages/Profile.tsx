@@ -134,6 +134,7 @@ const Profile = () => {
       if (error) throw error;
 
       setProfile(prev => ({ ...prev, avatar_url: avatarUrl }));
+      setPreviewUrl(avatarUrl);
       setImageFile(null);
       
       toast({
