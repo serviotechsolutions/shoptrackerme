@@ -4,9 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag, ArrowLeft } from "lucide-react";
+import { Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag, ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Product {
   id: string;
@@ -429,43 +435,53 @@ const POS = () => {
     <div className="min-h-screen bg-background">
       {/* Top Navigation Bar */}
       <header className="bg-primary text-primary-foreground shadow-lg">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Button
               variant="secondary"
               size="sm"
               onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2 shrink-0"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
             </Button>
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-6 w-6" />
-              <h1 className="text-xl font-bold">Shop POS</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
+              <h1 className="text-base sm:text-xl font-bold truncate">Shop POS</h1>
             </div>
           </div>
-          <div className="text-center">
-            <p className="text-sm font-medium">{currentTime}</p>
+          <div className="hidden md:block text-center">
+            <p className="text-sm font-medium whitespace-nowrap">{currentTime}</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-semibold">
-              {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
-            </div>
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={handleLogout}
-            >
-              Logout
-            </Button>
+          <div className="flex items-center shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 p-0"
+                >
+                  <span className="font-semibold text-sm">
+                    {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Section - Product Catalog */}
           <div className="lg:col-span-2 space-y-4">
             {/* Search Bar */}
@@ -485,13 +501,14 @@ const POS = () => {
             </div>
 
             {/* Category Tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {categories.map((category) => (
                 <Button
                   key={category}
                   variant={selectedCategory === category ? "default" : "outline"}
                   onClick={() => setSelectedCategory(category)}
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap text-xs sm:text-sm shrink-0"
+                  size="sm"
                 >
                   {category}
                 </Button>
