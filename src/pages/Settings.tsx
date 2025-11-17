@@ -171,7 +171,7 @@ const Settings = () => {
               Review our privacy practices and policies
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col sm:flex-row gap-3">
             <Button 
               variant="outline" 
               onClick={() => navigate('/privacy-policy')}
@@ -179,6 +179,14 @@ const Settings = () => {
             >
               <FileText className="mr-2 h-4 w-4" />
               View Privacy Policy
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/terms')}
+              className="w-full sm:w-auto"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              View Terms & Conditions
             </Button>
           </CardContent>
         </Card>
