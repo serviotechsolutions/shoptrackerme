@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, Save } from 'lucide-react';
+import { Store, Save, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 interface TenantSettings {
   id: string;
   name: string;
@@ -20,6 +21,7 @@ const Settings = () => {
   const {
     toast
   } = useToast();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<TenantSettings>({
@@ -155,6 +157,28 @@ const Settings = () => {
             <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Legal & Privacy
+            </CardTitle>
+            <CardDescription>
+              Review our privacy practices and policies
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/privacy-policy')}
+              className="w-full sm:w-auto"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              View Privacy Policy
             </Button>
           </CardContent>
         </Card>
