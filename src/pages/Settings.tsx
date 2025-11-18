@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, Save, FileText } from 'lucide-react';
+import { Store, Save, FileText, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 interface TenantSettings {
   id: string;
@@ -187,6 +187,14 @@ const Settings = () => {
             >
               <FileText className="mr-2 h-4 w-4" />
               View Terms & Conditions
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/delete-account')}
+              className="w-full sm:w-auto"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Account
             </Button>
           </CardContent>
         </Card>
