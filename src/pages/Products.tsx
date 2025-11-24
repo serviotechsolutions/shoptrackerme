@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 interface Product {
   id: string;
   name: string;
@@ -318,7 +317,7 @@ const Products = () => {
                   Add Product
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-h-[90vh] flex flex-col">
+            <DialogContent>
               <DialogHeader>
                 <DialogTitle>
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -327,7 +326,6 @@ const Products = () => {
                   Fill in the product details below
                 </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="flex-1 pr-4">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
@@ -403,13 +401,12 @@ const Products = () => {
                     <Input id="low_stock_threshold" name="low_stock_threshold" type="number" defaultValue={editingProduct?.low_stock_threshold || 10} required />
                   </div>
                 </div>
-                <DialogFooter className="mt-4">
+                <DialogFooter>
                   <Button type="submit" disabled={uploading}>
                     {uploading ? 'Uploading...' : editingProduct ? 'Update' : 'Add'} Product
                   </Button>
                 </DialogFooter>
               </form>
-              </ScrollArea>
             </DialogContent>
             </Dialog>
           </div>
