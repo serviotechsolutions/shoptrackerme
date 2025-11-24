@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 interface Product {
   id: string;
   name: string;
@@ -20,7 +21,20 @@ interface Product {
   tenant_id: string;
   image_url: string | null;
   barcode: string | null;
+  category: string;
 }
+
+const CATEGORIES = [
+  "Groceries",
+  "Beverages",
+  "Electronics",
+  "Cosmetics & Beauty",
+  "Household Items",
+  "Stationery",
+  "Snacks",
+  "Hardware Tools",
+  "Others"
+];
 const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +44,7 @@ const Products = () => {
   const [importing, setImporting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Others");
   const {
     toast
   } = useToast();
@@ -127,7 +142,8 @@ const Products = () => {
       low_stock_threshold: parseInt(formData.get('low_stock_threshold') as string),
       tenant_id: tenantId,
       image_url: imageUrl,
-      barcode: formData.get('barcode') as string || null
+      barcode: formData.get('barcode') as string || null,
+      category: selectedCategory
     };
     
     try {
@@ -282,9 +298,21 @@ const Products = () => {
                 <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} disabled={importing} />
               </label>
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (open) {
+                setSelectedCategory(editingProduct?.category || "Others");
+              } else {
+                setEditingProduct(null);
+                setImageFile(null);
+                setSelectedCategory("Others");
+              }
+            }}>
               <DialogTrigger asChild>
-                <Button onClick={() => setEditingProduct(null)} className="mx-0 px-0 py-0 my-0">
+                <Button onClick={() => {
+                  setEditingProduct(null);
+                  setSelectedCategory("Others");
+                }} className="mx-0 px-0 py-0 my-0">
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
@@ -302,6 +330,21 @@ const Products = () => {
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
                   <Input id="name" name="name" defaultValue={editingProduct?.name} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
