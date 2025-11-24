@@ -23,6 +23,7 @@ interface Product {
   image_url: string | null;
   barcode: string | null;
   description: string | null;
+  category: string;
 }
 
 interface CartItem extends Product {
@@ -104,8 +105,7 @@ const POS = () => {
     // Filter by category
     if (selectedCategory !== "All Products") {
       filtered = filtered.filter(product => 
-        product.description?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-        product.name.toLowerCase().includes(selectedCategory.toLowerCase())
+        product.category === selectedCategory
       );
     }
     
