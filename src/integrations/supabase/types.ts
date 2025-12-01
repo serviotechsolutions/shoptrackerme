@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -50,14 +91,64 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_items: {
+        Row: {
+          created_at: string
+          id: string
+          payment_id: string
+          price: number
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_id: string
+          price: number
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          total_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_id?: string
+          price?: number
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
           created_at: string
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           id: string
           notes: string | null
+          payment_date: string
           payment_method: string
           payment_status: string
           reference_number: string | null
@@ -68,10 +159,12 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
           notes?: string | null
+          payment_date?: string
           payment_method: string
           payment_status?: string
           reference_number?: string | null
@@ -82,10 +175,12 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           id?: string
           notes?: string | null
+          payment_date?: string
           payment_method?: string
           payment_status?: string
           reference_number?: string | null
@@ -94,6 +189,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_transaction_id_fkey"
             columns: ["transaction_id"]
