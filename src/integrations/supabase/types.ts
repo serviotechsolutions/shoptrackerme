@@ -242,60 +242,6 @@ export type Database = {
         }
         Relationships: []
       }
-      subscriptions: {
-        Row: {
-          amount: number
-          billing_cycle: string
-          created_at: string
-          customer_email: string | null
-          customer_name: string
-          customer_phone: string | null
-          end_date: string | null
-          id: string
-          next_billing_date: string
-          notes: string | null
-          plan_name: string
-          start_date: string
-          status: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          billing_cycle: string
-          created_at?: string
-          customer_email?: string | null
-          customer_name: string
-          customer_phone?: string | null
-          end_date?: string | null
-          id?: string
-          next_billing_date: string
-          notes?: string | null
-          plan_name: string
-          start_date: string
-          status?: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          billing_cycle?: string
-          created_at?: string
-          customer_email?: string | null
-          customer_name?: string
-          customer_phone?: string | null
-          end_date?: string | null
-          id?: string
-          next_billing_date?: string
-          notes?: string | null
-          plan_name?: string
-          start_date?: string
-          status?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       tenants: {
         Row: {
           address: string | null
