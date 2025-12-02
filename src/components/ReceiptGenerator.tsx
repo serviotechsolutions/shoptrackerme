@@ -35,15 +35,15 @@ interface ReceiptGeneratorProps {
 }
 
 const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
-  const generatePDF = () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200] // Receipt paper size
-    });
-
+  const generateReceiptContent = (doc: jsPDF) => {
     const pageWidth = 80;
     let yPos = 10;
+
+    // Header - Shop Logo (if available)
+    if (data.shop.logo_url) {
+      // Note: For logo to work, you'd need to convert the URL to base64
+      // For now, we'll show the shop name prominently
+    }
 
     // Header - Shop Name
     doc.setFontSize(14);
@@ -66,6 +66,13 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     if (data.shop.phone) {
       doc.setFontSize(8);
       doc.text(`Tel: ${data.shop.phone}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+    }
+
+    // Shop Email
+    if (data.shop.email) {
+      doc.setFontSize(8);
+      doc.text(`Email: ${data.shop.email}`, pageWidth / 2, yPos, { align: 'center' });
       yPos += 4;
     }
 
@@ -146,7 +153,17 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     yPos += 4;
     doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
 
-    // Save or open print dialog
+    return doc;
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [80, 200]
+    });
+
+    generateReceiptContent(doc);
     doc.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
   };
 
@@ -157,101 +174,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
       format: [80, 200]
     });
 
-    const pageWidth = 80;
-    let yPos = 10;
-
-    // Same content as generatePDF
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.shop.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    if (data.shop.address) {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const addressLines = doc.splitTextToSize(data.shop.address, pageWidth - 10);
-      addressLines.forEach((line: string) => {
-        doc.text(line, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      });
-    }
-
-    if (data.shop.phone) {
-      doc.setFontSize(8);
-      doc.text(`Tel: ${data.shop.phone}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
-
-    yPos += 2;
-    doc.setLineWidth(0.5);
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 5, yPos);
-    yPos += 4;
-
-    if (data.reference_number) {
-      doc.text(`Ref: ${data.reference_number}`, 5, yPos);
-      yPos += 4;
-    }
-
-    doc.text(`Payment: ${data.payment_method.replace('_', ' ')}`, 5, yPos);
-    yPos += 4;
-
-    if (data.customer_name) {
-      doc.text(`Customer: ${data.customer_name}`, 5, yPos);
-      yPos += 4;
-    }
-
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 5, yPos);
-    doc.text('Qty', 40, yPos);
-    doc.text('Price', 50, yPos);
-    doc.text('Total', 65, yPos);
-    yPos += 4;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    doc.setFont('helvetica', 'normal');
-    data.items.forEach(item => {
-      const itemName = item.product_name.length > 15 
-        ? item.product_name.substring(0, 15) + '...' 
-        : item.product_name;
-      doc.text(itemName, 5, yPos);
-      doc.text(item.quantity.toString(), 42, yPos);
-      doc.text(item.price.toFixed(0), 50, yPos);
-      doc.text(item.total_price.toFixed(0), 65, yPos);
-      yPos += 4;
-    });
-
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', 5, yPos);
-    doc.text(`$${data.total_amount.toFixed(2)}`, pageWidth - 5, yPos, { align: 'right' });
-    yPos += 8;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
-
-    // Open print dialog
+    generateReceiptContent(doc);
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
   };
