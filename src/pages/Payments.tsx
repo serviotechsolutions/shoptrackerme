@@ -135,7 +135,6 @@ const Payments = () => {
           .from('products')
           .select('id, name, selling_price, stock')
           .eq('tenant_id', profile.tenant_id)
-          .gt('stock', 0)
           .order('name');
         if (productsData) setProducts(productsData);
       }
@@ -152,6 +151,10 @@ const Payments = () => {
   };
 
   const addToCart = (product: Product) => {
+    if (product.stock <= 0) {
+      toast({ title: 'Out of stock', description: 'This product is out of stock', variant: 'destructive' });
+      return;
+    }
     const existing = cart.find(item => item.product_id === product.id);
     if (existing) {
       if (existing.quantity >= product.stock) {
@@ -366,13 +369,16 @@ const Payments = () => {
                             key={product.id} 
                             variant="outline" 
                             size="sm" 
-                            className="justify-start text-left h-auto py-2" 
+                            className={`justify-start text-left h-auto py-2 ${product.stock <= 0 ? 'opacity-50' : ''}`}
                             onClick={() => addToCart(product)}
+                            disabled={product.stock <= 0}
                           >
                             <ShoppingBag className="mr-2 h-3 w-3 flex-shrink-0" />
                             <div className="flex flex-col items-start overflow-hidden">
                               <span className="truncate w-full">{product.name}</span>
-                              <span className="text-xs text-muted-foreground">${product.selling_price.toFixed(2)} • Stock: {product.stock}</span>
+                              <span className={`text-xs ${product.stock <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                ${product.selling_price.toFixed(2)} • {product.stock <= 0 ? 'Out of stock' : `Stock: ${product.stock}`}
+                              </span>
                             </div>
                           </Button>
                         ))
