@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Plus, Eye, Users, ShoppingBag } from 'lucide-react';
+import { DollarSign, Plus, Eye, Users, ShoppingBag, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -79,10 +79,11 @@ const Payments = () => {
   const [selectedPaymentItems, setSelectedPaymentItems] = useState<PaymentItem[]>([]);
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState('');
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newPayment, setNewPayment] = useState({
-    customer_id: '',
+    customer_id: 'none',
     payment_method: 'cash',
     reference_number: '',
     notes: ''
@@ -94,6 +95,10 @@ const Payments = () => {
     email: '',
     address: ''
   });
+
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(productSearch.toLowerCase())
+  );
 
   useEffect(() => {
     fetchData();
@@ -182,7 +187,8 @@ const Payments = () => {
       if (!tenantId) throw new Error('Tenant ID not found');
 
       const totalAmount = getCartTotal();
-      const selectedCustomer = customers.find(c => c.id === newPayment.customer_id);
+      const customerId = newPayment.customer_id === 'none' ? null : newPayment.customer_id;
+      const selectedCustomer = customers.find(c => c.id === customerId);
 
       const { data: paymentData, error: paymentError } = await supabase
         .from('payments')
@@ -191,7 +197,7 @@ const Payments = () => {
           amount: totalAmount,
           payment_method: newPayment.payment_method,
           payment_status: 'completed',
-          customer_id: newPayment.customer_id || null,
+          customer_id: customerId,
           customer_name: selectedCustomer?.name || null,
           reference_number: newPayment.reference_number || null,
           notes: newPayment.notes || null,
@@ -217,7 +223,8 @@ const Payments = () => {
       toast({ title: 'Success', description: 'Payment recorded successfully' });
       setPaymentDialogOpen(false);
       setCart([]);
-      setNewPayment({ customer_id: '', payment_method: 'cash', reference_number: '', notes: '' });
+      setProductSearch('');
+      setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '' });
       fetchData();
     } catch (error) {
       console.error('Error creating payment:', error);
@@ -312,7 +319,14 @@ const Payments = () => {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+            <Dialog open={paymentDialogOpen} onOpenChange={(open) => {
+              setPaymentDialogOpen(open);
+              if (!open) {
+                setCart([]);
+                setProductSearch('');
+                setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '' });
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button><Plus className="mr-2 h-4 w-4" />Record Payment</Button>
               </DialogTrigger>
@@ -325,8 +339,9 @@ const Payments = () => {
                   <div className="space-y-2">
                     <Label>Customer</Label>
                     <Select value={newPayment.customer_id} onValueChange={value => setNewPayment({ ...newPayment, customer_id: value })}>
-                      <SelectTrigger><SelectValue placeholder="Select customer (optional)" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="bg-background"><SelectValue placeholder="Select customer (optional)" /></SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        <SelectItem value="none">Walk-in Customer</SelectItem>
                         {customers.map(customer => (<SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>))}
                       </SelectContent>
                     </Select>
@@ -334,12 +349,34 @@ const Payments = () => {
 
                   <div className="space-y-2">
                     <Label>Add Products</Label>
-                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                      {products.map(product => (
-                        <Button key={product.id} variant="outline" size="sm" className="justify-start" onClick={() => addToCart(product)}>
-                          <ShoppingBag className="mr-2 h-3 w-3" />{product.name} - ${product.selling_price}
-                        </Button>
-                      ))}
+                    <Input 
+                      placeholder="Search products..." 
+                      value={productSearch} 
+                      onChange={e => setProductSearch(e.target.value)}
+                      className="mb-2"
+                    />
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-2 bg-muted/30">
+                      {filteredProducts.length === 0 ? (
+                        <p className="col-span-2 text-center text-muted-foreground text-sm py-4">
+                          {products.length === 0 ? 'No products available' : 'No products match your search'}
+                        </p>
+                      ) : (
+                        filteredProducts.map(product => (
+                          <Button 
+                            key={product.id} 
+                            variant="outline" 
+                            size="sm" 
+                            className="justify-start text-left h-auto py-2" 
+                            onClick={() => addToCart(product)}
+                          >
+                            <ShoppingBag className="mr-2 h-3 w-3 flex-shrink-0" />
+                            <div className="flex flex-col items-start overflow-hidden">
+                              <span className="truncate w-full">{product.name}</span>
+                              <span className="text-xs text-muted-foreground">${product.selling_price.toFixed(2)} • Stock: {product.stock}</span>
+                            </div>
+                          </Button>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -368,12 +405,13 @@ const Payments = () => {
                   <div className="space-y-2">
                     <Label>Payment Method</Label>
                     <Select value={newPayment.payment_method} onValueChange={value => setNewPayment({ ...newPayment, payment_method: value })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
                         <SelectItem value="cash">Cash</SelectItem>
                         <SelectItem value="card">Card</SelectItem>
                         <SelectItem value="mobile_money">Mobile Money</SelectItem>
                         <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
