@@ -35,14 +35,29 @@ interface ReceiptGeneratorProps {
 }
 
 const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
-  const generateReceiptContent = (doc: jsPDF) => {
+  const generateReceiptContent = async (doc: jsPDF): Promise<jsPDF> => {
     const pageWidth = 80;
     let yPos = 10;
 
     // Header - Shop Logo (if available)
     if (data.shop.logo_url) {
-      // Note: For logo to work, you'd need to convert the URL to base64
-      // For now, we'll show the shop name prominently
+      try {
+        const response = await fetch(data.shop.logo_url);
+        const blob = await response.blob();
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        
+        const logoWidth = 20;
+        const logoHeight = 20;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(base64, 'PNG', logoX, yPos, logoWidth, logoHeight);
+        yPos += logoHeight + 4;
+      } catch (error) {
+        console.error('Failed to load logo:', error);
+      }
     }
 
     // Header - Shop Name
@@ -156,25 +171,25 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     return doc;
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: [80, 200]
     });
 
-    generateReceiptContent(doc);
+    await generateReceiptContent(doc);
     doc.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
   };
 
-  const printReceipt = () => {
+  const printReceipt = async () => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: [80, 200]
     });
 
-    generateReceiptContent(doc);
+    await generateReceiptContent(doc);
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
   };
