@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Plus, Eye, Users, ShoppingBag, Search } from 'lucide-react';
+import { DollarSign, Plus, Eye, Users, ShoppingBag, FileText } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -270,6 +270,124 @@ const Payments = () => {
     setDetailsDialogOpen(true);
   };
 
+  const generateQuickReceipt = async (payment: Payment) => {
+    const { data: items } = await supabase.from('payment_items').select('*').eq('payment_id', payment.id);
+    if (!shopInfo) return;
+    
+    // Import jsPDF dynamically
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
+    
+    const pageWidth = 80;
+    let yPos = 10;
+
+    // Header - Shop Name
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(shopInfo.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
+
+    // Shop Address
+    if (shopInfo.address) {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const addressLines = doc.splitTextToSize(shopInfo.address, pageWidth - 10);
+      addressLines.forEach((line: string) => {
+        doc.text(line, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 4;
+      });
+    }
+
+    if (shopInfo.phone) {
+      doc.setFontSize(8);
+      doc.text(`Tel: ${shopInfo.phone}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+    }
+
+    if (shopInfo.email) {
+      doc.setFontSize(8);
+      doc.text(`Email: ${shopInfo.email}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 4;
+    }
+
+    // Divider
+    yPos += 2;
+    doc.setLineWidth(0.5);
+    doc.line(5, yPos, pageWidth - 5, yPos);
+    yPos += 6;
+
+    // Receipt Info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Date: ${format(new Date(payment.payment_date), 'MMM dd, yyyy HH:mm')}`, 5, yPos);
+    yPos += 4;
+
+    if (payment.reference_number) {
+      doc.text(`Ref: ${payment.reference_number}`, 5, yPos);
+      yPos += 4;
+    }
+
+    doc.text(`Payment: ${payment.payment_method.replace('_', ' ')}`, 5, yPos);
+    yPos += 4;
+
+    if (payment.customer_name) {
+      doc.text(`Customer: ${payment.customer_name}`, 5, yPos);
+      yPos += 4;
+    }
+
+    // Divider
+    yPos += 2;
+    doc.line(5, yPos, pageWidth - 5, yPos);
+    yPos += 4;
+
+    // Items Header
+    doc.setFont('helvetica', 'bold');
+    doc.text('Item', 5, yPos);
+    doc.text('Qty', 40, yPos);
+    doc.text('Price', 50, yPos);
+    doc.text('Total', 65, yPos);
+    yPos += 4;
+    doc.line(5, yPos, pageWidth - 5, yPos);
+    yPos += 4;
+
+    // Items
+    doc.setFont('helvetica', 'normal');
+    (items || []).forEach((item: PaymentItem) => {
+      const itemName = item.product_name.length > 15 ? item.product_name.substring(0, 15) + '...' : item.product_name;
+      doc.text(itemName, 5, yPos);
+      doc.text(item.quantity.toString(), 42, yPos);
+      doc.text(item.price.toFixed(0), 50, yPos);
+      doc.text(item.total_price.toFixed(0), 65, yPos);
+      yPos += 4;
+    });
+
+    // Divider
+    yPos += 2;
+    doc.line(5, yPos, pageWidth - 5, yPos);
+    yPos += 6;
+
+    // Total
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL:', 5, yPos);
+    doc.text(`$${payment.amount.toFixed(2)}`, pageWidth - 5, yPos, { align: 'right' });
+    yPos += 8;
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 4;
+    doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
+
+    doc.save(`receipt-${payment.reference_number || payment.id}.pdf`);
+  };
+
   const getTotalRevenue = () => payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   if (loading) {
@@ -505,7 +623,14 @@ const Payments = () => {
                     </TableCell>
                     <TableCell className="text-right font-medium">${payment.amount.toFixed(2)}</TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => viewPaymentDetails(payment)}><Eye className="h-4 w-4" /></Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => viewPaymentDetails(payment)} title="View Details">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => generateQuickReceipt(payment)} title="Generate Receipt">
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
