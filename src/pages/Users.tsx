@@ -89,6 +89,7 @@ const Users = () => {
 
       // Send invitation email
       const {
+        data,
         error
       } = await supabase.functions.invoke('send-user-invitation', {
         body: {
@@ -99,7 +100,21 @@ const Users = () => {
           inviter_name: inviterName
         }
       });
-      if (error) throw error;
+      
+      if (error) {
+        // Check if it's a Resend domain verification error
+        const errorMsg = error.message || '';
+        if (errorMsg.includes('verify a domain') || errorMsg.includes('testing emails')) {
+          toast({
+            title: 'Domain Verification Required',
+            description: 'To send emails to external recipients, please verify your domain at resend.com/domains. For now, you can only send test emails to your own email address.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        throw error;
+      }
+      
       toast({
         title: 'Invitation Sent',
         description: `An invitation has been sent to ${newUser.email}`
