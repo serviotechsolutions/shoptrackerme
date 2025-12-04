@@ -179,6 +179,11 @@ const Payments = () => {
     setCart(cart.map(item => item.product_id === productId ? { ...item, quantity } : item));
   };
 
+  const updateCartPrice = (productId: string, price: number) => {
+    if (price < 0) return;
+    setCart(cart.map(item => item.product_id === productId ? { ...item, price } : item));
+  };
+
   const getCartTotal = () => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleCreatePayment = async () => {
@@ -509,13 +514,29 @@ const Payments = () => {
                       <Label>Cart Items</Label>
                       <div className="border rounded-md p-2 space-y-2">
                         {cart.map(item => (
-                          <div key={item.product_id} className="flex items-center justify-between">
-                            <span className="text-sm">{item.product_name}</span>
-                            <div className="flex items-center gap-2">
-                              <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}>-</Button>
-                              <span className="w-8 text-center">{item.quantity}</span>
-                              <Button variant="outline" size="sm" onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}>+</Button>
-                              <span className="w-20 text-right">${(item.price * item.quantity).toFixed(2)}</span>
+                          <div key={item.product_id} className="flex flex-col gap-2 pb-2 border-b last:border-b-0 last:pb-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">{item.product_name}</span>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => removeFromCart(item.product_id)}>×</Button>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-1">
+                                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}>-</Button>
+                                <span className="w-8 text-center text-sm">{item.quantity}</span>
+                                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}>+</Button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">@</span>
+                                <Input
+                                  type="number"
+                                  value={item.price}
+                                  onChange={e => updateCartPrice(item.product_id, parseFloat(e.target.value) || 0)}
+                                  className="w-20 h-7 text-sm"
+                                  min="0"
+                                  step="0.01"
+                                />
+                              </div>
+                              <span className="ml-auto font-medium text-sm">${(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                           </div>
                         ))}
