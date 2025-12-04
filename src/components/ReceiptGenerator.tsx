@@ -39,6 +39,11 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     const pageWidth = 80;
     let yPos = 10;
 
+    // Draw subtle thin border around the receipt
+    doc.setDrawColor(200, 200, 200); // Light gray color
+    doc.setLineWidth(0.2); // Very thin line
+    doc.rect(2, 2, pageWidth - 4, 196); // Border with small margin
+
     // Header - Shop Logo (if available)
     if (data.shop.logo_url) {
       try {
