@@ -243,6 +243,13 @@ const POS = () => {
   const removeFromCart = (productId: string) => {
     setCart(cart.filter(item => item.id !== productId));
   };
+
+  const updateCartPrice = (productId: string, price: number) => {
+    if (price < 0) return;
+    setCart(cart.map(item => 
+      item.id === productId ? { ...item, selling_price: price } : item
+    ));
+  };
   const calculateSubtotal = () => {
     return cart.reduce((sum, item) => sum + item.selling_price * item.quantity, 0);
   };
@@ -580,40 +587,52 @@ const POS = () => {
 
                     {/* Cart Items */}
                     {cart.map((item) => (
-                      <div key={item.id} className="space-y-2">
-                        <div className="grid grid-cols-12 gap-2 items-center text-sm">
-                          <div className="col-span-4 font-medium">{item.name}</div>
-                          <div className="col-span-2 text-center">{item.quantity}</div>
-                          <div className="col-span-3 text-right">
-                            {formatCurrency(item.selling_price)}
-                          </div>
-                          <div className="col-span-3 text-right font-semibold">
-                            {formatCurrency(item.selling_price * item.quantity)}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, -1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateQuantity(item.id, 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                      <div key={item.id} className="space-y-2 pb-2 border-b last:border-b-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{item.name}</span>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => removeFromCart(item.id)}
-                            className="ml-auto"
+                            className="h-6 w-6 p-0"
                           >
                             <X className="h-4 w-4" />
                           </Button>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0"
+                              onClick={() => updateQuantity(item.id, -1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center text-sm">{item.quantity}</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0"
+                              onClick={() => updateQuantity(item.id, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">@</span>
+                            <Input
+                              type="number"
+                              value={item.selling_price}
+                              onChange={(e) => updateCartPrice(item.id, parseFloat(e.target.value) || 0)}
+                              className="w-24 h-7 text-sm"
+                              min="0"
+                              step="1"
+                            />
+                          </div>
+                          <span className="ml-auto font-semibold text-sm">
+                            {formatCurrency(item.selling_price * item.quantity)}
+                          </span>
                         </div>
                       </div>
                     ))}
