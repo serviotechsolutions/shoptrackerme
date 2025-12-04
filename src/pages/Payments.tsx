@@ -86,9 +86,7 @@ const Payments = () => {
     customer_id: 'none',
     payment_method: 'cash',
     reference_number: '',
-    notes: '',
-    customer_company: '',
-    customer_address: ''
+    notes: ''
   });
   
   const [newCustomer, setNewCustomer] = useState({
@@ -195,15 +193,6 @@ const Payments = () => {
       const customerId = newPayment.customer_id === 'none' ? null : newPayment.customer_id;
       const selectedCustomer = customers.find(c => c.id === customerId);
 
-      // Build notes with company/address for receipt
-      let notesContent = newPayment.notes || '';
-      if (newPayment.customer_company) {
-        notesContent = `Company: ${newPayment.customer_company}\n${notesContent}`;
-      }
-      if (newPayment.customer_address) {
-        notesContent = `Address: ${newPayment.customer_address}\n${notesContent}`;
-      }
-
       const { data: paymentData, error: paymentError } = await supabase
         .from('payments')
         .insert({
@@ -214,7 +203,7 @@ const Payments = () => {
           customer_id: customerId,
           customer_name: selectedCustomer?.name || null,
           reference_number: newPayment.reference_number || null,
-          notes: notesContent.trim() || null,
+          notes: newPayment.notes || null,
           payment_date: new Date().toISOString()
         })
         .select()
@@ -238,7 +227,7 @@ const Payments = () => {
       setPaymentDialogOpen(false);
       setCart([]);
       setProductSearch('');
-      setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '', customer_company: '', customer_address: '' });
+      setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '' });
       fetchData();
     } catch (error) {
       console.error('Error creating payment:', error);
@@ -456,7 +445,7 @@ const Payments = () => {
               if (!open) {
                 setCart([]);
                 setProductSearch('');
-                setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '', customer_company: '', customer_address: '' });
+                setNewPayment({ customer_id: 'none', payment_method: 'cash', reference_number: '', notes: '' });
               }
             }}>
               <DialogTrigger asChild>
@@ -552,18 +541,8 @@ const Payments = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reference_number">Receipt Reference Number</Label>
+                    <Label htmlFor="reference_number">Transaction Reference</Label>
                     <Input id="reference_number" value={newPayment.reference_number} onChange={e => setNewPayment({ ...newPayment, reference_number: e.target.value })} placeholder="REF-12345" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_company">Customer Company (for receipt)</Label>
-                    <Input id="customer_company" value={newPayment.customer_company} onChange={e => setNewPayment({ ...newPayment, customer_company: e.target.value })} placeholder="e.g. Liberia & Co." />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_address">Customer Address (for receipt)</Label>
-                    <Input id="customer_address" value={newPayment.customer_address} onChange={e => setNewPayment({ ...newPayment, customer_address: e.target.value })} placeholder="e.g. 123 Anytown St., Any City" />
                   </div>
 
                   <div className="space-y-2">
@@ -727,8 +706,6 @@ const Payments = () => {
                         payment_method: selectedPayment.payment_method,
                         total_amount: selectedPayment.amount,
                         customer_name: selectedPayment.customer_name,
-                        customer_company: selectedPayment.notes?.includes('Company:') ? selectedPayment.notes.split('Company:')[1]?.split('\n')[0]?.trim() : undefined,
-                        customer_address: selectedPayment.notes?.includes('Address:') ? selectedPayment.notes.split('Address:')[1]?.split('\n')[0]?.trim() : undefined,
                         items: selectedPaymentItems,
                         shop: shopInfo
                       }}
