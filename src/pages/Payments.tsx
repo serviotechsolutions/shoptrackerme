@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Plus, Eye, Users, ShoppingBag, FileText } from 'lucide-react';
+import { DollarSign, Plus, Eye, Users, ShoppingBag, FileText, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -273,6 +274,18 @@ const Payments = () => {
     const { data: items } = await supabase.from('payment_items').select('*').eq('payment_id', payment.id);
     setSelectedPaymentItems(items || []);
     setDetailsDialogOpen(true);
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    try {
+      const { error } = await supabase.from('payments').delete().eq('id', paymentId);
+      if (error) throw error;
+      toast({ title: 'Success', description: 'Payment deleted successfully' });
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast({ title: 'Error', description: 'Failed to delete payment', variant: 'destructive' });
+    }
   };
 
   const generateQuickReceipt = async (payment: Payment) => {
@@ -651,6 +664,27 @@ const Payments = () => {
                         <Button variant="ghost" size="sm" onClick={() => generateQuickReceipt(payment)} title="Generate Receipt">
                           <FileText className="h-4 w-4" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" title="Delete Payment" className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this payment? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeletePayment(payment.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
