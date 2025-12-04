@@ -231,7 +231,7 @@ export type Database = {
           image_url?: string | null
           low_stock_threshold?: number
           name: string
-          selling_price: number
+          selling_price?: number
           stock?: number
           tenant_id: string
           updated_at?: string

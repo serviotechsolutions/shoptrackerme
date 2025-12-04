@@ -133,11 +133,11 @@ const Products = () => {
       if (uploadedUrl) imageUrl = uploadedUrl;
     }
 
-    const productData = {
+const productData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string || null,
       buying_price: parseFloat(formData.get('buying_price') as string),
-      selling_price: parseFloat(formData.get('selling_price') as string),
+      selling_price: editingProduct?.selling_price || 0,
       stock: parseInt(formData.get('stock') as string),
       low_stock_threshold: parseInt(formData.get('low_stock_threshold') as string),
       tenant_id: tenantId,
@@ -381,15 +381,9 @@ const Products = () => {
                     onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="buying_price">Buying Price</Label>
-                    <Input id="buying_price" name="buying_price" type="number" step="0.01" defaultValue={editingProduct?.buying_price} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="selling_price">Selling Price</Label>
-                    <Input id="selling_price" name="selling_price" type="number" step="0.01" defaultValue={editingProduct?.selling_price} required />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="buying_price">Buying Price</Label>
+                  <Input id="buying_price" name="buying_price" type="number" step="0.01" defaultValue={editingProduct?.buying_price} required />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -419,7 +413,6 @@ const Products = () => {
                 <TableHead>Image</TableHead>
                 <TableHead>Product Name</TableHead>
                 <TableHead>Buying Price</TableHead>
-                <TableHead>Selling Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -427,7 +420,7 @@ const Products = () => {
             </TableHeader>
             <TableBody>
               {products.length === 0 ? <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No products found. Add your first product to get started!
                   </TableCell>
                 </TableRow> : products.map(product => <TableRow key={product.id}>
@@ -446,7 +439,6 @@ const Products = () => {
                     </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{formatCurrency(product.buying_price)}</TableCell>
-                    <TableCell>{formatCurrency(product.selling_price)}</TableCell>
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>
                       {product.stock <= product.low_stock_threshold ? <Badge variant="destructive" className="gap-1">
