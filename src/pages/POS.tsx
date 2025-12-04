@@ -619,16 +619,21 @@ const POS = () => {
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">@</span>
-                            <Input
-                              type="number"
-                              value={item.selling_price}
-                              onChange={(e) => updateCartPrice(item.id, parseFloat(e.target.value) || 0)}
-                              className="w-24 h-7 text-sm"
-                              min="0"
-                              step="1"
-                            />
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted-foreground">@</span>
+                              <Input
+                                type="number"
+                                value={item.selling_price}
+                                onChange={(e) => updateCartPrice(item.id, parseFloat(e.target.value) || 0)}
+                                className={`w-24 h-7 text-sm ${item.selling_price < item.buying_price ? 'border-destructive text-destructive' : ''}`}
+                                min="0"
+                                step="1"
+                              />
+                            </div>
+                            <span className={`text-xs ${item.selling_price < item.buying_price ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                              Cost: {formatCurrency(item.buying_price)}
+                            </span>
                           </div>
                           <span className="ml-auto font-semibold text-sm">
                             {formatCurrency(item.selling_price * item.quantity)}
