@@ -317,7 +317,7 @@ const productData = {
                   Add Product
                 </Button>
               </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>
                   {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -326,7 +326,7 @@ const productData = {
                   Fill in the product details below
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-2">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
                   <Input id="name" name="name" defaultValue={editingProduct?.name} required />
@@ -395,7 +395,7 @@ const productData = {
                     <Input id="low_stock_threshold" name="low_stock_threshold" type="number" defaultValue={editingProduct?.low_stock_threshold || 10} required />
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="pt-4">
                   <Button type="submit" disabled={uploading}>
                     {uploading ? 'Uploading...' : editingProduct ? 'Update' : 'Add'} Product
                   </Button>
