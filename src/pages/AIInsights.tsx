@@ -103,6 +103,34 @@ const AIInsights = () => {
       minimumFractionDigits: 0
     }).format(amount);
   };
+
+  // Helper to render AI text content properly (handles strings, arrays, objects)
+  const renderTextContent = (content: any): React.ReactNode => {
+    if (!content) return null;
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) {
+      return (
+        <ul className="list-disc list-inside space-y-1">
+          {content.map((item, index) => (
+            <li key={index}>{typeof item === 'string' ? item : renderTextContent(item)}</li>
+          ))}
+        </ul>
+      );
+    }
+    if (typeof content === 'object') {
+      return (
+        <div className="space-y-2">
+          {Object.entries(content).map(([key, value]) => (
+            <div key={key}>
+              <span className="font-medium capitalize">{key.replace(/_/g, ' ')}: </span>
+              <span>{typeof value === 'string' || typeof value === 'number' ? String(value) : renderTextContent(value)}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return String(content);
+  };
   return <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -182,10 +210,8 @@ const AIInsights = () => {
                         <CardHeader>
                           <CardTitle>Key Trends</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="text-muted-foreground">
-                            {typeof forecast.trends === 'string' ? forecast.trends : JSON.stringify(forecast.trends, null, 2)}
-                          </p>
+                        <CardContent className="text-muted-foreground">
+                          {renderTextContent(forecast.trends)}
                         </CardContent>
                       </Card>}
 
@@ -193,10 +219,8 @@ const AIInsights = () => {
                         <CardHeader>
                           <CardTitle>AI Recommendations</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <p className="text-muted-foreground whitespace-pre-wrap">
-                            {typeof forecast.recommendations === 'string' ? forecast.recommendations : JSON.stringify(forecast.recommendations, null, 2)}
-                          </p>
+                        <CardContent className="text-muted-foreground">
+                          {renderTextContent(forecast.recommendations)}
                         </CardContent>
                       </Card>}
                   </>}
@@ -262,10 +286,8 @@ const AIInsights = () => {
                     <CardHeader>
                       <CardTitle>AI Analysis</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.insights === 'string' ? customerInsights.insights : JSON.stringify(customerInsights.insights, null, 2)}
-                      </p>
+                    <CardContent className="text-muted-foreground">
+                      {renderTextContent(customerInsights.insights)}
                     </CardContent>
                   </Card>}
 
@@ -273,10 +295,8 @@ const AIInsights = () => {
                     <CardHeader>
                       <CardTitle>Top Performer Insights</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.topClerk === 'string' ? customerInsights.topClerk : JSON.stringify(customerInsights.topClerk, null, 2)}
-                      </p>
+                    <CardContent className="text-muted-foreground">
+                      {renderTextContent(customerInsights.topClerk)}
                     </CardContent>
                   </Card>}
 
@@ -284,10 +304,8 @@ const AIInsights = () => {
                     <CardHeader>
                       <CardTitle>Recommendations</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground whitespace-pre-wrap">
-                        {typeof customerInsights.recommendations === 'string' ? customerInsights.recommendations : JSON.stringify(customerInsights.recommendations, null, 2)}
-                      </p>
+                    <CardContent className="text-muted-foreground">
+                      {renderTextContent(customerInsights.recommendations)}
                     </CardContent>
                   </Card>}
               </>}
