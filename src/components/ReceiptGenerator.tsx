@@ -19,13 +19,22 @@ interface ShopInfo {
   email?: string | null;
 }
 
+interface CustomerInfo {
+  name: string | null;
+  company?: string | null;
+  address?: string | null;
+}
+
 interface ReceiptData {
   payment_id: string;
   reference_number: string | null;
   payment_date: string;
+  due_date?: string | null;
   payment_method: string;
   total_amount: number;
   customer_name: string | null;
+  customer_company?: string | null;
+  customer_address?: string | null;
   items: PaymentItem[];
   shop: ShopInfo;
 }
@@ -35,11 +44,39 @@ interface ReceiptGeneratorProps {
 }
 
 const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
-  const generateReceiptContent = async (doc: jsPDF): Promise<jsPDF> => {
-    const pageWidth = 80;
-    let yPos = 10;
+  const PRIMARY_COLOR: [number, number, number] = [0, 136, 204]; // #0088CC blue
+  const WHITE: [number, number, number] = [255, 255, 255];
+  const DARK: [number, number, number] = [51, 51, 51];
+  const LIGHT_GRAY: [number, number, number] = [245, 250, 255];
 
-    // Header - Shop Logo (if available)
+  const generateReceiptContent = async (doc: jsPDF): Promise<jsPDF> => {
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 20;
+    let yPos = 20;
+
+    // Draw diagonal corner decorations - Top Left
+    doc.setFillColor(...PRIMARY_COLOR);
+    doc.triangle(0, 0, 60, 0, 0, 60, 'F');
+    doc.triangle(0, 0, 40, 0, 0, 40, 'F');
+    
+    // Top Right diagonal
+    doc.triangle(pageWidth, 0, pageWidth - 50, 0, pageWidth, 50, 'F');
+    doc.triangle(pageWidth, 30, pageWidth - 30, 0, pageWidth, 0, 'F');
+
+    // Bottom Left diagonal
+    doc.triangle(0, pageHeight, 50, pageHeight, 0, pageHeight - 50, 'F');
+    doc.triangle(0, pageHeight, 30, pageHeight, 0, pageHeight - 30, 'F');
+
+    // Bottom Right diagonal
+    doc.triangle(pageWidth, pageHeight, pageWidth - 60, pageHeight, pageWidth, pageHeight - 60, 'F');
+    doc.triangle(pageWidth, pageHeight, pageWidth - 40, pageHeight, pageWidth, pageHeight - 40, 'F');
+
+    yPos = 30;
+
+    // Logo and Shop Name
+    const centerX = pageWidth / 2;
+    
     if (data.shop.logo_url) {
       try {
         const response = await fetch(data.shop.logo_url);
@@ -50,123 +87,148 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
           reader.readAsDataURL(blob);
         });
         
-        const logoWidth = 20;
-        const logoHeight = 20;
-        const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(base64, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 4;
+        const logoSize = 25;
+        const logoX = centerX - logoSize / 2;
+        doc.addImage(base64, 'PNG', logoX, yPos, logoSize, logoSize);
+        yPos += logoSize + 5;
       } catch (error) {
         console.error('Failed to load logo:', error);
+        yPos += 10;
       }
     }
 
-    // Header - Shop Name
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.shop.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
+    // Shop Name
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bolditalic');
+    doc.text(data.shop.name || 'Shop Name', centerX, yPos, { align: 'center' });
+    yPos += 20;
 
-    // Shop Address
-    if (data.shop.address) {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const addressLines = doc.splitTextToSize(data.shop.address, pageWidth - 10);
+    // Customer Info Section (Left) and Reference Section (Right)
+    doc.setTextColor(...DARK);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ISSUED TO:', margin, yPos);
+    
+    // Reference info on right
+    const rightX = pageWidth - margin;
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text('REF NO:', rightX - 40, yPos);
+    doc.setTextColor(...DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.text(data.reference_number || 'N/A', rightX, yPos, { align: 'right' });
+    
+    yPos += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...DARK);
+    doc.text(data.customer_name || 'Walk-in Customer', margin, yPos);
+    
+    doc.setTextColor(...PRIMARY_COLOR);
+    doc.text('DATE:', rightX - 40, yPos);
+    doc.setTextColor(...DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.text(format(new Date(data.payment_date), 'dd.MM.yyyy'), rightX, yPos, { align: 'right' });
+    
+    yPos += 5;
+    doc.setFont('helvetica', 'normal');
+    if (data.customer_company) {
+      doc.text(data.customer_company, margin, yPos);
+      yPos += 5;
+    }
+    if (data.customer_address) {
+      const addressLines = doc.splitTextToSize(data.customer_address, 80);
       addressLines.forEach((line: string) => {
-        doc.text(line, pageWidth / 2, yPos, { align: 'center' });
+        doc.text(line, margin, yPos);
         yPos += 4;
       });
     }
 
-    // Shop Phone
-    if (data.shop.phone) {
-      doc.setFontSize(8);
-      doc.text(`Tel: ${data.shop.phone}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
+    yPos = Math.max(yPos, 100) + 10;
 
-    // Shop Email
-    if (data.shop.email) {
-      doc.setFontSize(8);
-      doc.text(`Email: ${data.shop.email}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
+    // Table Header
+    const tableLeft = margin;
+    const tableWidth = pageWidth - 2 * margin;
+    const colWidths = [85, 30, 25, 30]; // Description, MRP, Qty, Total
+    const tableHeaderHeight = 10;
 
-    // Divider
-    yPos += 2;
-    doc.setLineWidth(0.5);
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    // Receipt Info
+    doc.setFillColor(...PRIMARY_COLOR);
+    doc.rect(tableLeft, yPos, tableWidth, tableHeaderHeight, 'F');
+    
+    doc.setTextColor(...WHITE);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
+    
+    let colX = tableLeft + 5;
+    doc.text('DESCRIPTION', colX, yPos + 7);
+    colX += colWidths[0];
+    doc.text('MRP', colX, yPos + 7);
+    colX += colWidths[1];
+    doc.text('QTY', colX, yPos + 7);
+    colX += colWidths[2];
+    doc.text('TOTAL', colX, yPos + 7);
+    
+    yPos += tableHeaderHeight;
 
-    doc.setFontSize(8);
+    // Table Rows
+    const rowHeight = 10;
+    doc.setTextColor(...DARK);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 5, yPos);
-    yPos += 4;
 
-    if (data.reference_number) {
-      doc.text(`Ref: ${data.reference_number}`, 5, yPos);
-      yPos += 4;
-    }
+    data.items.forEach((item, index) => {
+      // Alternating row background
+      if (index % 2 === 0) {
+        doc.setFillColor(...LIGHT_GRAY);
+        doc.rect(tableLeft, yPos, tableWidth, rowHeight, 'F');
+      }
 
-    doc.text(`Payment: ${data.payment_method.replace('_', ' ')}`, 5, yPos);
-    yPos += 4;
-
-    if (data.customer_name) {
-      doc.text(`Customer: ${data.customer_name}`, 5, yPos);
-      yPos += 4;
-    }
-
-    // Divider
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    // Items Header
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 5, yPos);
-    doc.text('Qty', 40, yPos);
-    doc.text('Price', 50, yPos);
-    doc.text('Total', 65, yPos);
-    yPos += 4;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    // Items
-    doc.setFont('helvetica', 'normal');
-    data.items.forEach(item => {
-      const itemName = item.product_name.length > 15 
-        ? item.product_name.substring(0, 15) + '...' 
+      colX = tableLeft + 5;
+      const itemName = item.product_name.length > 35 
+        ? item.product_name.substring(0, 35) + '...' 
         : item.product_name;
-      doc.text(itemName, 5, yPos);
-      doc.text(item.quantity.toString(), 42, yPos);
-      doc.text(item.price.toFixed(0), 50, yPos);
-      doc.text(item.total_price.toFixed(0), 65, yPos);
-      yPos += 4;
+      doc.text(itemName, colX, yPos + 7);
+      colX += colWidths[0];
+      doc.text(`$${item.price.toFixed(0)}`, colX, yPos + 7);
+      colX += colWidths[1];
+      doc.text(item.quantity.toString(), colX, yPos + 7);
+      colX += colWidths[2];
+      doc.text(`$${item.total_price.toFixed(0)}`, colX, yPos + 7);
+      
+      yPos += rowHeight;
     });
 
-    // Divider
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    // Total
+    // Total Row
+    yPos += 5;
+    doc.setFillColor(...PRIMARY_COLOR);
+    doc.rect(tableLeft + colWidths[0] + colWidths[1], yPos, colWidths[2] + colWidths[3], 10, 'F');
+    
+    doc.setTextColor(...WHITE);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', 5, yPos);
-    doc.text(`$${data.total_amount.toFixed(2)}`, pageWidth - 5, yPos, { align: 'right' });
-    yPos += 8;
+    doc.text('TOTAL', tableLeft + colWidths[0] + colWidths[1] + 5, yPos + 7);
+    doc.text(`$${data.total_amount.toFixed(0)}`, tableLeft + tableWidth - 5, yPos + 7, { align: 'right' });
 
-    // Footer
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 25;
+
+    // Thank you message
+    doc.setTextColor(...DARK);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`THANK YOU FOR SHOPPING WITH "${data.shop.name?.toUpperCase() || 'US'}"`, margin, yPos);
+    
+    // Signature area
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.text('signature', pageWidth - margin - 30, yPos);
+    doc.setLineWidth(0.5);
+    doc.line(pageWidth - margin - 50, yPos + 3, pageWidth - margin, yPos + 3);
+
+    yPos += 15;
+
+    // Come back again
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('COME BACK AGAIN', margin, yPos);
 
     return doc;
   };
@@ -175,7 +237,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [80, 200]
+      format: 'a4'
     });
 
     await generateReceiptContent(doc);
@@ -186,7 +248,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [80, 200]
+      format: 'a4'
     });
 
     await generateReceiptContent(doc);
