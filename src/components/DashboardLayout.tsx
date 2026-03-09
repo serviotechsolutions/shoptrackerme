@@ -18,7 +18,8 @@ import {
   Users,
   CreditCard,
   Brain,
-  User
+  User,
+  Tag
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -60,6 +61,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/pos', label: 'POS', icon: CreditCard },
     { path: '/products', label: 'Products', icon: Package },
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
+    { path: '/promo-codes', label: 'Promo Codes', icon: Tag },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/ai-insights', label: 'AI Insights', icon: Brain },
     { path: '/payments', label: 'Payments', icon: CreditCard },
