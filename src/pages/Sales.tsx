@@ -110,33 +110,6 @@ const Sales = () => {
     setLoading(false);
   };
 
-  // Group transactions into "invoices" by created_by + timestamp proximity (within 2 min)
-  const groupedSales = useMemo(() => {
-    if (!transactions.length) return [];
-
-    const sorted = [...transactions].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    const groups: GroupedSale[] = [];
-    let current: Transaction[] = [];
-
-    sorted.forEach((t, i) => {
-      if (i === 0) {
-        current = [t];
-        return;
-      }
-      const prev = sorted[i - 1];
-      const timeDiff = Math.abs(new Date(t.created_at).getTime() - new Date(prev.created_at).getTime());
-      if (t.created_by === prev.created_by && t.payment_method === prev.payment_method && timeDiff < 120000) {
-        current.push(t);
-      } else {
-        groups.push(buildGroup(current));
-        current = [t];
-      }
-    });
-    if (current.length) groups.push(buildGroup(current));
-
-    return groups.reverse(); // newest first
-  }, [transactions]);
-
   const buildGroup = (items: Transaction[]): GroupedSale => {
     const first = items[0];
     const dateStr = format(new Date(first.created_at), 'yyyyMMddHHmmss');
@@ -151,6 +124,26 @@ const Sales = () => {
       itemCount: items.reduce((s, t) => s + t.quantity, 0),
     };
   };
+
+  const groupedSales = useMemo(() => {
+    if (!transactions.length) return [];
+    const sorted = [...transactions].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const groups: GroupedSale[] = [];
+    let current: Transaction[] = [];
+    sorted.forEach((t, i) => {
+      if (i === 0) { current = [t]; return; }
+      const prev = sorted[i - 1];
+      const timeDiff = Math.abs(new Date(t.created_at).getTime() - new Date(prev.created_at).getTime());
+      if (t.created_by === prev.created_by && t.payment_method === prev.payment_method && timeDiff < 120000) {
+        current.push(t);
+      } else {
+        groups.push(buildGroup(current));
+        current = [t];
+      }
+    });
+    if (current.length) groups.push(buildGroup(current));
+    return groups.reverse();
+  }, [transactions]);
 
   const filteredSales = useMemo(() => {
     if (!searchTerm) return groupedSales;
