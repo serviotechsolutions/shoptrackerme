@@ -669,19 +669,38 @@ const POS = () => {
           </div>
 
           {/* Right Section - Cart & Stats */}
-          <div className="space-y-4">
+          <div className="lg:sticky lg:top-20 space-y-4 self-start">
+            {/* Quick Stats - moved above cart */}
+            <div className="bg-card rounded-lg shadow-sm p-4">
+              <h2 className="text-sm font-bold mb-2">Today's Stats</h2>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center min-w-0">
+                  <p className="text-sm font-bold text-primary truncate">{formatCurrency(quickStats.salesToday)}</p>
+                  <p className="text-[10px] text-muted-foreground">Revenue</p>
+                </div>
+                <div className="text-center min-w-0">
+                  <p className="text-sm font-bold">{quickStats.transactionsToday}</p>
+                  <p className="text-[10px] text-muted-foreground">Sales</p>
+                </div>
+                <div className="text-center min-w-0">
+                  <p className="text-xs font-bold truncate">{quickStats.topItem}</p>
+                  <p className="text-[10px] text-muted-foreground">Top Item</p>
+                </div>
+              </div>
+            </div>
+
             {/* Cart */}
-            <div className="bg-card rounded-lg shadow-sm p-4 sm:p-6 flex flex-col" style={{ maxHeight: "calc(100vh - 200px)" }}>
+            <div className="bg-card rounded-lg shadow-sm p-4 sm:p-5">
               {/* Cart Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-bold">Cart</h2>
+                  <h2 className="text-base font-bold">Cart</h2>
                   {cartItemCount > 0 && (
                     <Badge variant="secondary" className="text-xs">{cartItemCount} item{cartItemCount !== 1 ? "s" : ""}</Badge>
                   )}
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={holdSale} disabled={cart.length === 0} title="Hold/Park Sale (serve another customer)">
+                  <Button variant="ghost" size="sm" onClick={holdSale} disabled={cart.length === 0} title="Hold/Park Sale">
                     <PauseCircle className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="sm" onClick={clearCart} disabled={cart.length === 0} title="Clear Cart (Esc)" className="text-destructive hover:text-destructive">
@@ -691,16 +710,16 @@ const POS = () => {
               </div>
 
               {/* Cart Items - scrollable */}
-              <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0">
+              <div className="overflow-y-auto space-y-3 mb-3 max-h-48 lg:max-h-40">
                 {cart.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <div className="text-center text-muted-foreground py-6">
+                    <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Cart is empty</p>
                     <p className="text-xs mt-1">Tap a product to add it</p>
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div key={item.id} className="flex items-start gap-2 pb-3 border-b last:border-b-0">
+                    <div key={item.id} className="flex items-start gap-2 pb-2 border-b last:border-b-0">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-1">
                           <span className="font-medium text-sm truncate">{item.name}</span>
@@ -740,7 +759,7 @@ const POS = () => {
               </div>
 
               {/* Summary */}
-              <div className="border-t pt-3 space-y-2">
+              <div className="border-t pt-2 space-y-1">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span className="font-semibold">{formatCurrency(calculateSubtotal())}</span>
@@ -751,92 +770,64 @@ const POS = () => {
                     <span className="font-semibold">-{formatCurrency(calculateDiscount())}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                <div className="flex justify-between text-base font-bold border-t pt-1">
                   <span>Total</span>
                   <span className="text-primary">{formatCurrency(calculateTotal())}</span>
                 </div>
               </div>
 
               {/* Discount Section */}
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 space-y-2">
                 <div className="flex gap-1">
-                  <Button type="button" size="sm" variant={discountType === "percentage" ? "default" : "outline"} onClick={() => { setDiscountType("percentage"); setValidatedPromo(null); }} className="flex-1 text-xs">
+                  <Button type="button" size="sm" variant={discountType === "percentage" ? "default" : "outline"} onClick={() => { setDiscountType("percentage"); setValidatedPromo(null); }} className="flex-1 text-xs h-8">
                     <Percent className="h-3 w-3 mr-1" /> %
                   </Button>
-                  <Button type="button" size="sm" variant={discountType === "fixed" ? "default" : "outline"} onClick={() => { setDiscountType("fixed"); setValidatedPromo(null); }} className="flex-1 text-xs">
+                  <Button type="button" size="sm" variant={discountType === "fixed" ? "default" : "outline"} onClick={() => { setDiscountType("fixed"); setValidatedPromo(null); }} className="flex-1 text-xs h-8">
                     <DollarSign className="h-3 w-3 mr-1" /> UGX
                   </Button>
-                  <Button type="button" size="sm" variant={discountType === "promo" ? "default" : "outline"} onClick={() => setDiscountType("promo")} className="flex-1 text-xs">
+                  <Button type="button" size="sm" variant={discountType === "promo" ? "default" : "outline"} onClick={() => setDiscountType("promo")} className="flex-1 text-xs h-8">
                     <Tag className="h-3 w-3 mr-1" /> Code
                   </Button>
                 </div>
 
                 {discountType === "promo" ? (
                   <div className="flex gap-2">
-                    <Input placeholder="Promo code" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} disabled={!!validatedPromo} className="h-9" />
-                    <Button type="button" size="sm" onClick={validatedPromo ? () => { setValidatedPromo(null); setPromoCode(""); } : validatePromoCode} variant={validatedPromo ? "destructive" : "default"}>
+                    <Input placeholder="Promo code" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} disabled={!!validatedPromo} className="h-8 text-sm" />
+                    <Button type="button" size="sm" className="h-8" onClick={validatedPromo ? () => { setValidatedPromo(null); setPromoCode(""); } : validatePromoCode} variant={validatedPromo ? "destructive" : "default"}>
                       {validatedPromo ? "Clear" : "Apply"}
                     </Button>
                   </div>
                 ) : (
-                  <Input type="number" placeholder={discountType === "percentage" ? "Enter %" : "Enter amount"} value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} min="0" max={discountType === "percentage" ? "100" : undefined} className="h-9" />
+                  <Input type="number" placeholder={discountType === "percentage" ? "Enter %" : "Enter amount"} value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} min="0" max={discountType === "percentage" ? "100" : undefined} className="h-8 text-sm" />
                 )}
 
-                <Input placeholder="Customer Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9" />
+                <Input placeholder="Customer Name (Optional)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-8 text-sm" />
               </div>
 
               {/* Payment Buttons */}
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <div className="mt-2 grid grid-cols-4 gap-1">
                 {[
-                  { key: "cash", label: "Cash", shortcut: "F1" },
-                  { key: "mobile_money", label: "MoMo", shortcut: "F2" },
-                  { key: "card", label: "Card", shortcut: "F3" },
-                  { key: "other", label: "Other", shortcut: "F4" },
+                  { key: "cash", label: "Cash" },
+                  { key: "mobile_money", label: "MoMo" },
+                  { key: "card", label: "Card" },
+                  { key: "other", label: "Other" },
                 ].map(pm => (
                   <Button
                     key={pm.key}
                     variant={paymentMethod === pm.key ? "default" : "outline"}
                     onClick={() => setPaymentMethod(pm.key)}
-                    className="w-full h-9 text-xs gap-1"
+                    className="w-full h-8 text-xs px-1"
                     size="sm"
                   >
-                    <span>{pm.label}</span>
-                    <span className="text-[9px] opacity-60 hidden lg:inline">({pm.shortcut})</span>
+                    {pm.label}
                   </Button>
                 ))}
               </div>
 
               {/* Checkout Button */}
-              <Button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full mt-3" size="lg">
-                <span className="truncate">
-                  {loading ? "Processing..." : (
-                    <>
-                      <span className="sm:hidden">Checkout • {formatCurrency(calculateTotal())}</span>
-                      <span className="hidden sm:inline">Complete Sale • {formatCurrency(calculateTotal())}</span>
-                    </>
-                  )}
-                </span>
+              <Button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full mt-3 text-sm" size="lg">
+                {loading ? "Processing..." : `Checkout • ${formatCurrency(calculateTotal())}`}
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground mt-1 hidden lg:block">Ctrl+Enter to checkout</p>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="bg-card rounded-lg shadow-sm p-4">
-              <h2 className="text-sm font-bold mb-2">Today's Stats</h2>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="text-center min-w-0">
-                  <p className="text-sm sm:text-base font-bold text-primary truncate">{formatCurrency(quickStats.salesToday)}</p>
-                  <p className="text-[10px] text-muted-foreground">Revenue</p>
-                </div>
-                <div className="text-center min-w-0">
-                  <p className="text-sm sm:text-base font-bold">{quickStats.transactionsToday}</p>
-                  <p className="text-[10px] text-muted-foreground">Sales</p>
-                </div>
-                <div className="text-center min-w-0">
-                  <p className="text-xs font-bold truncate">{quickStats.topItem}</p>
-                  <p className="text-[10px] text-muted-foreground">Top Item</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
