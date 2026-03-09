@@ -18,7 +18,8 @@ import {
   Users,
   CreditCard,
   Brain,
-  User
+  User,
+  Tag
 } from 'lucide-react';
 import {
   DropdownMenu,
