@@ -486,6 +486,114 @@ const PromoCodes = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Generate Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Generate Promo Codes</DialogTitle>
+            <DialogDescription>Create multiple codes at once with the same discount settings</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bulk_count">Number of Codes</Label>
+                <Input
+                  id="bulk_count"
+                  type="number"
+                  value={bulkCount}
+                  onChange={(e) => setBulkCount(e.target.value)}
+                  min="1"
+                  max="100"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_prefix">Prefix (Optional)</Label>
+                <Input
+                  id="bulk_prefix"
+                  value={bulkPrefix}
+                  onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())}
+                  placeholder="e.g. SALE"
+                  className="font-mono uppercase"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Discount Type</Label>
+                <Select value={bulkDiscountType} onValueChange={setBulkDiscountType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (UGX)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_discount_value">
+                  {bulkDiscountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}
+                </Label>
+                <Input
+                  id="bulk_discount_value"
+                  type="number"
+                  value={bulkDiscountValue}
+                  onChange={(e) => setBulkDiscountValue(e.target.value)}
+                  placeholder={bulkDiscountType === 'percentage' ? '10' : '5000'}
+                  min="0"
+                  max={bulkDiscountType === 'percentage' ? '100' : undefined}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bulk_valid_until">Expires On (Optional)</Label>
+                <Input
+                  id="bulk_valid_until"
+                  type="date"
+                  value={bulkValidUntil}
+                  onChange={(e) => setBulkValidUntil(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_usage_limit">Usage Limit (Optional)</Label>
+                <Input
+                  id="bulk_usage_limit"
+                  type="number"
+                  value={bulkUsageLimit}
+                  onChange={(e) => setBulkUsageLimit(e.target.value)}
+                  placeholder="Unlimited"
+                  min="1"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch checked={bulkIsActive} onCheckedChange={setBulkIsActive} id="bulk_is_active" />
+              <Label htmlFor="bulk_is_active">Active immediately</Label>
+            </div>
+
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              {bulkPrefix
+                ? `Codes will look like: ${bulkPrefix}-${generateCode()}`
+                : `Codes will look like: ${generateCode()}`}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleBulkGenerate} disabled={bulkGenerating} className="gap-2">
+                <Layers className="h-4 w-4" />
+                {bulkGenerating ? 'Generating...' : `Generate ${bulkCount || 0} Codes`}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
