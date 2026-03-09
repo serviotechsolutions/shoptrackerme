@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Tag, Plus, Pencil, Trash2, Copy, CheckCircle } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface PromoCode {
