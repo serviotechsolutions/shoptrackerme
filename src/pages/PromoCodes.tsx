@@ -35,6 +35,10 @@ const PromoCodes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkCount, setBulkCount] = useState('5');
+  const [bulkPrefix, setBulkPrefix] = useState('');
+  const [bulkGenerating, setBulkGenerating] = useState(false);
 
   // Form state
   const [code, setCode] = useState('');
@@ -43,6 +47,13 @@ const PromoCodes = () => {
   const [isActive, setIsActive] = useState(true);
   const [validUntil, setValidUntil] = useState('');
   const [usageLimit, setUsageLimit] = useState('');
+
+  // Bulk form shares discountType, discountValue, isActive, validUntil, usageLimit
+  const [bulkDiscountType, setBulkDiscountType] = useState('percentage');
+  const [bulkDiscountValue, setBulkDiscountValue] = useState('');
+  const [bulkIsActive, setBulkIsActive] = useState(true);
+  const [bulkValidUntil, setBulkValidUntil] = useState('');
+  const [bulkUsageLimit, setBulkUsageLimit] = useState('');
 
   const { toast } = useToast();
 
