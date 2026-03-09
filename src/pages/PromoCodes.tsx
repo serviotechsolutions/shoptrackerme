@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Tag, Plus, Pencil, Trash2, Copy, CheckCircle } from 'lucide-react';
+import { Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface PromoCode {
@@ -35,6 +35,10 @@ const PromoCodes = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkCount, setBulkCount] = useState('5');
+  const [bulkPrefix, setBulkPrefix] = useState('');
+  const [bulkGenerating, setBulkGenerating] = useState(false);
 
   // Form state
   const [code, setCode] = useState('');
@@ -43,6 +47,13 @@ const PromoCodes = () => {
   const [isActive, setIsActive] = useState(true);
   const [validUntil, setValidUntil] = useState('');
   const [usageLimit, setUsageLimit] = useState('');
+
+  // Bulk form shares discountType, discountValue, isActive, validUntil, usageLimit
+  const [bulkDiscountType, setBulkDiscountType] = useState('percentage');
+  const [bulkDiscountValue, setBulkDiscountValue] = useState('');
+  const [bulkIsActive, setBulkIsActive] = useState(true);
+  const [bulkValidUntil, setBulkValidUntil] = useState('');
+  const [bulkUsageLimit, setBulkUsageLimit] = useState('');
 
   const { toast } = useToast();
 
@@ -178,6 +189,52 @@ const PromoCodes = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleBulkGenerate = async () => {
+    const count = parseInt(bulkCount);
+    if (isNaN(count) || count < 1 || count > 100) {
+      toast({ title: 'Error', description: 'Enter a number between 1 and 100', variant: 'destructive' });
+      return;
+    }
+    const value = parseFloat(bulkDiscountValue);
+    if (isNaN(value) || value <= 0) {
+      toast({ title: 'Error', description: 'Discount value must be a positive number', variant: 'destructive' });
+      return;
+    }
+    if (bulkDiscountType === 'percentage' && value > 100) {
+      toast({ title: 'Error', description: 'Percentage cannot exceed 100%', variant: 'destructive' });
+      return;
+    }
+
+    setBulkGenerating(true);
+    const prefix = bulkPrefix.toUpperCase().trim();
+    const codes = Array.from({ length: count }, () => ({
+      code: prefix ? `${prefix}-${generateCode()}` : generateCode(),
+      discount_type: bulkDiscountType,
+      discount_value: value,
+      is_active: bulkIsActive,
+      valid_until: bulkValidUntil ? new Date(bulkValidUntil).toISOString() : null,
+      usage_limit: bulkUsageLimit ? parseInt(bulkUsageLimit) : null,
+      tenant_id: tenantId,
+    }));
+
+    const { error } = await supabase.from('promo_codes').insert(codes);
+    setBulkGenerating(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Bulk Created', description: `${count} promo codes generated successfully` });
+      setBulkDialogOpen(false);
+      setBulkCount('5');
+      setBulkPrefix('');
+      setBulkDiscountType('percentage');
+      setBulkDiscountValue('');
+      setBulkIsActive(true);
+      setBulkValidUntil('');
+      setBulkUsageLimit('');
+      fetchPromoCodes();
+    }
+  };
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(amount);
 
@@ -202,9 +259,14 @@ const PromoCodes = () => {
             <h1 className="text-2xl font-bold tracking-tight">Promo Codes</h1>
             <p className="text-muted-foreground">Create and manage discount codes for your customers</p>
           </div>
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" /> New Code
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="gap-2">
+              <Layers className="h-4 w-4" /> Bulk Generate
+            </Button>
+            <Button onClick={openCreate} className="gap-2">
+              <Plus className="h-4 w-4" /> New Code
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -422,6 +484,114 @@ const PromoCodes = () => {
               <Button type="submit">{editingPromo ? 'Update' : 'Create'} Code</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Generate Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Generate Promo Codes</DialogTitle>
+            <DialogDescription>Create multiple codes at once with the same discount settings</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bulk_count">Number of Codes</Label>
+                <Input
+                  id="bulk_count"
+                  type="number"
+                  value={bulkCount}
+                  onChange={(e) => setBulkCount(e.target.value)}
+                  min="1"
+                  max="100"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_prefix">Prefix (Optional)</Label>
+                <Input
+                  id="bulk_prefix"
+                  value={bulkPrefix}
+                  onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())}
+                  placeholder="e.g. SALE"
+                  className="font-mono uppercase"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Discount Type</Label>
+                <Select value={bulkDiscountType} onValueChange={setBulkDiscountType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (UGX)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_discount_value">
+                  {bulkDiscountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}
+                </Label>
+                <Input
+                  id="bulk_discount_value"
+                  type="number"
+                  value={bulkDiscountValue}
+                  onChange={(e) => setBulkDiscountValue(e.target.value)}
+                  placeholder={bulkDiscountType === 'percentage' ? '10' : '5000'}
+                  min="0"
+                  max={bulkDiscountType === 'percentage' ? '100' : undefined}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="bulk_valid_until">Expires On (Optional)</Label>
+                <Input
+                  id="bulk_valid_until"
+                  type="date"
+                  value={bulkValidUntil}
+                  onChange={(e) => setBulkValidUntil(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bulk_usage_limit">Usage Limit (Optional)</Label>
+                <Input
+                  id="bulk_usage_limit"
+                  type="number"
+                  value={bulkUsageLimit}
+                  onChange={(e) => setBulkUsageLimit(e.target.value)}
+                  placeholder="Unlimited"
+                  min="1"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Switch checked={bulkIsActive} onCheckedChange={setBulkIsActive} id="bulk_is_active" />
+              <Label htmlFor="bulk_is_active">Active immediately</Label>
+            </div>
+
+            <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+              {bulkPrefix
+                ? `Codes will look like: ${bulkPrefix}-${generateCode()}`
+                : `Codes will look like: ${generateCode()}`}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleBulkGenerate} disabled={bulkGenerating} className="gap-2">
+                <Layers className="h-4 w-4" />
+                {bulkGenerating ? 'Generating...' : `Generate ${bulkCount || 0} Codes`}
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
