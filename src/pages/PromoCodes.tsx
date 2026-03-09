@@ -189,6 +189,52 @@ const PromoCodes = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleBulkGenerate = async () => {
+    const count = parseInt(bulkCount);
+    if (isNaN(count) || count < 1 || count > 100) {
+      toast({ title: 'Error', description: 'Enter a number between 1 and 100', variant: 'destructive' });
+      return;
+    }
+    const value = parseFloat(bulkDiscountValue);
+    if (isNaN(value) || value <= 0) {
+      toast({ title: 'Error', description: 'Discount value must be a positive number', variant: 'destructive' });
+      return;
+    }
+    if (bulkDiscountType === 'percentage' && value > 100) {
+      toast({ title: 'Error', description: 'Percentage cannot exceed 100%', variant: 'destructive' });
+      return;
+    }
+
+    setBulkGenerating(true);
+    const prefix = bulkPrefix.toUpperCase().trim();
+    const codes = Array.from({ length: count }, () => ({
+      code: prefix ? `${prefix}-${generateCode()}` : generateCode(),
+      discount_type: bulkDiscountType,
+      discount_value: value,
+      is_active: bulkIsActive,
+      valid_until: bulkValidUntil ? new Date(bulkValidUntil).toISOString() : null,
+      usage_limit: bulkUsageLimit ? parseInt(bulkUsageLimit) : null,
+      tenant_id: tenantId,
+    }));
+
+    const { error } = await supabase.from('promo_codes').insert(codes);
+    setBulkGenerating(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Bulk Created', description: `${count} promo codes generated successfully` });
+      setBulkDialogOpen(false);
+      setBulkCount('5');
+      setBulkPrefix('');
+      setBulkDiscountType('percentage');
+      setBulkDiscountValue('');
+      setBulkIsActive(true);
+      setBulkValidUntil('');
+      setBulkUsageLimit('');
+      fetchPromoCodes();
+    }
+  };
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(amount);
 
@@ -213,9 +259,14 @@ const PromoCodes = () => {
             <h1 className="text-2xl font-bold tracking-tight">Promo Codes</h1>
             <p className="text-muted-foreground">Create and manage discount codes for your customers</p>
           </div>
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" /> New Code
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="gap-2">
+              <Layers className="h-4 w-4" /> Bulk Generate
+            </Button>
+            <Button onClick={openCreate} className="gap-2">
+              <Plus className="h-4 w-4" /> New Code
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
