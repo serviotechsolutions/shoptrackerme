@@ -786,7 +786,7 @@ const POS = () => {
               </div>
 
               {/* Payment Buttons */}
-              <div className="mt-3 grid grid-cols-4 gap-1.5">
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {[
                   { key: "cash", label: "Cash", shortcut: "F1" },
                   { key: "mobile_money", label: "MoMo", shortcut: "F2" },
@@ -797,36 +797,43 @@ const POS = () => {
                     key={pm.key}
                     variant={paymentMethod === pm.key ? "default" : "outline"}
                     onClick={() => setPaymentMethod(pm.key)}
-                    className="w-full flex-col h-auto py-2 text-xs"
+                    className="w-full h-9 text-xs gap-1"
                     size="sm"
                   >
                     <span>{pm.label}</span>
-                    <span className="text-[9px] opacity-60 hidden sm:block">{pm.shortcut}</span>
+                    <span className="text-[9px] opacity-60 hidden lg:inline">({pm.shortcut})</span>
                   </Button>
                 ))}
               </div>
 
               {/* Checkout Button */}
               <Button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full mt-3" size="lg">
-                {loading ? "Processing..." : `Complete Sale • ${formatCurrency(calculateTotal())}`}
+                <span className="truncate">
+                  {loading ? "Processing..." : (
+                    <>
+                      <span className="sm:hidden">Checkout • {formatCurrency(calculateTotal())}</span>
+                      <span className="hidden sm:inline">Complete Sale • {formatCurrency(calculateTotal())}</span>
+                    </>
+                  )}
+                </span>
               </Button>
-              <p className="text-[10px] text-center text-muted-foreground mt-1 hidden sm:block">Ctrl+Enter to checkout</p>
+              <p className="text-[10px] text-center text-muted-foreground mt-1 hidden lg:block">Ctrl+Enter to checkout</p>
             </div>
 
             {/* Quick Stats */}
-            <div className="bg-card rounded-lg shadow-sm p-4 sm:p-6">
-              <h2 className="text-base font-bold mb-3">Today's Stats</h2>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center">
-                  <p className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(quickStats.salesToday)}</p>
+            <div className="bg-card rounded-lg shadow-sm p-4">
+              <h2 className="text-sm font-bold mb-2">Today's Stats</h2>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center min-w-0">
+                  <p className="text-sm sm:text-base font-bold text-primary truncate">{formatCurrency(quickStats.salesToday)}</p>
                   <p className="text-[10px] text-muted-foreground">Revenue</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg sm:text-xl font-bold">{quickStats.transactionsToday}</p>
+                <div className="text-center min-w-0">
+                  <p className="text-sm sm:text-base font-bold">{quickStats.transactionsToday}</p>
                   <p className="text-[10px] text-muted-foreground">Sales</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-xs sm:text-sm font-bold truncate">{quickStats.topItem}</p>
+                <div className="text-center min-w-0">
+                  <p className="text-xs font-bold truncate">{quickStats.topItem}</p>
                   <p className="text-[10px] text-muted-foreground">Top Item</p>
                 </div>
               </div>
