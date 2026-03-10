@@ -12,8 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import {
   Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers, Share2,
-  Download, Clock, TrendingUp, Users, Image as ImageIcon
+  Download, Clock, TrendingUp, Users, Image as ImageIcon, MoreVertical, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 
