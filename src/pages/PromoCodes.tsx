@@ -658,26 +658,13 @@ const PromoCodes = () => {
                             <p className="font-semibold truncate">{revenue ? formatCurrency(revenue.total_revenue) : '—'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            {countdown && (
-                              <span className={`flex items-center gap-1 ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
-                                <Clock className="h-3 w-3" /> {countdown}
-                              </span>
-                            )}
-                            {!promo.valid_until && <span>No expiry</span>}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePoster(promo)}>
-                              <ImageIcon className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(promo)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deletePromo(promo)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {countdown && (
+                            <span className={`flex items-center gap-1 ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
+                              <Clock className="h-3 w-3" /> {countdown}
+                            </span>
+                          )}
+                          {!promo.valid_until && <span>No expiry</span>}
                         </div>
                       </div>
                     );
