@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers } from 'lucide-react';
-import { format } from 'date-fns';
+import {
+  Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers, Share2,
+  Download, Clock, TrendingUp, Users, Image as ImageIcon
+} from 'lucide-react';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 
 interface PromoCode {
   id: string;
@@ -28,9 +31,17 @@ interface PromoCode {
   created_at: string;
 }
 
+interface PromoRevenue {
+  promo_code: string;
+  total_revenue: number;
+  total_transactions: number;
+}
+
 const PromoCodes = () => {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [promoRevenues, setPromoRevenues] = useState<Map<string, PromoRevenue>>(new Map());
   const [tenantId, setTenantId] = useState('');
+  const [shopName, setShopName] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
@@ -39,6 +50,9 @@ const PromoCodes = () => {
   const [bulkCount, setBulkCount] = useState('5');
   const [bulkPrefix, setBulkPrefix] = useState('');
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [posterPromo, setPosterPromo] = useState<PromoCode | null>(null);
+  const [shareMenuPromo, setShareMenuPromo] = useState<PromoCode | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Form state
   const [code, setCode] = useState('');
@@ -48,7 +62,7 @@ const PromoCodes = () => {
   const [validUntil, setValidUntil] = useState('');
   const [usageLimit, setUsageLimit] = useState('');
 
-  // Bulk form shares discountType, discountValue, isActive, validUntil, usageLimit
+  // Bulk form
   const [bulkDiscountType, setBulkDiscountType] = useState('percentage');
   const [bulkDiscountValue, setBulkDiscountValue] = useState('');
   const [bulkIsActive, setBulkIsActive] = useState(true);
@@ -62,14 +76,21 @@ const PromoCodes = () => {
   }, []);
 
   useEffect(() => {
-    if (tenantId) fetchPromoCodes();
+    if (tenantId) {
+      fetchPromoCodes();
+      fetchPromoRevenues();
+    }
   }, [tenantId]);
 
   const fetchUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
-      if (profile) setTenantId(profile.tenant_id);
+      if (profile) {
+        setTenantId(profile.tenant_id);
+        const { data: tenant } = await supabase.from('tenants').select('name').eq('id', profile.tenant_id).single();
+        if (tenant) setShopName(tenant.name);
+      }
     }
   };
 
@@ -84,6 +105,26 @@ const PromoCodes = () => {
     setLoading(false);
   };
 
+  const fetchPromoRevenues = async () => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('promo_code, total_amount')
+      .eq('tenant_id', tenantId)
+      .not('promo_code', 'is', null);
+
+    if (data) {
+      const revenueMap = new Map<string, PromoRevenue>();
+      data.forEach(tx => {
+        if (!tx.promo_code) return;
+        const existing = revenueMap.get(tx.promo_code) || { promo_code: tx.promo_code, total_revenue: 0, total_transactions: 0 };
+        existing.total_revenue += Number(tx.total_amount);
+        existing.total_transactions += 1;
+        revenueMap.set(tx.promo_code, existing);
+      });
+      setPromoRevenues(revenueMap);
+    }
+  };
+
   const resetForm = () => {
     setCode('');
     setDiscountType('percentage');
@@ -96,7 +137,6 @@ const PromoCodes = () => {
 
   const openCreate = () => {
     resetForm();
-    // Auto-generate a code
     setCode(generateCode());
     setDialogOpen(true);
   };
@@ -125,7 +165,6 @@ const PromoCodes = () => {
       toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
       return;
     }
-
     const value = parseFloat(discountValue);
     if (isNaN(value) || value <= 0) {
       toast({ title: 'Error', description: 'Discount value must be a positive number', variant: 'destructive' });
@@ -166,21 +205,16 @@ const PromoCodes = () => {
 
   const toggleActive = async (promo: PromoCode) => {
     const { error } = await supabase.from('promo_codes').update({ is_active: !promo.is_active }).eq('id', promo.id);
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      fetchPromoCodes();
-    }
+    if (!error) fetchPromoCodes();
+    else toast({ title: 'Error', description: error.message, variant: 'destructive' });
   };
 
   const deletePromo = async (promo: PromoCode) => {
     const { error } = await supabase.from('promo_codes').delete().eq('id', promo.id);
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
+    if (!error) {
       toast({ title: 'Deleted', description: `Promo code "${promo.code}" deleted` });
       fetchPromoCodes();
-    }
+    } else toast({ title: 'Error', description: error.message, variant: 'destructive' });
   };
 
   const copyCode = (promoCode: string, id: string) => {
@@ -251,66 +285,304 @@ const PromoCodes = () => {
     return <Badge className="bg-green-600 text-white hover:bg-green-700">Active</Badge>;
   };
 
+  const getDiscountText = (promo: PromoCode) =>
+    promo.discount_type === 'percentage'
+      ? `${promo.discount_value}% OFF`
+      : `${formatCurrency(promo.discount_value)} OFF`;
+
+  const getExpiryCountdown = (promo: PromoCode) => {
+    if (!promo.valid_until) return null;
+    const expiry = new Date(promo.valid_until);
+    const now = new Date();
+    if (expiry < now) return 'Expired';
+    const days = differenceInDays(expiry, now);
+    if (days > 0) return `${days}d left`;
+    const hours = differenceInHours(expiry, now);
+    return `${hours}h left`;
+  };
+
+  // === Share functionality ===
+  const buildShareMessage = (promo: PromoCode) => {
+    const discount = getDiscountText(promo);
+    const expiryLine = promo.valid_until
+      ? `\n\nOffer valid until: ${format(new Date(promo.valid_until), 'MMM dd, yyyy')}`
+      : '';
+    return `🎉 Special Offer from ${shopName || 'our shop'}!\n\nUse promo code: ${promo.code}\nGet ${discount} your purchase.\n\nShow this code to the cashier when paying.${expiryLine}`;
+  };
+
+  const handleShare = async (promo: PromoCode) => {
+    const message = buildShareMessage(promo);
+
+    // Try native Web Share API first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${shopName || 'Shop'} - Promo Code: ${promo.code}`,
+          text: message,
+        });
+        return;
+      } catch (err: any) {
+        // User cancelled or API failed - fall through to manual options
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    // Fallback: show share menu dialog
+    setShareMenuPromo(promo);
+  };
+
+  const shareViaWhatsApp = (promo: PromoCode) => {
+    const message = encodeURIComponent(buildShareMessage(promo));
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+    setShareMenuPromo(null);
+  };
+
+  const shareViaSMS = (promo: PromoCode) => {
+    const message = encodeURIComponent(buildShareMessage(promo));
+    window.open(`sms:?body=${message}`, '_blank');
+    setShareMenuPromo(null);
+  };
+
+  const shareViaEmail = (promo: PromoCode) => {
+    const subject = encodeURIComponent(`Special Offer - Use code ${promo.code}`);
+    const body = encodeURIComponent(buildShareMessage(promo));
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    setShareMenuPromo(null);
+  };
+
+  const shareViaFacebook = (promo: PromoCode) => {
+    const text = encodeURIComponent(buildShareMessage(promo));
+    window.open(`https://www.facebook.com/sharer/sharer.php?quote=${text}`, '_blank');
+    setShareMenuPromo(null);
+  };
+
+  const copyShareMessage = (promo: PromoCode) => {
+    navigator.clipboard.writeText(buildShareMessage(promo));
+    toast({ title: 'Copied', description: 'Share message copied to clipboard' });
+    setShareMenuPromo(null);
+  };
+
+  // === Poster generator ===
+  const generatePoster = useCallback((promo: PromoCode) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.width = 1080;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
+    gradient.addColorStop(0, '#1a1a2e');
+    gradient.addColorStop(0.5, '#16213e');
+    gradient.addColorStop(1, '#0f3460');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 1080, 1080);
+
+    // Decorative circles
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath();
+    ctx.arc(900, 150, 200, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(180, 900, 250, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Top banner
+    ctx.fillStyle = '#e94560';
+    const bannerPath = new Path2D();
+    bannerPath.moveTo(0, 0);
+    bannerPath.lineTo(1080, 0);
+    bannerPath.lineTo(1080, 180);
+    bannerPath.lineTo(540, 220);
+    bannerPath.lineTo(0, 180);
+    bannerPath.closePath();
+    ctx.fill(bannerPath);
+
+    // Shop name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(shopName || 'Our Shop', 540, 120);
+
+    // "SPECIAL OFFER" text
+    ctx.font = 'bold 36px sans-serif';
+    ctx.fillStyle = '#e94560';
+    ctx.fillText('✨ SPECIAL OFFER ✨', 540, 320);
+
+    // Discount value - big
+    const discountDisplay = promo.discount_type === 'percentage'
+      ? `${promo.discount_value}%`
+      : formatCurrency(promo.discount_value);
+    ctx.font = 'bold 140px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(discountDisplay, 540, 500);
+
+    // "OFF" text
+    ctx.font = 'bold 72px sans-serif';
+    ctx.fillStyle = '#e94560';
+    ctx.fillText('OFF', 540, 580);
+
+    // Promo code box
+    const codeBoxY = 640;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    const boxW = 600;
+    const boxH = 100;
+    const boxX = (1080 - boxW) / 2;
+    ctx.beginPath();
+    ctx.roundRect(boxX, codeBoxY, boxW, boxH, 16);
+    ctx.fill();
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillText('USE CODE', 540, codeBoxY - 15);
+
+    ctx.font = 'bold 56px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(promo.code, 540, codeBoxY + 65);
+
+    // Instructions
+    ctx.font = '28px sans-serif';
+    ctx.fillStyle = '#cccccc';
+    ctx.fillText('Show this code to the cashier when paying', 540, 810);
+
+    // Expiry
+    if (promo.valid_until) {
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillStyle = '#e94560';
+      ctx.fillText(`Valid until: ${format(new Date(promo.valid_until), 'MMMM dd, yyyy')}`, 540, 880);
+    }
+
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(0, 960, 1080, 120);
+    ctx.font = '22px sans-serif';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('Terms & conditions apply', 540, 1010);
+
+    setPosterPromo(promo);
+  }, [shopName]);
+
+  const downloadPoster = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !posterPromo) return;
+    const link = document.createElement('a');
+    link.download = `promo-${posterPromo.code}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  const sharePoster = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !posterPromo) return;
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `promo-${posterPromo.code}.png`, { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: `Promo Code: ${posterPromo.code}`,
+            text: buildShareMessage(posterPromo),
+            files: [file],
+          });
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            // Fallback: just download
+            downloadPoster();
+          }
+        }
+      } else {
+        downloadPoster();
+        toast({ title: 'Downloaded', description: 'Poster saved. You can share it manually.' });
+      }
+    }, 'image/png');
+  };
+
+  // Stats
+  const totalRevenue = Array.from(promoRevenues.values()).reduce((s, r) => s + r.total_revenue, 0);
+  const activeCodes = promoCodes.filter(p => p.is_active && !isExpired(p) && !isLimitReached(p)).length;
+  const totalUses = promoCodes.reduce((s, p) => s + p.times_used, 0);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Promo Codes</h1>
-            <p className="text-muted-foreground">Create and manage discount codes for your customers</p>
+            <p className="text-muted-foreground text-sm">Create, manage and share discount codes</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setBulkDialogOpen(true)} className="gap-2">
-              <Layers className="h-4 w-4" /> Bulk Generate
+            <Button variant="outline" onClick={() => setBulkDialogOpen(true)} size="sm" className="gap-1.5">
+              <Layers className="h-4 w-4" /> Bulk
             </Button>
-            <Button onClick={openCreate} className="gap-2">
+            <Button onClick={openCreate} size="sm" className="gap-1.5">
               <Plus className="h-4 w-4" /> New Code
             </Button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-full bg-primary/10 p-3">
-                <Tag className="h-5 w-5 text-primary" />
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-primary/10 p-2.5">
+                <Tag className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Codes</p>
-                <p className="text-xl font-bold">{promoCodes.length}</p>
+                <p className="text-xs text-muted-foreground">Total Codes</p>
+                <p className="text-lg font-bold">{promoCodes.length}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-full bg-green-500/10 p-3">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-green-500/10 p-2.5">
+                <CheckCircle className="h-4 w-4 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Codes</p>
-                <p className="text-xl font-bold">{promoCodes.filter(p => p.is_active && !isExpired(p) && !isLimitReached(p)).length}</p>
+                <p className="text-xs text-muted-foreground">Active</p>
+                <p className="text-lg font-bold">{activeCodes}</p>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded-full bg-blue-500/10 p-3">
-                <Tag className="h-5 w-5 text-blue-600" />
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-blue-500/10 p-2.5">
+                <Users className="h-4 w-4 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Uses</p>
-                <p className="text-xl font-bold">{promoCodes.reduce((s, p) => s + p.times_used, 0)}</p>
+                <p className="text-xs text-muted-foreground">Total Uses</p>
+                <p className="text-lg font-bold">{totalUses}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-full bg-amber-500/10 p-2.5">
+                <TrendingUp className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Revenue</p>
+                <p className="text-lg font-bold truncate">{formatCurrency(totalRevenue)}</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Table */}
+        {/* Promo codes list — mobile cards + desktop table */}
         <Card>
           <CardHeader>
             <CardTitle>All Promo Codes</CardTitle>
-            <CardDescription>Manage your promotional discount codes</CardDescription>
+            <CardDescription>Manage and share your promotional discount codes</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -325,74 +597,207 @@ const PromoCodes = () => {
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Discount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Usage</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {promoCodes.map(promo => (
-                      <TableRow key={promo.id}>
-                        <TableCell>
+              <>
+                {/* Mobile card view */}
+                <div className="space-y-3 md:hidden">
+                  {promoCodes.map(promo => {
+                    const revenue = promoRevenues.get(promo.code);
+                    const countdown = getExpiryCountdown(promo);
+                    return (
+                      <div key={promo.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => copyCode(promo.code, promo.id)}
-                            >
-                              {copiedId === promo.id ? <CheckCircle className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                            {getStatusBadge(promo)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyCode(promo.code, promo.id)}>
+                              {copiedId === promo.id ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleShare(promo)}>
+                              <Share2 className="h-4 w-4" />
                             </Button>
                           </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {promo.discount_type === 'percentage'
-                            ? `${promo.discount_value}%`
-                            : formatCurrency(promo.discount_value)}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(promo)}</TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {promo.times_used}{promo.usage_limit ? `/${promo.usage_limit}` : ''} uses
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {promo.valid_until
-                            ? format(new Date(promo.valid_until), 'MMM dd, yyyy')
-                            : <span className="text-muted-foreground">No expiry</span>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Switch
-                              checked={promo.is_active}
-                              onCheckedChange={() => toggleActive(promo)}
-                              className="mr-2"
-                            />
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(promo)}>
-                              <Pencil className="h-4 w-4" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground text-xs">Discount</p>
+                            <p className="font-semibold">{getDiscountText(promo)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Uses</p>
+                            <p className="font-semibold">{promo.times_used}{promo.usage_limit ? `/${promo.usage_limit}` : ''}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">Revenue</p>
+                            <p className="font-semibold truncate">{revenue ? formatCurrency(revenue.total_revenue) : '—'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            {countdown && (
+                              <span className={`flex items-center gap-1 ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
+                                <Clock className="h-3 w-3" /> {countdown}
+                              </span>
+                            )}
+                            {!promo.valid_until && <span>No expiry</span>}
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePoster(promo)}>
+                              <ImageIcon className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deletePromo(promo)}>
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(promo)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deletePromo(promo)}>
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
-                        </TableCell>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Discount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Usage</TableHead>
+                        <TableHead>Revenue</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {promoCodes.map(promo => {
+                        const revenue = promoRevenues.get(promo.code);
+                        const countdown = getExpiryCountdown(promo);
+                        return (
+                          <TableRow key={promo.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyCode(promo.code, promo.id)}>
+                                  {copiedId === promo.id ? <CheckCircle className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleShare(promo)}>
+                                  <Share2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">{getDiscountText(promo)}</TableCell>
+                            <TableCell>{getStatusBadge(promo)}</TableCell>
+                            <TableCell>
+                              <span className="text-sm">{promo.times_used}{promo.usage_limit ? `/${promo.usage_limit}` : ''} uses</span>
+                              {promo.usage_limit && (
+                                <div className="w-16 h-1.5 bg-muted rounded-full mt-1">
+                                  <div
+                                    className="h-full bg-primary rounded-full"
+                                    style={{ width: `${Math.min(100, (promo.times_used / promo.usage_limit) * 100)}%` }}
+                                  />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">
+                              {revenue ? formatCurrency(revenue.total_revenue) : '—'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {promo.valid_until ? (
+                                  <div>
+                                    <div>{format(new Date(promo.valid_until), 'MMM dd, yyyy')}</div>
+                                    {countdown && (
+                                      <span className={`text-xs ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
+                                        {countdown}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : <span className="text-muted-foreground">No expiry</span>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" title="Generate Poster" onClick={() => generatePoster(promo)}>
+                                  <ImageIcon className="h-4 w-4" />
+                                </Button>
+                                <Switch checked={promo.is_active} onCheckedChange={() => toggleActive(promo)} className="mr-1" />
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(promo)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deletePromo(promo)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Hidden canvas for poster generation */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Share Menu Fallback Dialog (desktop) */}
+      <Dialog open={!!shareMenuPromo} onOpenChange={(open) => !open && setShareMenuPromo(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Share Promo Code</DialogTitle>
+            <DialogDescription>Choose how to share "{shareMenuPromo?.code}"</DialogDescription>
+          </DialogHeader>
+          {shareMenuPromo && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="gap-2 justify-start" onClick={() => shareViaWhatsApp(shareMenuPromo)}>
+                <span className="text-green-600">💬</span> WhatsApp
+              </Button>
+              <Button variant="outline" className="gap-2 justify-start" onClick={() => shareViaFacebook(shareMenuPromo)}>
+                <span className="text-blue-600">📘</span> Facebook
+              </Button>
+              <Button variant="outline" className="gap-2 justify-start" onClick={() => shareViaSMS(shareMenuPromo)}>
+                <span>📱</span> SMS
+              </Button>
+              <Button variant="outline" className="gap-2 justify-start" onClick={() => shareViaEmail(shareMenuPromo)}>
+                <span>📧</span> Email
+              </Button>
+              <Button variant="outline" className="gap-2 justify-start col-span-2" onClick={() => copyShareMessage(shareMenuPromo)}>
+                <Copy className="h-4 w-4" /> Copy Message
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Poster Preview Dialog */}
+      <Dialog open={!!posterPromo} onOpenChange={(open) => !open && setPosterPromo(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Promo Poster</DialogTitle>
+            <DialogDescription>Download or share the poster for "{posterPromo?.code}"</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center">
+            <canvas ref={canvasRef} className="max-w-full rounded-lg border" style={{ maxHeight: 400, width: 'auto' }} />
+          </div>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={downloadPoster} className="gap-2">
+              <Download className="h-4 w-4" /> Download
+            </Button>
+            <Button onClick={sharePoster} className="gap-2">
+              <Share2 className="h-4 w-4" /> Share Poster
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
@@ -407,27 +812,15 @@ const PromoCodes = () => {
             <div className="space-y-2">
               <Label htmlFor="code">Code</Label>
               <div className="flex gap-2">
-                <Input
-                  id="code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. SAVE20"
-                  className="font-mono uppercase"
-                  required
-                />
-                <Button type="button" variant="outline" size="sm" onClick={() => setCode(generateCode())}>
-                  Generate
-                </Button>
+                <Input id="code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g. SAVE20" className="font-mono uppercase" required />
+                <Button type="button" variant="outline" size="sm" onClick={() => setCode(generateCode())}>Generate</Button>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Discount Type</Label>
                 <Select value={discountType} onValueChange={setDiscountType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
                     <SelectItem value="fixed">Fixed Amount (UGX)</SelectItem>
@@ -435,50 +828,24 @@ const PromoCodes = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="discount_value">
-                  {discountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}
-                </Label>
-                <Input
-                  id="discount_value"
-                  type="number"
-                  value={discountValue}
-                  onChange={(e) => setDiscountValue(e.target.value)}
-                  placeholder={discountType === 'percentage' ? '10' : '5000'}
-                  min="0"
-                  max={discountType === 'percentage' ? '100' : undefined}
-                  required
-                />
+                <Label htmlFor="discount_value">{discountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}</Label>
+                <Input id="discount_value" type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder={discountType === 'percentage' ? '10' : '5000'} min="0" max={discountType === 'percentage' ? '100' : undefined} required />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="valid_until">Expires On (Optional)</Label>
-                <Input
-                  id="valid_until"
-                  type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
-                />
+                <Input id="valid_until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="usage_limit">Usage Limit (Optional)</Label>
-                <Input
-                  id="usage_limit"
-                  type="number"
-                  value={usageLimit}
-                  onChange={(e) => setUsageLimit(e.target.value)}
-                  placeholder="Unlimited"
-                  min="1"
-                />
+                <Input id="usage_limit" type="number" value={usageLimit} onChange={(e) => setUsageLimit(e.target.value)} placeholder="Unlimited" min="1" />
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <Switch checked={isActive} onCheckedChange={setIsActive} id="is_active" />
               <Label htmlFor="is_active">Active immediately</Label>
             </div>
-
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button type="submit">{editingPromo ? 'Update' : 'Create'} Code</Button>
@@ -498,35 +865,18 @@ const PromoCodes = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="bulk_count">Number of Codes</Label>
-                <Input
-                  id="bulk_count"
-                  type="number"
-                  value={bulkCount}
-                  onChange={(e) => setBulkCount(e.target.value)}
-                  min="1"
-                  max="100"
-                  required
-                />
+                <Input id="bulk_count" type="number" value={bulkCount} onChange={(e) => setBulkCount(e.target.value)} min="1" max="100" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bulk_prefix">Prefix (Optional)</Label>
-                <Input
-                  id="bulk_prefix"
-                  value={bulkPrefix}
-                  onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())}
-                  placeholder="e.g. SALE"
-                  className="font-mono uppercase"
-                />
+                <Input id="bulk_prefix" value={bulkPrefix} onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())} placeholder="e.g. SALE" className="font-mono uppercase" />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Discount Type</Label>
                 <Select value={bulkDiscountType} onValueChange={setBulkDiscountType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
                     <SelectItem value="fixed">Fixed Amount (UGX)</SelectItem>
@@ -534,56 +884,27 @@ const PromoCodes = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bulk_discount_value">
-                  {bulkDiscountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}
-                </Label>
-                <Input
-                  id="bulk_discount_value"
-                  type="number"
-                  value={bulkDiscountValue}
-                  onChange={(e) => setBulkDiscountValue(e.target.value)}
-                  placeholder={bulkDiscountType === 'percentage' ? '10' : '5000'}
-                  min="0"
-                  max={bulkDiscountType === 'percentage' ? '100' : undefined}
-                  required
-                />
+                <Label htmlFor="bulk_discount_value">{bulkDiscountType === 'percentage' ? 'Percentage (%)' : 'Amount (UGX)'}</Label>
+                <Input id="bulk_discount_value" type="number" value={bulkDiscountValue} onChange={(e) => setBulkDiscountValue(e.target.value)} placeholder={bulkDiscountType === 'percentage' ? '10' : '5000'} min="0" max={bulkDiscountType === 'percentage' ? '100' : undefined} required />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="bulk_valid_until">Expires On (Optional)</Label>
-                <Input
-                  id="bulk_valid_until"
-                  type="date"
-                  value={bulkValidUntil}
-                  onChange={(e) => setBulkValidUntil(e.target.value)}
-                />
+                <Input id="bulk_valid_until" type="date" value={bulkValidUntil} onChange={(e) => setBulkValidUntil(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bulk_usage_limit">Usage Limit (Optional)</Label>
-                <Input
-                  id="bulk_usage_limit"
-                  type="number"
-                  value={bulkUsageLimit}
-                  onChange={(e) => setBulkUsageLimit(e.target.value)}
-                  placeholder="Unlimited"
-                  min="1"
-                />
+                <Input id="bulk_usage_limit" type="number" value={bulkUsageLimit} onChange={(e) => setBulkUsageLimit(e.target.value)} placeholder="Unlimited" min="1" />
               </div>
             </div>
-
             <div className="flex items-center gap-3">
               <Switch checked={bulkIsActive} onCheckedChange={setBulkIsActive} id="bulk_is_active" />
               <Label htmlFor="bulk_is_active">Active immediately</Label>
             </div>
-
             <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-              {bulkPrefix
-                ? `Codes will look like: ${bulkPrefix}-${generateCode()}`
-                : `Codes will look like: ${generateCode()}`}
+              {bulkPrefix ? `Codes will look like: ${bulkPrefix}-${generateCode()}` : `Codes will look like: ${generateCode()}`}
             </div>
-
             <DialogFooter>
               <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleBulkGenerate} disabled={bulkGenerating} className="gap-2">
