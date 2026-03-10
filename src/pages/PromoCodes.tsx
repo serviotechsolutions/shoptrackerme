@@ -692,15 +692,7 @@ const PromoCodes = () => {
                         return (
                           <TableRow key={promo.id}>
                             <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyCode(promo.code, promo.id)}>
-                                  {copiedId === promo.id ? <CheckCircle className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleShare(promo)}>
-                                  <Share2 className="h-3 w-3" />
-                                </Button>
-                              </div>
+                              <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
                             </TableCell>
                             <TableCell className="font-medium">{getDiscountText(promo)}</TableCell>
                             <TableCell>{getStatusBadge(promo)}</TableCell>
