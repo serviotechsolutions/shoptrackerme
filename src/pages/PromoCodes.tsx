@@ -12,8 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import {
   Tag, Plus, Pencil, Trash2, Copy, CheckCircle, Layers, Share2,
-  Download, Clock, TrendingUp, Users, Image as ImageIcon
+  Download, Clock, TrendingUp, Users, Image as ImageIcon, MoreVertical, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { format, differenceInDays, differenceInHours } from 'date-fns';
 
@@ -610,14 +613,36 @@ const PromoCodes = () => {
                             <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
                             {getStatusBadge(promo)}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyCode(promo.code, promo.id)}>
-                              {copiedId === promo.id ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleShare(promo)}>
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => copyCode(promo.code, promo.id)}>
+                                <Copy className="h-4 w-4 mr-2" /> Copy Code
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleShare(promo)}>
+                                <Share2 className="h-4 w-4 mr-2" /> Share
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => generatePoster(promo)}>
+                                <ImageIcon className="h-4 w-4 mr-2" /> Generate Poster
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => toggleActive(promo)}>
+                                {promo.is_active ? <ToggleLeft className="h-4 w-4 mr-2" /> : <ToggleRight className="h-4 w-4 mr-2" />}
+                                {promo.is_active ? 'Deactivate' : 'Activate'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(promo)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deletePromo(promo)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <div>
@@ -633,26 +658,13 @@ const PromoCodes = () => {
                             <p className="font-semibold truncate">{revenue ? formatCurrency(revenue.total_revenue) : '—'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            {countdown && (
-                              <span className={`flex items-center gap-1 ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
-                                <Clock className="h-3 w-3" /> {countdown}
-                              </span>
-                            )}
-                            {!promo.valid_until && <span>No expiry</span>}
-                          </div>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => generatePoster(promo)}>
-                              <ImageIcon className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(promo)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => deletePromo(promo)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {countdown && (
+                            <span className={`flex items-center gap-1 ${countdown === 'Expired' ? 'text-destructive' : 'text-amber-600'}`}>
+                              <Clock className="h-3 w-3" /> {countdown}
+                            </span>
+                          )}
+                          {!promo.valid_until && <span>No expiry</span>}
                         </div>
                       </div>
                     );
@@ -680,15 +692,7 @@ const PromoCodes = () => {
                         return (
                           <TableRow key={promo.id}>
                             <TableCell>
-                              <div className="flex items-center gap-1.5">
-                                <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyCode(promo.code, promo.id)}>
-                                  {copiedId === promo.id ? <CheckCircle className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => handleShare(promo)}>
-                                  <Share2 className="h-3 w-3" />
-                                </Button>
-                              </div>
+                              <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
                             </TableCell>
                             <TableCell className="font-medium">{getDiscountText(promo)}</TableCell>
                             <TableCell>{getStatusBadge(promo)}</TableCell>
@@ -721,18 +725,36 @@ const PromoCodes = () => {
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" title="Generate Poster" onClick={() => generatePoster(promo)}>
-                                  <ImageIcon className="h-4 w-4" />
-                                </Button>
-                                <Switch checked={promo.is_active} onCheckedChange={() => toggleActive(promo)} className="mr-1" />
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(promo)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deletePromo(promo)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => copyCode(promo.code, promo.id)}>
+                                    <Copy className="h-4 w-4 mr-2" /> Copy Code
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleShare(promo)}>
+                                    <Share2 className="h-4 w-4 mr-2" /> Share
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => generatePoster(promo)}>
+                                    <ImageIcon className="h-4 w-4 mr-2" /> Generate Poster
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => toggleActive(promo)}>
+                                    {promo.is_active ? <ToggleLeft className="h-4 w-4 mr-2" /> : <ToggleRight className="h-4 w-4 mr-2" />}
+                                    {promo.is_active ? 'Deactivate' : 'Activate'}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openEdit(promo)}>
+                                    <Pencil className="h-4 w-4 mr-2" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deletePromo(promo)}>
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         );
