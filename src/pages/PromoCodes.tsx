@@ -613,14 +613,36 @@ const PromoCodes = () => {
                             <code className="font-mono text-sm font-bold bg-muted px-2 py-1 rounded">{promo.code}</code>
                             {getStatusBadge(promo)}
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => copyCode(promo.code, promo.id)}>
-                              {copiedId === promo.id ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleShare(promo)}>
-                              <Share2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => copyCode(promo.code, promo.id)}>
+                                <Copy className="h-4 w-4 mr-2" /> Copy Code
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleShare(promo)}>
+                                <Share2 className="h-4 w-4 mr-2" /> Share
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => generatePoster(promo)}>
+                                <ImageIcon className="h-4 w-4 mr-2" /> Generate Poster
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => toggleActive(promo)}>
+                                {promo.is_active ? <ToggleLeft className="h-4 w-4 mr-2" /> : <ToggleRight className="h-4 w-4 mr-2" />}
+                                {promo.is_active ? 'Deactivate' : 'Activate'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(promo)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deletePromo(promo)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-sm">
                           <div>
