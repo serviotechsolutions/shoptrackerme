@@ -404,7 +404,7 @@ const PromoCodes = () => {
       ctx.font = 'bold 24px sans-serif';
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.textAlign = 'center';
-      ctx.fillText('Powered by ShopTracker', 540, 52);
+      ctx.fillText('Powered by Servio Tech Solutions', 540, 52);
 
       // Shop logo
       let logoY = 110;
