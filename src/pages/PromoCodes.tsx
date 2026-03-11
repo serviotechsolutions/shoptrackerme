@@ -55,6 +55,7 @@ const PromoCodes = () => {
   const [bulkPrefix, setBulkPrefix] = useState('');
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [posterPromo, setPosterPromo] = useState<PromoCode | null>(null);
+  const [posterImage, setPosterImage] = useState<string>('');
   const [shareMenuPromo, setShareMenuPromo] = useState<PromoCode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
