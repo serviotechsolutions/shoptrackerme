@@ -539,7 +539,7 @@ const PromoCodes = () => {
       ctx.fillRect(0, 1250, 1080, 100);
       ctx.font = '20px sans-serif';
       ctx.fillStyle = '#666666';
-      ctx.fillText('Terms & conditions apply • Powered by ShopTracker', 540, 1300);
+      ctx.fillText('Terms & conditions apply • Powered by Servio Tech Solutions', 540, 1300);
 
       setPosterImage(canvas.toDataURL('image/png'));
       setPosterPromo(promo);
