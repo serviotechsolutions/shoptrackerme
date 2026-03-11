@@ -45,6 +45,7 @@ const PromoCodes = () => {
   const [promoRevenues, setPromoRevenues] = useState<Map<string, PromoRevenue>>(new Map());
   const [tenantId, setTenantId] = useState('');
   const [shopName, setShopName] = useState('');
+  const [shopLogo, setShopLogo] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
@@ -91,8 +92,11 @@ const PromoCodes = () => {
       const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
       if (profile) {
         setTenantId(profile.tenant_id);
-        const { data: tenant } = await supabase.from('tenants').select('name').eq('id', profile.tenant_id).single();
-        if (tenant) setShopName(tenant.name);
+        const { data: tenant } = await supabase.from('tenants').select('name, logo_url').eq('id', profile.tenant_id).single();
+        if (tenant) {
+          setShopName(tenant.name);
+          setShopLogo(tenant.logo_url || '');
+        }
       }
     }
   };
@@ -371,106 +375,186 @@ const PromoCodes = () => {
     if (!canvas) return;
 
     canvas.width = 1080;
-    canvas.height = 1080;
+    canvas.height = 1350;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Background gradient
-    const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(0.5, '#16213e');
-    gradient.addColorStop(1, '#0f3460');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 1080, 1080);
+    const draw = () => {
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
+      gradient.addColorStop(0, '#0f0c29');
+      gradient.addColorStop(0.5, '#302b63');
+      gradient.addColorStop(1, '#24243e');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1080, 1350);
 
-    // Decorative circles
-    ctx.globalAlpha = 0.1;
-    ctx.fillStyle = '#e94560';
-    ctx.beginPath();
-    ctx.arc(900, 150, 200, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(180, 900, 250, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+      // Decorative elements
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#e94560';
+      ctx.beginPath(); ctx.arc(950, 100, 250, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(130, 1200, 300, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3498db';
+      ctx.beginPath(); ctx.arc(100, 400, 150, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
 
-    // Top banner
-    ctx.fillStyle = '#e94560';
-    const bannerPath = new Path2D();
-    bannerPath.moveTo(0, 0);
-    bannerPath.lineTo(1080, 0);
-    bannerPath.lineTo(1080, 180);
-    bannerPath.lineTo(540, 220);
-    bannerPath.lineTo(0, 180);
-    bannerPath.closePath();
-    ctx.fill(bannerPath);
+      // Top bar with app branding
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fillRect(0, 0, 1080, 80);
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Powered by ShopTracker', 540, 52);
 
-    // Shop name
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(shopName || 'Our Shop', 540, 120);
+      // Shop logo
+      let logoY = 110;
+      if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+        const logoSize = 120;
+        const logoX = (1080 - logoSize) / 2;
+        // Draw circular logo
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        ctx.restore();
+        // Logo border
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+        logoY += logoSize + 20;
+      } else {
+        logoY += 20;
+      }
 
-    // "SPECIAL OFFER" text
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillStyle = '#e94560';
-    ctx.fillText('✨ SPECIAL OFFER ✨', 540, 320);
+      // Shop name
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 52px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(shopName || 'Our Shop', 540, logoY + 40);
 
-    // Discount value - big
-    const discountDisplay = promo.discount_type === 'percentage'
-      ? `${promo.discount_value}%`
-      : formatCurrency(promo.discount_value);
-    ctx.font = 'bold 140px sans-serif';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(discountDisplay, 540, 500);
+      // Divider line
+      const divY = logoY + 70;
+      ctx.strokeStyle = 'rgba(233,69,96,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(340, divY); ctx.lineTo(740, divY); ctx.stroke();
 
-    // "OFF" text
-    ctx.font = 'bold 72px sans-serif';
-    ctx.fillStyle = '#e94560';
-    ctx.fillText('OFF', 540, 580);
+      // "SPECIAL OFFER" text
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillStyle = '#e94560';
+      ctx.fillText('✨ SPECIAL OFFER ✨', 540, divY + 60);
 
-    // Promo code box
-    const codeBoxY = 640;
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    const boxW = 600;
-    const boxH = 100;
-    const boxX = (1080 - boxW) / 2;
-    ctx.beginPath();
-    ctx.roundRect(boxX, codeBoxY, boxW, boxH, 16);
-    ctx.fill();
-    ctx.strokeStyle = '#e94560';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+      // Discount value - big
+      const discountDisplay = promo.discount_type === 'percentage'
+        ? `${promo.discount_value}%`
+        : formatCurrency(promo.discount_value);
+      ctx.font = 'bold 150px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(discountDisplay, 540, divY + 220);
 
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('USE CODE', 540, codeBoxY - 15);
+      // "OFF" text
+      ctx.font = 'bold 80px sans-serif';
+      ctx.fillStyle = '#e94560';
+      ctx.fillText('OFF', 540, divY + 300);
 
-    ctx.font = 'bold 56px monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(promo.code, 540, codeBoxY + 65);
+      // Promo code box
+      const codeBoxY = divY + 350;
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      const boxW = 650;
+      const boxH = 110;
+      const boxX = (1080 - boxW) / 2;
+      ctx.beginPath(); ctx.roundRect(boxX, codeBoxY, boxW, boxH, 20); ctx.fill();
+      ctx.strokeStyle = '#e94560';
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-    // Instructions
-    ctx.font = '28px sans-serif';
-    ctx.fillStyle = '#cccccc';
-    ctx.fillText('Show this code to the cashier when paying', 540, 810);
+      // Dashed border effect
+      ctx.setLineDash([10, 6]);
+      ctx.strokeStyle = 'rgba(233,69,96,0.4)';
+      ctx.beginPath(); ctx.roundRect(boxX - 8, codeBoxY - 8, boxW + 16, boxH + 16, 24); ctx.stroke();
+      ctx.setLineDash([]);
 
-    // Expiry
-    if (promo.valid_until) {
+      ctx.font = 'bold 26px sans-serif';
+      ctx.fillStyle = '#aaaaaa';
+      ctx.fillText('USE CODE', 540, codeBoxY - 15);
+
+      ctx.font = 'bold 60px monospace';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(promo.code, 540, codeBoxY + 72);
+
+      // Instructions
+      const infoY = codeBoxY + boxH + 50;
+      ctx.font = '30px sans-serif';
+      ctx.fillStyle = '#cccccc';
+      ctx.fillText('📱 Show this code to the cashier when paying', 540, infoY);
+
+      // Usage & Expiry info section
+      const detailsY = infoY + 60;
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath(); ctx.roundRect(140, detailsY, 800, 140, 16); ctx.fill();
+
       ctx.font = 'bold 26px sans-serif';
       ctx.fillStyle = '#e94560';
-      ctx.fillText(`Valid until: ${format(new Date(promo.valid_until), 'MMMM dd, yyyy')}`, 540, 880);
+      ctx.textAlign = 'center';
+
+      if (promo.valid_until) {
+        ctx.fillText(`⏰ Valid until: ${format(new Date(promo.valid_until), 'MMMM dd, yyyy')}`, 540, detailsY + 45);
+      } else {
+        ctx.fillText('⏰ No expiry — use anytime!', 540, detailsY + 45);
+      }
+
+      if (promo.usage_limit) {
+        const remaining = promo.usage_limit - promo.times_used;
+        ctx.font = '24px sans-serif';
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText(`🔥 Limited offer — only ${remaining} uses remaining!`, 540, detailsY + 90);
+      } else {
+        ctx.font = '24px sans-serif';
+        ctx.fillStyle = '#88cc88';
+        ctx.fillText('♾️ Unlimited uses — share with everyone!', 540, detailsY + 90);
+      }
+
+      // How to use section
+      const howY = detailsY + 170;
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('HOW TO USE', 540, howY);
+
+      ctx.font = '22px sans-serif';
+      ctx.fillStyle = '#bbbbbb';
+      const steps = [
+        '1. Visit our shop or order online',
+        '2. Tell the cashier your promo code',
+        '3. Enjoy your discount! 🎉'
+      ];
+      steps.forEach((step, i) => {
+        ctx.fillText(step, 540, howY + 40 + i * 36);
+      });
+
+      // Footer
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(0, 1250, 1080, 100);
+      ctx.font = '20px sans-serif';
+      ctx.fillStyle = '#666666';
+      ctx.fillText('Terms & conditions apply • Powered by ShopTracker', 540, 1300);
+
+      setPosterPromo(promo);
+    };
+
+    // Load logo image if available
+    let logoImg: HTMLImageElement | null = null;
+    if (shopLogo) {
+      logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+      logoImg.onload = () => draw();
+      logoImg.onerror = () => draw();
+      logoImg.src = shopLogo;
+    } else {
+      draw();
     }
-
-    // Footer
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(0, 960, 1080, 120);
-    ctx.font = '22px sans-serif';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('Terms & conditions apply', 540, 1010);
-
-    setPosterPromo(promo);
-  }, [shopName]);
+  }, [shopName, shopLogo]);
 
   const downloadPoster = () => {
     const canvas = canvasRef.current;
