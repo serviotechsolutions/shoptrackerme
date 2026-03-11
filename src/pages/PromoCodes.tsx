@@ -541,6 +541,7 @@ const PromoCodes = () => {
       ctx.fillStyle = '#666666';
       ctx.fillText('Terms & conditions apply • Powered by ShopTracker', 540, 1300);
 
+      setPosterImage(canvas.toDataURL('image/png'));
       setPosterPromo(promo);
     };
 
