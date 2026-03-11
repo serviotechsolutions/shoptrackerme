@@ -887,14 +887,16 @@ const PromoCodes = () => {
       </Dialog>
 
       {/* Poster Preview Dialog */}
-      <Dialog open={!!posterPromo} onOpenChange={(open) => !open && setPosterPromo(null)}>
+      <Dialog open={!!posterPromo} onOpenChange={(open) => { if (!open) { setPosterPromo(null); setPosterImage(''); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Promo Poster</DialogTitle>
-            <DialogDescription>Download or share the poster for "{posterPromo?.code}"</DialogDescription>
+            <DialogDescription>Download or share the poster for &quot;{posterPromo?.code}&quot;</DialogDescription>
           </DialogHeader>
           <div className="flex justify-center">
-            <canvas ref={canvasRef} className="max-w-full rounded-lg border" style={{ maxHeight: 400, width: 'auto' }} />
+            {posterImage && (
+              <img src={posterImage} alt="Promo poster" className="max-w-full rounded-lg border" style={{ maxHeight: 400, width: 'auto' }} />
+            )}
           </div>
           <DialogFooter className="flex gap-2">
             <Button variant="outline" onClick={downloadPoster} className="gap-2">
