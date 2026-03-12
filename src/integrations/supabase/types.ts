@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
           id: string
           name: string
@@ -28,6 +29,7 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           id?: string
           name: string
@@ -38,6 +40,7 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           id?: string
           name?: string
@@ -344,6 +347,145 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_redemptions: {
+        Row: {
+          customer_id: string | null
+          discount_amount: number
+          id: string
+          promotion_id: string
+          redeemed_at: string
+          tenant_id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          customer_id?: string | null
+          discount_amount?: number
+          id?: string
+          promotion_id: string
+          redeemed_at?: string
+          tenant_id: string
+          transaction_id?: string | null
+        }
+        Update: {
+          customer_id?: string | null
+          discount_amount?: number
+          id?: string
+          promotion_id?: string
+          redeemed_at?: string
+          tenant_id?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_redemptions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_redemptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promotion_redemptions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          ai_reasoning: string | null
+          created_at: string
+          created_by: string | null
+          current_redemptions: number
+          description: string | null
+          discount_type: string
+          discount_value: number
+          end_time: string | null
+          id: string
+          max_redemptions: number | null
+          metadata: Json | null
+          name: string
+          promo_code: string | null
+          start_time: string
+          status: Database["public"]["Enums"]["promotion_status"]
+          target_customers: Json | null
+          target_products: Json | null
+          tenant_id: string
+          trigger_type: string | null
+          type: Database["public"]["Enums"]["promotion_type"]
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_redemptions?: number
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_time?: string | null
+          id?: string
+          max_redemptions?: number | null
+          metadata?: Json | null
+          name: string
+          promo_code?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["promotion_status"]
+          target_customers?: Json | null
+          target_products?: Json | null
+          tenant_id: string
+          trigger_type?: string | null
+          type?: Database["public"]["Enums"]["promotion_type"]
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_redemptions?: number
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          end_time?: string | null
+          id?: string
+          max_redemptions?: number | null
+          metadata?: Json | null
+          name?: string
+          promo_code?: string | null
+          start_time?: string
+          status?: Database["public"]["Enums"]["promotion_status"]
+          target_customers?: Json | null
+          target_products?: Json | null
+          tenant_id?: string
+          trigger_type?: string | null
+          type?: Database["public"]["Enums"]["promotion_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           address: string | null
@@ -484,6 +626,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      promotion_status: "draft" | "active" | "paused" | "expired" | "completed"
+      promotion_type:
+        | "birthday"
+        | "flash_sale"
+        | "ai_suggested"
+        | "manual"
+        | "automated"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -612,6 +761,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      promotion_status: ["draft", "active", "paused", "expired", "completed"],
+      promotion_type: [
+        "birthday",
+        "flash_sale",
+        "ai_suggested",
+        "manual",
+        "automated",
+      ],
     },
   },
 } as const
