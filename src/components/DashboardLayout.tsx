@@ -19,7 +19,8 @@ import {
   CreditCard,
   Brain,
   User,
-  Tag
+  Tag,
+  Sparkles
 } from 'lucide-react';
 import {
   DropdownMenu,
