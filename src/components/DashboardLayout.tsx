@@ -62,6 +62,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/pos', label: 'POS', icon: CreditCard },
     { path: '/products', label: 'Products', icon: Package },
     { path: '/sales', label: 'Sales', icon: ShoppingCart },
+    { path: '/promotions', label: 'Promotions', icon: Sparkles },
     { path: '/promo-codes', label: 'Promo Codes', icon: Tag },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
     { path: '/ai-insights', label: 'AI Insights', icon: Brain },
