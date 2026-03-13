@@ -46,6 +46,7 @@ const PromoCodes = () => {
   const [tenantId, setTenantId] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopLogo, setShopLogo] = useState('');
+  const [userAvatar, setUserAvatar] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
