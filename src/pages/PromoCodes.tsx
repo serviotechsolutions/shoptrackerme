@@ -46,6 +46,7 @@ const PromoCodes = () => {
   const [tenantId, setTenantId] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopLogo, setShopLogo] = useState('');
+  const [userAvatar, setUserAvatar] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
@@ -90,9 +91,10 @@ const PromoCodes = () => {
   const fetchUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('tenant_id, avatar_url').eq('id', user.id).single();
       if (profile) {
         setTenantId(profile.tenant_id);
+        setUserAvatar(profile.avatar_url || '');
         const { data: tenant } = await supabase.from('tenants').select('name, logo_url').eq('id', profile.tenant_id).single();
         if (tenant) {
           setShopName(tenant.name);
@@ -534,29 +536,66 @@ const PromoCodes = () => {
         ctx.fillText(step, 540, howY + 40 + i * 36);
       });
 
+      // User avatar (shop owner/attendant)
+      if (avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0) {
+        const avatarSize = 70;
+        const avatarX = 540 - avatarSize / 2;
+        const avatarY = 1160;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       // Footer
       ctx.fillStyle = 'rgba(255,255,255,0.04)';
       ctx.fillRect(0, 1250, 1080, 100);
       ctx.font = '20px sans-serif';
       ctx.fillStyle = '#666666';
+      ctx.textAlign = 'center';
       ctx.fillText('Terms & conditions apply • Powered by Servio Tech Solutions', 540, 1300);
 
       setPosterImage(canvas.toDataURL('image/png'));
       setPosterPromo(promo);
     };
 
-    // Load logo image if available
+    // Load images (logo + avatar) before drawing
     let logoImg: HTMLImageElement | null = null;
+    let avatarImg: HTMLImageElement | null = null;
+    let imagesNeeded = 0;
+    let imagesLoaded = 0;
+
+    const onImageReady = () => {
+      imagesLoaded++;
+      if (imagesLoaded >= imagesNeeded) draw();
+    };
+
     if (shopLogo) {
+      imagesNeeded++;
       logoImg = new Image();
       logoImg.crossOrigin = 'anonymous';
-      logoImg.onload = () => draw();
-      logoImg.onerror = () => draw();
+      logoImg.onload = onImageReady;
+      logoImg.onerror = onImageReady;
       logoImg.src = shopLogo;
-    } else {
-      draw();
     }
-  }, [shopName, shopLogo]);
+    if (userAvatar) {
+      imagesNeeded++;
+      avatarImg = new Image();
+      avatarImg.crossOrigin = 'anonymous';
+      avatarImg.onload = onImageReady;
+      avatarImg.onerror = onImageReady;
+      avatarImg.src = userAvatar;
+    }
+    if (imagesNeeded === 0) draw();
+  }, [shopName, shopLogo, userAvatar]);
 
   const downloadPoster = () => {
     const canvas = canvasRef.current;
