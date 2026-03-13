@@ -567,18 +567,35 @@ const PromoCodes = () => {
       setPosterPromo(promo);
     };
 
-    // Load logo image if available
+    // Load images (logo + avatar) before drawing
     let logoImg: HTMLImageElement | null = null;
+    let avatarImg: HTMLImageElement | null = null;
+    let imagesNeeded = 0;
+    let imagesLoaded = 0;
+
+    const onImageReady = () => {
+      imagesLoaded++;
+      if (imagesLoaded >= imagesNeeded) draw();
+    };
+
     if (shopLogo) {
+      imagesNeeded++;
       logoImg = new Image();
       logoImg.crossOrigin = 'anonymous';
-      logoImg.onload = () => draw();
-      logoImg.onerror = () => draw();
+      logoImg.onload = onImageReady;
+      logoImg.onerror = onImageReady;
       logoImg.src = shopLogo;
-    } else {
-      draw();
     }
-  }, [shopName, shopLogo]);
+    if (userAvatar) {
+      imagesNeeded++;
+      avatarImg = new Image();
+      avatarImg.crossOrigin = 'anonymous';
+      avatarImg.onload = onImageReady;
+      avatarImg.onerror = onImageReady;
+      avatarImg.src = userAvatar;
+    }
+    if (imagesNeeded === 0) draw();
+  }, [shopName, shopLogo, userAvatar]);
 
   const downloadPoster = () => {
     const canvas = canvasRef.current;
