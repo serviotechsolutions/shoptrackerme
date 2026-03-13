@@ -91,9 +91,10 @@ const PromoCodes = () => {
   const fetchUserData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('tenant_id, avatar_url').eq('id', user.id).single();
       if (profile) {
         setTenantId(profile.tenant_id);
+        setUserAvatar(profile.avatar_url || '');
         const { data: tenant } = await supabase.from('tenants').select('name, logo_url').eq('id', profile.tenant_id).single();
         if (tenant) {
           setShopName(tenant.name);
