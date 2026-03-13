@@ -536,11 +536,31 @@ const PromoCodes = () => {
         ctx.fillText(step, 540, howY + 40 + i * 36);
       });
 
+      // User avatar (shop owner/attendant)
+      if (avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0) {
+        const avatarSize = 70;
+        const avatarX = 540 - avatarSize / 2;
+        const avatarY = 1160;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       // Footer
       ctx.fillStyle = 'rgba(255,255,255,0.04)';
       ctx.fillRect(0, 1250, 1080, 100);
       ctx.font = '20px sans-serif';
       ctx.fillStyle = '#666666';
+      ctx.textAlign = 'center';
       ctx.fillText('Terms & conditions apply • Powered by Servio Tech Solutions', 540, 1300);
 
       setPosterImage(canvas.toDataURL('image/png'));
