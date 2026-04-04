@@ -199,7 +199,7 @@ const Users = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newUser.role} onValueChange={(value: 'admin' | 'user') => setNewUser({
+                  <Select value={newUser.role} onValueChange={(value: 'admin' | 'user' | 'staff' | 'viewer') => setNewUser({
                   ...newUser,
                   role: value
                 })}>
@@ -207,8 +207,10 @@ const Users = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="admin">Admin — Full access</SelectItem>
+                      <SelectItem value="staff">Staff — POS, products, sales</SelectItem>
+                      <SelectItem value="viewer">Viewer — Read-only access</SelectItem>
+                      <SelectItem value="user">User — Basic access</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
