@@ -124,7 +124,7 @@ const Users = () => {
         email: '',
         password: '',
         full_name: '',
-        role: 'user'
+        role: 'user' as 'admin' | 'user' | 'staff' | 'viewer'
       });
     } catch (error) {
       console.error('Error inviting user:', error);
