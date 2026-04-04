@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.auto-promotions]
 verify_jwt = false
+
+[functions.ai-decision-engine]
+verify_jwt = true

@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
+import { useUserRole } from '@/hooks/useUserRole';
 import { 
   LayoutDashboard, 
   Package, 
@@ -40,6 +41,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isAdmin, canMakeSales, canManageProducts, canViewReports, canManageTeam, canManageSettings, canManagePromotions } = useUserRole();
   
   // Initialize smart notifications monitoring
   useSmartNotifications();
@@ -57,19 +59,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
-  const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/pos', label: 'POS', icon: CreditCard },
-    { path: '/products', label: 'Products', icon: Package },
-    { path: '/sales', label: 'Sales', icon: ShoppingCart },
-    { path: '/promotions', label: 'Promotions', icon: Sparkles },
-    { path: '/promo-codes', label: 'Promo Codes', icon: Tag },
-    { path: '/reports', label: 'Reports', icon: BarChart3 },
-    { path: '/ai-insights', label: 'AI Insights', icon: Brain },
-    { path: '/payments', label: 'Payments', icon: CreditCard },
-    { path: '/users', label: 'Team', icon: Users },
-    { path: '/settings', label: 'Settings', icon: Settings },
+  const allNavItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
+    { path: '/pos', label: 'POS', icon: CreditCard, show: canMakeSales },
+    { path: '/products', label: 'Products', icon: Package, show: canManageProducts },
+    { path: '/sales', label: 'Sales', icon: ShoppingCart, show: canMakeSales },
+    { path: '/promotions', label: 'Promotions', icon: Sparkles, show: canManagePromotions },
+    { path: '/promo-codes', label: 'Promo Codes', icon: Tag, show: canManagePromotions },
+    { path: '/reports', label: 'Reports', icon: BarChart3, show: canViewReports },
+    { path: '/ai-insights', label: 'AI Insights', icon: Brain, show: canViewReports },
+    { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
+    { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
+    { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
   ];
+
+  const navItems = allNavItems.filter(item => item.show);
 
   const NavContent = () => (
     <>

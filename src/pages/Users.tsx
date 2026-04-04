@@ -30,7 +30,7 @@ const Users = () => {
     email: '',
     password: '',
     full_name: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'user' as 'admin' | 'user' | 'staff' | 'viewer'
   });
   useEffect(() => {
     fetchUsers();
@@ -124,7 +124,7 @@ const Users = () => {
         email: '',
         password: '',
         full_name: '',
-        role: 'user'
+        role: 'user' as 'admin' | 'user' | 'staff' | 'viewer'
       });
     } catch (error) {
       console.error('Error inviting user:', error);
@@ -139,15 +139,12 @@ const Users = () => {
     role: string;
   }[]) => {
     const isAdmin = roles.some(r => r.role === 'admin');
-    return <Badge variant={isAdmin ? 'default' : 'secondary'}>
-        {isAdmin ? <>
-            <Shield className="mr-1 h-3 w-3" />
-            Admin
-          </> : <>
-            <User className="mr-1 h-3 w-3" />
-            User
-          </>}
-      </Badge>;
+    const isStaff = roles.some(r => r.role === 'staff');
+    const isViewer = roles.some(r => r.role === 'viewer');
+    if (isAdmin) return <Badge variant="default"><Shield className="mr-1 h-3 w-3" />Admin</Badge>;
+    if (isStaff) return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><User className="mr-1 h-3 w-3" />Staff</Badge>;
+    if (isViewer) return <Badge variant="outline"><User className="mr-1 h-3 w-3" />Viewer</Badge>;
+    return <Badge variant="secondary"><User className="mr-1 h-3 w-3" />User</Badge>;
   };
   if (loading) {
     return <DashboardLayout>
@@ -199,7 +196,7 @@ const Users = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newUser.role} onValueChange={(value: 'admin' | 'user') => setNewUser({
+                  <Select value={newUser.role} onValueChange={(value: 'admin' | 'user' | 'staff' | 'viewer') => setNewUser({
                   ...newUser,
                   role: value
                 })}>
@@ -207,8 +204,10 @@ const Users = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="admin">Admin — Full access</SelectItem>
+                      <SelectItem value="staff">Staff — POS, products, sales</SelectItem>
+                      <SelectItem value="viewer">Viewer — Read-only access</SelectItem>
+                      <SelectItem value="user">User — Basic access</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

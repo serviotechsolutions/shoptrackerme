@@ -652,7 +652,9 @@ const POS = () => {
                   <div className="p-2 sm:p-3">
                     <h3 className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">{product.name}</h3>
                     <p className="text-sm sm:text-base font-bold text-primary mt-1">
-                      {formatCurrency(product.selling_price)}
+                      {product.selling_price > 0 ? formatCurrency(product.selling_price) : (
+                        <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(product.buying_price)}</span>
+                      )}
                     </p>
                     <p className="text-[10px] text-muted-foreground">{product.stock} in stock</p>
                   </div>
