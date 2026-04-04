@@ -139,15 +139,12 @@ const Users = () => {
     role: string;
   }[]) => {
     const isAdmin = roles.some(r => r.role === 'admin');
-    return <Badge variant={isAdmin ? 'default' : 'secondary'}>
-        {isAdmin ? <>
-            <Shield className="mr-1 h-3 w-3" />
-            Admin
-          </> : <>
-            <User className="mr-1 h-3 w-3" />
-            User
-          </>}
-      </Badge>;
+    const isStaff = roles.some(r => r.role === 'staff');
+    const isViewer = roles.some(r => r.role === 'viewer');
+    if (isAdmin) return <Badge variant="default"><Shield className="mr-1 h-3 w-3" />Admin</Badge>;
+    if (isStaff) return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"><User className="mr-1 h-3 w-3" />Staff</Badge>;
+    if (isViewer) return <Badge variant="outline"><User className="mr-1 h-3 w-3" />Viewer</Badge>;
+    return <Badge variant="secondary"><User className="mr-1 h-3 w-3" />User</Badge>;
   };
   if (loading) {
     return <DashboardLayout>
