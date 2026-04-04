@@ -30,7 +30,7 @@ const Users = () => {
     email: '',
     password: '',
     full_name: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'user' as 'admin' | 'user' | 'staff' | 'viewer'
   });
   useEffect(() => {
     fetchUsers();
