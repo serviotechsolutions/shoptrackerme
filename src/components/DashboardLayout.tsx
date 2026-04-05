@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { GlobalSearch } from './GlobalSearch';
 import { useSmartNotifications } from '@/hooks/useSmartNotifications';
 import { useUserRole } from '@/hooks/useUserRole';
 import { 
@@ -133,6 +134,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <GlobalSearch />
+            </div>
             <NotificationBell />
             
             <Button
