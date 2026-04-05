@@ -18,7 +18,6 @@ serve(async (req) => {
 
     console.log('Starting smart notifications check...');
 
-    // Get all tenants
     const { data: tenants, error: tenantsError } = await supabase
       .from('tenants')
       .select('id');
@@ -30,41 +29,81 @@ serve(async (req) => {
     for (const tenant of tenants || []) {
       console.log(`Checking notifications for tenant: ${tenant.id}`);
 
-      // 1. Check for low stock products
-      const { data: lowStockProducts, error: lowStockError } = await supabase
+      // 1. Low stock products
+      const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, stock, low_stock_threshold')
+        .select('id, name, stock, low_stock_threshold, selling_price')
+        .eq('tenant_id', tenant.id);
+
+      for (const product of (allProducts || []).filter(p => p.stock <= p.low_stock_threshold)) {
+        const { data: existingNotif } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('tenant_id', tenant.id)
+          .eq('type', 'low_stock')
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .contains('metadata', { product_id: product.id })
+          .single();
+
+        if (!existingNotif) {
+          await supabase.from('notifications').insert({
+            tenant_id: tenant.id,
+            type: 'low_stock',
+            title: '📦 Low Stock Alert',
+            message: `${product.name} is running low (${product.stock} units remaining)`,
+            metadata: { product_id: product.id, current_stock: product.stock }
+          });
+          notificationsCreated++;
+        }
+      }
+
+      // 2. Sales drop detection (compare this week vs last week)
+      const now = new Date();
+      const thisWeekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const lastWeekStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+      const { data: thisWeekSales } = await supabase
+        .from('transactions')
+        .select('total_amount')
         .eq('tenant_id', tenant.id)
-        .lte('stock', supabase.rpc('stock', { column: 'low_stock_threshold' }));
+        .gte('created_at', thisWeekStart.toISOString());
 
-      if (!lowStockError && lowStockProducts) {
-        for (const product of lowStockProducts) {
-          if (product.stock <= product.low_stock_threshold) {
-            // Check if notification already exists in last 24 hours
-            const { data: existingNotif } = await supabase
-              .from('notifications')
-              .select('id')
-              .eq('tenant_id', tenant.id)
-              .eq('type', 'low_stock')
-              .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-              .contains('metadata', { product_id: product.id })
-              .single();
+      const { data: lastWeekSales } = await supabase
+        .from('transactions')
+        .select('total_amount')
+        .eq('tenant_id', tenant.id)
+        .gte('created_at', lastWeekStart.toISOString())
+        .lt('created_at', thisWeekStart.toISOString());
 
-            if (!existingNotif) {
-              await supabase.from('notifications').insert({
-                tenant_id: tenant.id,
-                type: 'low_stock',
-                title: '📦 Low Stock Alert',
-                message: `${product.name} is running low (${product.stock} units remaining)`,
-                metadata: { product_id: product.id, current_stock: product.stock }
-              });
-              notificationsCreated++;
-            }
+      const thisWeekTotal = thisWeekSales?.reduce((s, t) => s + Number(t.total_amount), 0) || 0;
+      const lastWeekTotal = lastWeekSales?.reduce((s, t) => s + Number(t.total_amount), 0) || 0;
+
+      if (lastWeekTotal > 0) {
+        const dropPercent = ((lastWeekTotal - thisWeekTotal) / lastWeekTotal) * 100;
+        if (dropPercent >= 20) {
+          const { data: existingDrop } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('tenant_id', tenant.id)
+            .eq('type', 'sales_summary')
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .contains('metadata', { alert_type: 'sales_drop' })
+            .single();
+
+          if (!existingDrop) {
+            await supabase.from('notifications').insert({
+              tenant_id: tenant.id,
+              type: 'sales_summary',
+              title: '📉 Sales Drop Alert',
+              message: `Sales dropped ${dropPercent.toFixed(0)}% compared to last week (UGX ${thisWeekTotal.toLocaleString()} vs UGX ${lastWeekTotal.toLocaleString()})`,
+              metadata: { alert_type: 'sales_drop', drop_percent: dropPercent, this_week: thisWeekTotal, last_week: lastWeekTotal }
+            });
+            notificationsCreated++;
           }
         }
       }
 
-      // 2. Check for stale products (no sales in last 30 days)
+      // 3. Stale products (no sales in 30 days)
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recentTransactions } = await supabase
         .from('transactions')
@@ -73,16 +112,9 @@ serve(async (req) => {
         .gte('created_at', thirtyDaysAgo);
 
       const soldProductIds = new Set(recentTransactions?.map(t => t.product_id) || []);
+      const staleProducts = (allProducts || []).filter(p => p.stock > 0 && !soldProductIds.has(p.id));
 
-      const { data: allProducts } = await supabase
-        .from('products')
-        .select('id, name, stock')
-        .eq('tenant_id', tenant.id)
-        .gt('stock', 0);
-
-      const staleProducts = allProducts?.filter(p => !soldProductIds.has(p.id)) || [];
-
-      for (const product of staleProducts) {
+      for (const product of staleProducts.slice(0, 5)) {
         const { data: existingNotif } = await supabase
           .from('notifications')
           .select('id')
@@ -104,7 +136,7 @@ serve(async (req) => {
         }
       }
 
-      // 3. Check for fast-selling products (>10 sales in last 7 days)
+      // 4. Fast-selling products (>10 sales in 7 days)
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: recentSales } = await supabase
         .from('transactions')
@@ -126,7 +158,7 @@ serve(async (req) => {
             .select('id')
             .eq('tenant_id', tenant.id)
             .eq('type', 'fast_selling')
-            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            .gte('created_at', sevenDaysAgo)
             .contains('metadata', { product_id: productId })
             .single();
 
@@ -143,7 +175,7 @@ serve(async (req) => {
         }
       }
 
-      // 4. Check for high daily profit
+      // 5. High daily profit
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const { data: todaysTransactions } = await supabase
@@ -153,8 +185,6 @@ serve(async (req) => {
         .gte('created_at', today.toISOString());
 
       const todaysProfit = todaysTransactions?.reduce((sum, t) => sum + Number(t.profit), 0) || 0;
-      
-      // Target: 10000 (you can adjust this)
       const profitTarget = 10000;
       if (todaysProfit >= profitTarget) {
         const { data: existingNotif } = await supabase
@@ -170,7 +200,7 @@ serve(async (req) => {
             tenant_id: tenant.id,
             type: 'high_profit',
             title: '💰 Profit Target Reached!',
-            message: `Today's profit: ${todaysProfit.toFixed(2)} (Target: ${profitTarget})`,
+            message: `Today's profit: UGX ${todaysProfit.toLocaleString()} (Target: UGX ${profitTarget.toLocaleString()})`,
             metadata: { profit: todaysProfit, target: profitTarget, date: today.toISOString() }
           });
           notificationsCreated++;
@@ -181,24 +211,14 @@ serve(async (req) => {
     console.log(`Smart notifications check completed. Created ${notificationsCreated} notifications`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Smart notifications processed',
-        notificationsCreated 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify({ success: true, notificationsCreated }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
     console.error('Error in smart-notifications function:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
