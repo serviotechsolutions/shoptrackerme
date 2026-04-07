@@ -38,7 +38,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDevelopmentMode } = useAuth();
   const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -169,10 +169,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                     Profile
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => signOut()}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
+                {!isDevelopmentMode && (
+                  <DropdownMenuItem onClick={() => signOut()}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
