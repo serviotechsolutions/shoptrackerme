@@ -30,7 +30,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // In dev mode or when already logged in, redirect to dashboard
     if (!authLoading && user) {
       navigate('/dashboard', { replace: true });
     }
