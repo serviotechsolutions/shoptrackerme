@@ -5,13 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 export type AppRole = 'admin' | 'staff' | 'viewer' | 'user';
 
 export const useUserRole = () => {
-  const { user, isDevelopmentMode } = useAuth();
-  const [role, setRole] = useState<AppRole>(isDevelopmentMode ? 'admin' : 'user');
-  const [loading, setLoading] = useState(!isDevelopmentMode);
+  const { user } = useAuth();
+  const [role, setRole] = useState<AppRole>('user');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isDevelopmentMode) return;
-
     const fetchRole = async () => {
       if (!user) {
         setLoading(false);
@@ -24,6 +22,7 @@ export const useUserRole = () => {
           .eq('user_id', user.id);
         
         if (data && data.length > 0) {
+          // Priority: admin > staff > viewer > user
           if (data.some(r => r.role === 'admin')) setRole('admin');
           else if (data.some(r => r.role === 'staff')) setRole('staff');
           else if (data.some(r => r.role === 'viewer')) setRole('viewer');
@@ -36,7 +35,7 @@ export const useUserRole = () => {
       }
     };
     fetchRole();
-  }, [user, isDevelopmentMode]);
+  }, [user]);
 
   const isAdmin = role === 'admin';
   const isStaff = role === 'staff' || role === 'admin';
