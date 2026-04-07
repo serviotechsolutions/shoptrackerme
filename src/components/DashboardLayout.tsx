@@ -38,7 +38,7 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isDevelopmentMode } = useAuth();
   const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
