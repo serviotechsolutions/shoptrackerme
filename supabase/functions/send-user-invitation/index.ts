@@ -13,6 +13,7 @@ interface InvitationRequest {
   role: string;
   shop_name: string;
   inviter_name: string;
+  join_url?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
