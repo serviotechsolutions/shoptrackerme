@@ -38,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     const body = await req.json();
     console.log("Request body received:", JSON.stringify(body));
     
-    const { email, full_name, role, shop_name, inviter_name }: InvitationRequest = body;
+    const { email, full_name, role, shop_name, inviter_name, join_url }: InvitationRequest = body;
 
     if (!email || !full_name || !role || !shop_name || !inviter_name) {
       console.error("Missing required fields:", { email, full_name, role, shop_name, inviter_name });
