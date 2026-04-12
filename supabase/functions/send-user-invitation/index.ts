@@ -13,6 +13,7 @@ interface InvitationRequest {
   role: string;
   shop_name: string;
   inviter_name: string;
+  join_url?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -37,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     const body = await req.json();
     console.log("Request body received:", JSON.stringify(body));
     
-    const { email, full_name, role, shop_name, inviter_name }: InvitationRequest = body;
+    const { email, full_name, role, shop_name, inviter_name, join_url }: InvitationRequest = body;
 
     if (!email || !full_name || !role || !shop_name || !inviter_name) {
       console.error("Missing required fields:", { email, full_name, role, shop_name, inviter_name });
@@ -73,10 +74,13 @@ const handler = async (req: Request): Promise<Response> => {
               <h2 style="margin: 0 0 16px 0; color: #0369a1; font-size: 18px;">Getting Started</h2>
               <p style="color: #374151; margin: 0 0 12px 0;">To accept this invitation and create your account:</p>
               <ol style="color: #374151; margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 8px;">Visit the ShopTracker app</li>
+                <li style="margin-bottom: 8px;">Click the button below or visit the ShopTracker app</li>
                 <li style="margin-bottom: 8px;">Sign up using this email: <strong>${email}</strong></li>
-                <li style="margin-bottom: 8px;">Complete your profile setup</li>
+                <li style="margin-bottom: 8px;">Your account will be automatically linked to ${shop_name}</li>
               </ol>
+              ${join_url ? `<div style="text-align: center; margin-top: 20px;">
+                <a href="${join_url}" style="display: inline-block; background-color: #0ea5e9; color: #ffffff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">Accept Invitation</a>
+              </div>` : ''}
             </div>
             
             <p style="color: #374151; font-size: 16px; line-height: 1.6;">

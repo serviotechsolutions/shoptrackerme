@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -28,12 +28,35 @@ const Auth = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite');
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate('/dashboard', { replace: true });
+      // If there's an invite token, accept it first
+      if (inviteToken) {
+        acceptInvite(inviteToken);
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, inviteToken]);
+
+  const acceptInvite = async (token: string) => {
+    try {
+      const { data, error } = await supabase.rpc('accept_invitation', { _token: token });
+      if (error) throw error;
+      const result = data as any;
+      if (result?.success) {
+        toast({ title: 'Welcome!', description: 'You have joined the team successfully.' });
+      } else {
+        toast({ title: 'Notice', description: result?.error || 'Could not process invitation', variant: 'destructive' });
+      }
+    } catch (error: any) {
+      console.error('Error accepting invite:', error);
+    }
+    navigate('/dashboard', { replace: true });
+  };
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
