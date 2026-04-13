@@ -7,13 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, Plus, Eye, Users, ShoppingBag, FileText, Trash2 } from 'lucide-react';
+import { DollarSign, Plus, Eye, Users, ShoppingBag, FileText, Trash2, Search, UserPlus, CheckCircle, Clock } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import ReceiptGenerator from '@/components/ReceiptGenerator';
+import { useUserRole } from '@/hooks/useUserRole';
 
 interface Customer {
   id: string;
@@ -69,6 +71,7 @@ interface CartItem {
 
 const Payments = () => {
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,6 +84,15 @@ const Payments = () => {
   const [shopInfo, setShopInfo] = useState<ShopInfo | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
+  
+  // Assign customer modal
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignPaymentId, setAssignPaymentId] = useState<string | null>(null);
+  const [customerSearchAssign, setCustomerSearchAssign] = useState('');
+  const [addNewCustomerMode, setAddNewCustomerMode] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [savingAssign, setSavingAssign] = useState(false);
   
   const [cart, setCart] = useState<CartItem[]>([]);
   const [newPayment, setNewPayment] = useState({
@@ -141,11 +153,7 @@ const Payments = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load data',
-        variant: 'destructive'
-      });
+      toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -288,24 +296,73 @@ const Payments = () => {
     }
   };
 
+  // Assign customer to a pending payment
+  const openAssignModal = (paymentId: string) => {
+    setAssignPaymentId(paymentId);
+    setCustomerSearchAssign('');
+    setAddNewCustomerMode(false);
+    setAssignModalOpen(true);
+  };
+
+  const handleAssignCustomerToPayment = async (customerId: string, custName: string) => {
+    if (!assignPaymentId) return;
+    setSavingAssign(true);
+    try {
+      const { error } = await supabase.from('payments').update({
+        customer_id: customerId,
+        customer_name: custName,
+        payment_status: 'completed',
+      }).eq('id', assignPaymentId);
+      if (error) throw error;
+      toast({ title: 'Customer Assigned', description: `Payment assigned to ${custName}` });
+      setAssignModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingAssign(false);
+    }
+  };
+
+  const handleCreateAndAssignCustomer = async () => {
+    if (!newCustName.trim() || !tenantId || !assignPaymentId) return;
+    setSavingAssign(true);
+    try {
+      const { data, error } = await supabase.from('customers').insert({
+        tenant_id: tenantId,
+        name: newCustName.trim(),
+        phone: newCustPhone || null,
+      }).select().single();
+      if (error) throw error;
+      await handleAssignCustomerToPayment(data.id, data.name);
+      setAddNewCustomerMode(false);
+      setNewCustName(''); setNewCustPhone('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setSavingAssign(false);
+    }
+  };
+
+  const filteredAssignCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearchAssign.toLowerCase()) ||
+    (c.phone && c.phone.includes(customerSearchAssign))
+  );
+
   const generateQuickReceipt = async (payment: Payment) => {
     const { data: items } = await supabase.from('payment_items').select('*').eq('payment_id', payment.id);
     if (!shopInfo) return;
     
-    // Import jsPDF dynamically
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
     
     const pageWidth = 80;
     let yPos = 10;
 
-    // Header - Shop Name
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text(shopInfo.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
     yPos += 6;
 
-    // Shop Address
     if (shopInfo.address) {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
@@ -328,13 +385,11 @@ const Payments = () => {
       yPos += 4;
     }
 
-    // Divider
     yPos += 2;
     doc.setLineWidth(0.5);
     doc.line(5, yPos, pageWidth - 5, yPos);
     yPos += 6;
 
-    // Receipt Info
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
@@ -358,12 +413,10 @@ const Payments = () => {
       yPos += 4;
     }
 
-    // Divider
     yPos += 2;
     doc.line(5, yPos, pageWidth - 5, yPos);
     yPos += 4;
 
-    // Items Header
     doc.setFont('helvetica', 'bold');
     doc.text('Item', 5, yPos);
     doc.text('Qty', 40, yPos);
@@ -373,7 +426,6 @@ const Payments = () => {
     doc.line(5, yPos, pageWidth - 5, yPos);
     yPos += 4;
 
-    // Items
     doc.setFont('helvetica', 'normal');
     (items || []).forEach((item: PaymentItem) => {
       const itemName = item.product_name.length > 15 ? item.product_name.substring(0, 15) + '...' : item.product_name;
@@ -384,19 +436,16 @@ const Payments = () => {
       yPos += 4;
     });
 
-    // Divider
     yPos += 2;
     doc.line(5, yPos, pageWidth - 5, yPos);
     yPos += 6;
 
-    // Total
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', 5, yPos);
-    doc.text(`$${payment.amount.toFixed(2)}`, pageWidth - 5, yPos, { align: 'right' });
+    doc.text(`UGX ${payment.amount.toLocaleString()}`, pageWidth - 5, yPos, { align: 'right' });
     yPos += 8;
 
-    // Footer
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
@@ -407,6 +456,7 @@ const Payments = () => {
   };
 
   const getTotalRevenue = () => payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const pendingCount = payments.filter(p => p.payment_status === 'pending_customer').length;
 
   if (loading) {
     return (
@@ -443,7 +493,7 @@ const Payments = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="customer_phone">Phone</Label>
-                    <Input id="customer_phone" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="+1234567890" />
+                    <Input id="customer_phone" value={newCustomer.phone} onChange={e => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="+256..." />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="customer_email">Email</Label>
@@ -513,7 +563,7 @@ const Payments = () => {
                             <div className="flex flex-col items-start overflow-hidden">
                               <span className="truncate w-full">{product.name}</span>
                               <span className={`text-xs ${product.stock <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                ${product.selling_price.toFixed(2)} • {product.stock <= 0 ? 'Out of stock' : `Stock: ${product.stock}`}
+                                UGX {product.selling_price.toLocaleString()} • {product.stock <= 0 ? 'Out of stock' : `Stock: ${product.stock}`}
                               </span>
                             </div>
                           </Button>
@@ -546,15 +596,15 @@ const Payments = () => {
                                   onChange={e => updateCartPrice(item.product_id, parseFloat(e.target.value) || 0)}
                                   className="w-20 h-7 text-sm"
                                   min="0"
-                                  step="0.01"
+                                  step="1"
                                 />
                               </div>
-                              <span className="ml-auto font-medium text-sm">${(item.price * item.quantity).toFixed(2)}</span>
+                              <span className="ml-auto font-medium text-sm">UGX {(item.price * item.quantity).toLocaleString()}</span>
                             </div>
                           </div>
                         ))}
                         <div className="border-t pt-2 flex justify-between font-bold">
-                          <span>Total:</span><span>${getCartTotal().toFixed(2)}</span>
+                          <span>Total:</span><span>UGX {getCartTotal().toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -585,7 +635,7 @@ const Payments = () => {
                   </div>
 
                   <Button onClick={handleCreatePayment} className="w-full" disabled={cart.length === 0}>
-                    Complete Payment (${getCartTotal().toFixed(2)})
+                    Complete Payment (UGX {getCartTotal().toLocaleString()})
                   </Button>
                 </div>
               </DialogContent>
@@ -593,14 +643,14 @@ const Payments = () => {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${getTotalRevenue().toFixed(2)}</div>
+              <div className="text-2xl font-bold">UGX {getTotalRevenue().toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">From all payments</p>
             </CardContent>
           </Card>
@@ -612,6 +662,16 @@ const Payments = () => {
             <CardContent>
               <div className="text-2xl font-bold">{payments.length}</div>
               <p className="text-xs text-muted-foreground">All time</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Pending Customer</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
+              <p className="text-xs text-muted-foreground">Need customer info</p>
             </CardContent>
           </Card>
           <Card>
@@ -635,7 +695,6 @@ const Payments = () => {
                   <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Method</TableHead>
-                  <TableHead>Reference</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Actions</TableHead>
@@ -644,59 +703,76 @@ const Payments = () => {
               <TableBody>
                 {payments.map(payment => (
                   <TableRow key={payment.id}>
-                    <TableCell>{format(new Date(payment.payment_date || payment.created_at), 'MMM dd, yyyy HH:mm')}</TableCell>
-                    <TableCell>{payment.customer_name || 'Walk-in'}</TableCell>
-                    <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
-                    <TableCell>{payment.reference_number || '-'}</TableCell>
+                    <TableCell className="text-sm">{format(new Date(payment.payment_date || payment.created_at), 'MMM dd, yyyy HH:mm')}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        payment.payment_status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : payment.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>{payment.payment_status}</span>
+                      {payment.customer_name || (
+                        <span className="text-muted-foreground italic">Walk-in</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right font-medium">${payment.amount.toFixed(2)}</TableCell>
+                    <TableCell className="capitalize text-sm">{payment.payment_method.replace('_', ' ')}</TableCell>
+                    <TableCell>
+                      {payment.payment_status === 'completed' ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-100">
+                          <CheckCircle className="h-3 w-3 mr-1" /> Completed
+                        </Badge>
+                      ) : payment.payment_status === 'pending_customer' ? (
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-100 cursor-pointer" onClick={() => openAssignModal(payment.id)}>
+                          <Clock className="h-3 w-3 mr-1" /> Assign Customer
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">{payment.payment_status}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">UGX {payment.amount.toLocaleString()}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => viewPaymentDetails(payment)} title="View Details">
                           <Eye className="h-4 w-4" />
                         </Button>
+                        {payment.payment_status === 'pending_customer' && (
+                          <Button variant="ghost" size="sm" onClick={() => openAssignModal(payment.id)} title="Assign Customer" className="text-yellow-600 hover:text-yellow-700">
+                            <UserPlus className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => generateQuickReceipt(payment)} title="Generate Receipt">
                           <FileText className="h-4 w-4" />
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" title="Delete Payment" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this payment? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeletePayment(payment.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        {(isAdmin || payment.payment_status !== 'completed') && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" title="Delete Payment" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this payment? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeletePayment(payment.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {payments.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No payments recorded yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No payments recorded yet</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
 
+        {/* Payment Details Dialog */}
         <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -711,8 +787,8 @@ const Payments = () => {
                     <p className="font-medium">{format(new Date(selectedPayment.payment_date || selectedPayment.created_at), 'MMM dd, yyyy HH:mm')}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Reference</p>
-                    <p className="font-medium">{selectedPayment.reference_number || '-'}</p>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium capitalize">{selectedPayment.payment_status === 'pending_customer' ? 'Pending Customer' : selectedPayment.payment_status}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Customer</p>
@@ -739,8 +815,8 @@ const Payments = () => {
                         <TableRow key={item.id}>
                           <TableCell>{item.product_name}</TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
-                          <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">${item.total_price.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">UGX {item.price.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">UGX {item.total_price.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                       {selectedPaymentItems.length === 0 && (
@@ -751,21 +827,96 @@ const Payments = () => {
                 </div>
 
                 <div className="flex justify-between items-center border-t pt-4">
-                  <span className="text-lg font-bold">Total: ${selectedPayment.amount.toFixed(2)}</span>
-                  {shopInfo && (
-                    <ReceiptGenerator
-                      data={{
-                        payment_id: selectedPayment.id,
-                        reference_number: selectedPayment.reference_number,
-                        payment_date: selectedPayment.payment_date || selectedPayment.created_at,
-                        payment_method: selectedPayment.payment_method,
-                        total_amount: selectedPayment.amount,
-                        customer_name: selectedPayment.customer_name,
-                        items: selectedPaymentItems,
-                        shop: shopInfo
-                      }}
-                    />
+                  <span className="text-lg font-bold">Total: UGX {selectedPayment.amount.toLocaleString()}</span>
+                  <div className="flex gap-2">
+                    {selectedPayment.payment_status === 'pending_customer' && (
+                      <Button size="sm" variant="outline" onClick={() => { setDetailsDialogOpen(false); openAssignModal(selectedPayment.id); }}>
+                        <UserPlus className="h-4 w-4 mr-1" /> Assign Customer
+                      </Button>
+                    )}
+                    {shopInfo && (
+                      <ReceiptGenerator
+                        data={{
+                          payment_id: selectedPayment.id,
+                          reference_number: selectedPayment.reference_number,
+                          payment_date: selectedPayment.payment_date || selectedPayment.created_at,
+                          payment_method: selectedPayment.payment_method,
+                          total_amount: selectedPayment.amount,
+                          customer_name: selectedPayment.customer_name,
+                          items: selectedPaymentItems,
+                          shop: shopInfo
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Assign Customer Modal */}
+        <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-primary" /> Assign Customer
+              </DialogTitle>
+              <DialogDescription>Select or add a customer for this payment</DialogDescription>
+            </DialogHeader>
+
+            {!addNewCustomerMode ? (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={customerSearchAssign}
+                    onChange={e => setCustomerSearchAssign(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-1 border rounded-lg p-2">
+                  {filteredAssignCustomers.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-4">No customers found</p>
+                  ) : (
+                    filteredAssignCustomers.map(customer => (
+                      <button
+                        key={customer.id}
+                        onClick={() => handleAssignCustomerToPayment(customer.id, customer.name)}
+                        disabled={savingAssign}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors text-left"
+                      >
+                        <div>
+                          <p className="font-medium text-sm">{customer.name}</p>
+                          {customer.phone && <p className="text-xs text-muted-foreground">{customer.phone}</p>}
+                        </div>
+                        <CheckCircle className="h-4 w-4 text-muted-foreground/30" />
+                      </button>
+                    ))
                   )}
+                </div>
+
+                <Button variant="outline" className="w-full gap-2" onClick={() => setAddNewCustomerMode(true)}>
+                  <UserPlus className="h-4 w-4" /> Add New Customer
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Customer Name *</Label>
+                  <Input value={newCustName} onChange={e => setNewCustName(e.target.value)} placeholder="John Doe" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={newCustPhone} onChange={e => setNewCustPhone(e.target.value)} placeholder="+256..." />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setAddNewCustomerMode(false)}>Back</Button>
+                  <Button className="flex-1" onClick={handleCreateAndAssignCustomer} disabled={!newCustName.trim() || savingAssign}>
+                    {savingAssign ? "Saving..." : "Save & Assign"}
+                  </Button>
                 </div>
               </div>
             )}
