@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag,
   ArrowLeft, LogOut, Trash2, PauseCircle, PlayCircle, CheckCircle,
-  Printer, Download, Package
+  Printer, Download, Package, UserPlus, Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -18,6 +18,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 
@@ -70,6 +72,14 @@ interface CompletedSale {
   paymentMethod: string;
   customerName: string;
   date: Date;
+  paymentId: string;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
 }
 
 const POS = () => {
@@ -101,6 +111,17 @@ const POS = () => {
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [heldSalesOpen, setHeldSalesOpen] = useState(false);
   const [tappedProductId, setTappedProductId] = useState<string | null>(null);
+
+  // Customer selection modal state
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("none");
+  const [addCustomerMode, setAddCustomerMode] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const categories = [
     "All Products", "Groceries", "Beverages", "Electronics",
@@ -139,7 +160,7 @@ const POS = () => {
   }, []);
 
   useEffect(() => { fetchUserData(); fetchProducts(); }, [user]);
-  useEffect(() => { if (tenantId) { fetchQuickStats(); fetchShopInfo(); } }, [tenantId]);
+  useEffect(() => { if (tenantId) { fetchQuickStats(); fetchShopInfo(); fetchCustomers(); } }, [tenantId]);
 
   useEffect(() => {
     let filtered = products;
@@ -166,6 +187,12 @@ const POS = () => {
     if (data) setShopInfo(data);
   };
 
+  const fetchCustomers = async () => {
+    if (!tenantId) return;
+    const { data } = await supabase.from("customers").select("id, name, phone, email").eq("tenant_id", tenantId).order("name");
+    if (data) setCustomers(data);
+  };
+
   const fetchQuickStats = async () => {
     if (!tenantId) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -186,7 +213,6 @@ const POS = () => {
   };
 
   const addToCart = (product: Product) => {
-    // Tap feedback
     setTappedProductId(product.id);
     setTimeout(() => setTappedProductId(null), 200);
 
@@ -359,12 +385,12 @@ const POS = () => {
         if (stockError) throw stockError;
       }
 
-      // AUTO-CREATE PAYMENT RECORD
+      // AUTO-CREATE PAYMENT RECORD with "pending_customer" status
       const { data: paymentData, error: paymentError } = await supabase.from("payments").insert({
         tenant_id: tenantId,
         amount: total,
         payment_method: paymentMethod,
-        payment_status: "completed",
+        payment_status: customerName ? "completed" : "pending_customer",
         customer_name: customerName || null,
         payment_date: new Date().toISOString(),
         notes: `POS Sale - ${cart.length} item(s)`,
@@ -386,9 +412,15 @@ const POS = () => {
       // Build completed sale for receipt
       const now = new Date();
       const invoiceId = `INV-${format(now, "yyyyMMddHHmmss")}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-      const sale: CompletedSale = { invoiceId, items: [...cart], subtotal, discount: discountAmount, total, profit, paymentMethod, customerName, date: now };
+      const sale: CompletedSale = { invoiceId, items: [...cart], subtotal, discount: discountAmount, total, profit, paymentMethod, customerName, date: now, paymentId: paymentData.id };
       setCompletedSale(sale);
-      setReceiptDialogOpen(true);
+
+      // If no customer was set, show customer selection modal; otherwise show receipt
+      if (!customerName) {
+        setCustomerModalOpen(true);
+      } else {
+        setReceiptDialogOpen(true);
+      }
 
       setCart([]); setPaymentMethod("cash"); setDiscountType("percentage"); setDiscountValue("");
       setPromoCode(""); setValidatedPromo(null); setCustomerName("");
@@ -399,6 +431,77 @@ const POS = () => {
       setLoading(false);
     }
   };
+
+  // Assign customer to the completed payment
+  const handleAssignCustomer = async (customerId: string | null, custName: string | null) => {
+    if (!completedSale) return;
+    setSavingCustomer(true);
+    try {
+      const { error } = await supabase.from("payments").update({
+        customer_id: customerId,
+        customer_name: custName,
+        payment_status: "completed",
+      }).eq("id", completedSale.paymentId);
+
+      if (error) throw error;
+
+      setCompletedSale({ ...completedSale, customerName: custName || "" });
+      toast({ title: "Customer Added", description: custName ? `Assigned to ${custName}` : "Payment completed" });
+      setCustomerModalOpen(false);
+      setReceiptDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const handleCreateAndAssignCustomer = async () => {
+    if (!newCustomerName.trim() || !tenantId) return;
+    setSavingCustomer(true);
+    try {
+      const { data, error } = await supabase.from("customers").insert({
+        tenant_id: tenantId,
+        name: newCustomerName.trim(),
+        phone: newCustomerPhone || null,
+        email: newCustomerEmail || null,
+      }).select().single();
+
+      if (error) throw error;
+
+      // Add to local list
+      setCustomers(prev => [...prev, data]);
+      await handleAssignCustomer(data.id, data.name);
+      setAddCustomerMode(false);
+      setNewCustomerName(""); setNewCustomerPhone(""); setNewCustomerEmail("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setSavingCustomer(false);
+    }
+  };
+
+  const handleSkipCustomer = async () => {
+    if (!completedSale) return;
+    // Mark as completed even without customer
+    setSavingCustomer(true);
+    try {
+      await supabase.from("payments").update({ payment_status: "completed" }).eq("id", completedSale.paymentId);
+      setCustomerModalOpen(false);
+      setReceiptDialogOpen(true);
+    } catch {
+      // still show receipt
+      setCustomerModalOpen(false);
+      setReceiptDialogOpen(true);
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.phone && c.phone.includes(customerSearch)) ||
+    (c.email && c.email.toLowerCase().includes(customerSearch.toLowerCase()))
+  );
 
   const formatCurrency = (amount: number) => `UGX ${amount.toLocaleString()}`;
   const paymentMethodLabel = (method: string) => ({ cash: "Cash", mobile_money: "Mobile Money", card: "Card", other: "Other" }[method] || method);
@@ -473,7 +576,7 @@ const POS = () => {
               ))}
             </div>
 
-            {/* Product Grid — Mobile-first redesign */}
+            {/* Product Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
               {displayedProducts.map((product) => {
                 const inCart = cart.find(i => i.id === product.id);
@@ -487,20 +590,17 @@ const POS = () => {
                       active:scale-95 active:bg-primary/5
                     `}
                   >
-                    {/* Product image/placeholder */}
                     <div className="aspect-square bg-muted flex items-center justify-center relative">
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                       ) : (
                         <Package className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/40" />
                       )}
-                      {/* Stock badge */}
                       {product.stock <= product.low_stock_threshold && (
                         <Badge variant="destructive" className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5">
                           {product.stock} left
                         </Badge>
                       )}
-                      {/* Cart quantity indicator */}
                       {inCart && (
                         <Badge className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground text-xs px-2 py-0.5">
                           {inCart.quantity}×
@@ -508,7 +608,6 @@ const POS = () => {
                       )}
                     </div>
 
-                    {/* Product info */}
                     <div className="p-2.5 sm:p-3">
                       <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 leading-tight mb-1">{product.name}</h3>
                       <p className="text-sm sm:text-base font-bold text-primary">
@@ -518,7 +617,6 @@ const POS = () => {
                       </p>
                       <p className="text-[10px] text-muted-foreground mb-2">{product.stock} in stock</p>
 
-                      {/* ADD TO CART BUTTON — always visible, prominent */}
                       <Button
                         onClick={(e) => { e.stopPropagation(); addToCart(product); }}
                         size="sm"
@@ -651,6 +749,90 @@ const POS = () => {
         </div>
       </div>
 
+      {/* Customer Selection Modal — shown after sale if no customer was provided */}
+      <Dialog open={customerModalOpen} onOpenChange={(open) => {
+        if (!open) handleSkipCustomer();
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" /> Complete Payment Details
+            </DialogTitle>
+            <DialogDescription>
+              Sale completed! Optionally assign a customer to this payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!addCustomerMode ? (
+            <div className="space-y-4">
+              {/* Search customers */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers by name, phone..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              {/* Customer list */}
+              <div className="max-h-60 overflow-y-auto space-y-1 border rounded-lg p-2">
+                {filteredCustomers.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-4">No customers found</p>
+                ) : (
+                  filteredCustomers.map(customer => (
+                    <button
+                      key={customer.id}
+                      onClick={() => handleAssignCustomer(customer.id, customer.name)}
+                      disabled={savingCustomer}
+                      className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent transition-colors text-left"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        {customer.phone && <p className="text-xs text-muted-foreground">{customer.phone}</p>}
+                      </div>
+                      <CheckCircle className="h-4 w-4 text-muted-foreground/30" />
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Add new customer button */}
+              <Button variant="outline" className="w-full gap-2" onClick={() => setAddCustomerMode(true)}>
+                <UserPlus className="h-4 w-4" /> Add New Customer
+              </Button>
+
+              {/* Skip button */}
+              <Button variant="ghost" className="w-full text-muted-foreground" onClick={handleSkipCustomer} disabled={savingCustomer}>
+                Skip — Continue as Walk-in
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Customer Name *</Label>
+                <Input value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder="John Doe" />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input value={newCustomerPhone} onChange={e => setNewCustomerPhone(e.target.value)} placeholder="+256..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={newCustomerEmail} onChange={e => setNewCustomerEmail(e.target.value)} placeholder="john@example.com" />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setAddCustomerMode(false)}>Back</Button>
+                <Button className="flex-1" onClick={handleCreateAndAssignCustomer} disabled={!newCustomerName.trim() || savingCustomer}>
+                  {savingCustomer ? "Saving..." : "Save & Assign"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Receipt Dialog */}
       <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
         <DialogContent className="sm:max-w-md">
@@ -667,6 +849,7 @@ const POS = () => {
                 {completedSale.discount > 0 && <div className="flex justify-between text-sm text-green-600 dark:text-green-400"><span>Discount</span><span>-{formatCurrency(completedSale.discount)}</span></div>}
                 <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total Paid</span><span className="text-primary">{formatCurrency(completedSale.total)}</span></div>
                 <div className="flex justify-between text-sm"><span>Payment</span><Badge variant="secondary">{paymentMethodLabel(completedSale.paymentMethod)}</Badge></div>
+                {completedSale.customerName && <div className="flex justify-between text-sm"><span>Customer</span><span className="font-medium">{completedSale.customerName}</span></div>}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleDownloadReceipt} className="gap-2"><Download className="h-4 w-4" /> Download</Button>
