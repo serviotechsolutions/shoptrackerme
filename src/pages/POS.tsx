@@ -224,7 +224,7 @@ const POS = () => {
       }
       setCart(cart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([...cart, { ...product, selling_price: product.selling_price > 0 ? product.selling_price : product.buying_price, quantity: 1 }]);
     }
     setSearchTerm("");
   };
