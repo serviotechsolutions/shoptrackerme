@@ -155,6 +155,7 @@ export type Database = {
           payment_method: string
           payment_status: string
           reference_number: string | null
+          sale_id: string | null
           tenant_id: string
           transaction_id: string | null
           updated_at: string
@@ -171,6 +172,7 @@ export type Database = {
           payment_method: string
           payment_status?: string
           reference_number?: string | null
+          sale_id?: string | null
           tenant_id: string
           transaction_id?: string | null
           updated_at?: string
@@ -187,6 +189,7 @@ export type Database = {
           payment_method?: string
           payment_status?: string
           reference_number?: string | null
+          sale_id?: string | null
           tenant_id?: string
           transaction_id?: string | null
           updated_at?: string
@@ -197,6 +200,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
           {
@@ -486,6 +496,51 @@ export type Database = {
           },
         ]
       }
+      sales: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string | null
+          discount_amount: number
+          id: string
+          payment_method: string
+          profit: number
+          subtotal: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          customer_name?: string | null
+          discount_amount?: number
+          id?: string
+          payment_method: string
+          profit?: number
+          subtotal?: number
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string | null
+          discount_amount?: number
+          id?: string
+          payment_method?: string
+          profit?: number
+          subtotal?: number
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       team_invitations: {
         Row: {
           accepted_at: string | null
@@ -580,6 +635,7 @@ export type Database = {
           profit: number
           promo_code: string | null
           quantity: number
+          sale_id: string | null
           tenant_id: string
           total_amount: number
           unit_price: number
@@ -597,6 +653,7 @@ export type Database = {
           profit: number
           promo_code?: string | null
           quantity: number
+          sale_id?: string | null
           tenant_id: string
           total_amount: number
           unit_price: number
@@ -614,6 +671,7 @@ export type Database = {
           profit?: number
           promo_code?: string | null
           quantity?: number
+          sale_id?: string | null
           tenant_id?: string
           total_amount?: number
           unit_price?: number
@@ -624,6 +682,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
           {
