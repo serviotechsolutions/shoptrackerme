@@ -145,14 +145,32 @@ const Users = () => {
     }
   };
 
-  const handleDeleteInvitation = async (invId: string) => {
+  const handleResendInvitation = async (inv: Invitation) => {
     try {
-      const { error } = await supabase.from('team_invitations').delete().eq('id', invId);
-      if (error) throw error;
-      toast({ title: 'Invitation Deleted' });
-      fetchData();
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to delete invitation', variant: 'destructive' });
+      const { data: profile } = await supabase.from('profiles').select('full_name, tenants(name)').single();
+      const shopName = (profile?.tenants as any)?.name || 'Our Shop';
+      const inviterName = profile?.full_name || 'Your colleague';
+      const joinUrl = `${window.location.origin}/auth?invite=${inv.token}`;
+
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-invitation', {
+        body: {
+          email: inv.email,
+          full_name: inv.email.split('@')[0],
+          role: inv.role,
+          shop_name: shopName,
+          inviter_name: inviterName,
+          join_url: joinUrl,
+        }
+      });
+
+      if (emailError || (emailData && (emailData as any).error)) {
+        const errMsg = (emailData as any)?.error || emailError?.message || 'Failed';
+        toast({ title: 'Resend Failed', description: errMsg, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Invitation Resent', description: `Email re-sent to ${inv.email}` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to resend', variant: 'destructive' });
     }
   };
 
