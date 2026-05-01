@@ -50,67 +50,94 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     }, 250);
   };
 
+  // Auto-fit scaling: shrink fonts when item lists get long to keep receipts compact
+  const itemCount = data.items.length;
+  const scale = itemCount > 30 ? 0.7 : itemCount > 20 ? 0.8 : itemCount > 12 ? 0.9 : 1;
+
   const handleDownloadPDF = () => {
-    // Dynamic-height thermal receipt PDF (80mm wide)
-    const lineHeight = 4;
-    const baseHeight = 80; // header + footer baseline
-    const itemsHeight = data.items.length * (lineHeight + 2);
-    const totalHeight = Math.max(120, baseHeight + itemsHeight + 40);
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, totalHeight] });
+    // Dynamic-height thermal receipt PDF (80mm wide) with auto-fit
     const w = 80;
+    const baseFontSize = 8 * scale;
+    const headerFontSize = 13 * scale;
+    const totalFontSize = 11 * scale;
+    const lineHeight = 3.5 * scale;
+    const nameMaxChars = scale < 1 ? 22 : 18;
+
+    // Pre-compute wrapped item lines for accurate height
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
+    const wrappedItems = data.items.map((it) => {
+      const lines = doc.splitTextToSize(it.product_name, 36 * scale + 2);
+      return { it, lines: lines.slice(0, 3) }; // cap at 3 lines per item
+    });
+    const itemsHeight = wrappedItems.reduce(
+      (sum, w) => sum + Math.max(lineHeight + 1, w.lines.length * lineHeight + 1),
+      0
+    );
+    const baseHeight = 60 + (data.shop.address ? 4 : 0) + (data.shop.phone ? 4 : 0) + (data.customer_name ? 4 : 0);
+    const totalHeight = Math.max(110, baseHeight + itemsHeight + 35);
+
+    // Recreate doc with correct height
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, totalHeight] });
     let y = 8;
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text(data.shop.name || 'Shop', w / 2, y, { align: 'center' }); y += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    if (data.shop.address) { doc.text(data.shop.address, w / 2, y, { align: 'center' }); y += 4; }
-    if (data.shop.phone) { doc.text(`Tel: ${data.shop.phone}`, w / 2, y, { align: 'center' }); y += 4; }
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(headerFontSize);
+    pdf.text(data.shop.name || 'Shop', w / 2, y, { align: 'center' }); y += 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(baseFontSize);
+    if (data.shop.address) { pdf.text(data.shop.address, w / 2, y, { align: 'center' }); y += 4; }
+    if (data.shop.phone) { pdf.text(`Tel: ${data.shop.phone}`, w / 2, y, { align: 'center' }); y += 4; }
 
     y += 1;
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(4, y, w - 4, y); y += 4;
+    pdf.setLineDashPattern([1, 1], 0);
+    pdf.line(4, y, w - 4, y); y += 4;
 
-    doc.setFontSize(8);
-    doc.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 4, y); y += 4;
-    if (data.reference_number) { doc.text(`Ref: ${data.reference_number}`, 4, y); y += 4; }
-    doc.text(`Pay: ${data.payment_method.replace('_', ' ')}`, 4, y); y += 4;
-    if (data.customer_name) { doc.text(`Customer: ${data.customer_name}`, 4, y); y += 4; }
+    pdf.setFontSize(baseFontSize);
+    pdf.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 4, y); y += 4;
+    if (data.reference_number) { pdf.text(`Ref: ${data.reference_number}`, 4, y); y += 4; }
+    pdf.text(`Pay: ${data.payment_method.replace('_', ' ')}`, 4, y); y += 4;
+    if (data.customer_name) { pdf.text(`Customer: ${data.customer_name}`, 4, y); y += 4; }
 
-    doc.line(4, y, w - 4, y); y += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 4, y);
-    doc.text('Qty', 42, y);
-    doc.text('Price', 52, y);
-    doc.text('Total', w - 4, y, { align: 'right' });
+    pdf.line(4, y, w - 4, y); y += 4;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Item', 4, y);
+    pdf.text('Qty', 42, y);
+    pdf.text('Price', 52, y);
+    pdf.text('Total', w - 4, y, { align: 'right' });
     y += 3;
-    doc.line(4, y, w - 4, y); y += 4;
+    pdf.line(4, y, w - 4, y); y += 4;
 
-    doc.setFont('helvetica', 'normal');
-    data.items.forEach((it) => {
-      const name = it.product_name.length > 16 ? it.product_name.substring(0, 16) + '…' : it.product_name;
-      doc.text(name, 4, y);
-      doc.text(String(it.quantity), 42, y);
-      doc.text(fmtMoney(it.price), 52, y);
-      doc.text(fmtMoney(it.total_price), w - 4, y, { align: 'right' });
-      y += lineHeight + 1;
+    pdf.setFont('helvetica', 'normal');
+    wrappedItems.forEach(({ it, lines }) => {
+      const startY = y;
+      lines.forEach((ln: string, idx: number) => {
+        pdf.text(ln, 4, y + idx * lineHeight);
+      });
+      pdf.text(String(it.quantity), 42, startY);
+      pdf.text(fmtMoney(it.price), 52, startY);
+      pdf.text(fmtMoney(it.total_price), w - 4, startY, { align: 'right' });
+      y += Math.max(lineHeight + 1, lines.length * lineHeight + 1);
     });
 
     y += 2;
-    doc.line(4, y, w - 4, y); y += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('TOTAL', 4, y);
-    doc.text(`UGX ${fmtMoney(data.total_amount)}`, w - 4, y, { align: 'right' });
+    pdf.line(4, y, w - 4, y); y += 5;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(totalFontSize);
+    pdf.text('TOTAL', 4, y);
+    pdf.text(`UGX ${fmtMoney(data.total_amount)}`, w - 4, y, { align: 'right' });
     y += 6;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text('Thank you for your business!', w / 2, y, { align: 'center' });
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(baseFontSize);
+    pdf.text('Thank you for your business!', w / 2, y, { align: 'center' });
 
-    doc.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
+    pdf.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
   };
+
+  // Tailwind-friendly auto-fit classes for the on-screen / print preview
+  const itemFontClass = itemCount > 30 ? 'text-[8px]' : itemCount > 20 ? 'text-[9px]' : itemCount > 12 ? 'text-[10px]' : 'text-[11px]';
+  const totalFontClass = itemCount > 20 ? 'text-xs' : 'text-sm';
+  const rowPadClass = itemCount > 20 ? 'leading-tight' : '';
 
   return (
     <>
