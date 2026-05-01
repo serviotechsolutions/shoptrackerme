@@ -145,6 +145,17 @@ const Users = () => {
     }
   };
 
+  const handleDeleteInvitation = async (invId: string) => {
+    try {
+      const { error } = await supabase.from('team_invitations').delete().eq('id', invId);
+      if (error) throw error;
+      toast({ title: 'Invitation Deleted' });
+      fetchData();
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to delete invitation', variant: 'destructive' });
+    }
+  };
+
   const handleResendInvitation = async (inv: Invitation) => {
     try {
       const { data: profile } = await supabase.from('profiles').select('full_name, tenants(name)').single();
