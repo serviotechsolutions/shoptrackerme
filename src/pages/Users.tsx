@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Users as UsersIcon, UserPlus, Mail, Shield, User, Trash2, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Users as UsersIcon, UserPlus, Mail, Shield, User, Trash2, Clock, CheckCircle2, XCircle, Send } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -97,8 +97,8 @@ const Users = () => {
 
       // Send invitation email
       const joinUrl = `${window.location.origin}/auth?invite=${invitation.token}`;
-      
-      await supabase.functions.invoke('send-user-invitation', {
+
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-invitation', {
         body: {
           email: newUser.email,
           full_name: newUser.full_name,
@@ -109,7 +109,19 @@ const Users = () => {
         }
       });
 
-      toast({ title: 'Invitation Sent', description: `Invitation sent to ${newUser.email}` });
+      // If email failed to send, delete the invitation record so user can retry
+      if (emailError || (emailData && (emailData as any).error)) {
+        await supabase.from('team_invitations').delete().eq('id', invitation.id);
+        const errMsg = (emailData as any)?.error || emailError?.message || 'Email could not be delivered';
+        toast({
+          title: 'Email Not Sent',
+          description: `${errMsg}. Verify a sender domain at resend.com/domains to send to any address.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({ title: 'Invitation Sent', description: `Invitation email delivered to ${newUser.email}` });
       setDialogOpen(false);
       setNewUser({ email: '', full_name: '', role: 'staff' });
       fetchData();
@@ -141,6 +153,35 @@ const Users = () => {
       fetchData();
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete invitation', variant: 'destructive' });
+    }
+  };
+
+  const handleResendInvitation = async (inv: Invitation) => {
+    try {
+      const { data: profile } = await supabase.from('profiles').select('full_name, tenants(name)').single();
+      const shopName = (profile?.tenants as any)?.name || 'Our Shop';
+      const inviterName = profile?.full_name || 'Your colleague';
+      const joinUrl = `${window.location.origin}/auth?invite=${inv.token}`;
+
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-invitation', {
+        body: {
+          email: inv.email,
+          full_name: inv.email.split('@')[0],
+          role: inv.role,
+          shop_name: shopName,
+          inviter_name: inviterName,
+          join_url: joinUrl,
+        }
+      });
+
+      if (emailError || (emailData && (emailData as any).error)) {
+        const errMsg = (emailData as any)?.error || emailError?.message || 'Failed';
+        toast({ title: 'Resend Failed', description: errMsg, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Invitation Resent', description: `Email re-sent to ${inv.email}` });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to resend', variant: 'destructive' });
     }
   };
 
@@ -295,9 +336,14 @@ const Users = () => {
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(inv.created_at), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
                       {inv.status === 'pending' && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" title="Resend invitation" onClick={() => handleResendInvitation(inv)}>
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

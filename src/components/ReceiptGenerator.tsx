@@ -1,7 +1,9 @@
-import { jsPDF } from 'jspdf';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText, Printer } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FileText, Printer, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { jsPDF } from 'jspdf';
 
 interface PaymentItem {
   id: string;
@@ -34,182 +36,194 @@ interface ReceiptGeneratorProps {
   data: ReceiptData;
 }
 
+const fmtMoney = (n: number) =>
+  new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n || 0);
+
 const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
-  const generateReceiptContent = async (doc: jsPDF): Promise<jsPDF> => {
-    const pageWidth = 80;
-    let yPos = 10;
+  const [open, setOpen] = useState(false);
 
-    // Draw subtle thin border around the receipt
-    doc.setDrawColor(200, 200, 200); // Light gray color
-    doc.setLineWidth(0.2); // Very thin line
-    doc.rect(2, 2, pageWidth - 4, 196); // Border with small margin
-
-    // Header - Shop Logo (if available)
-    if (data.shop.logo_url) {
-      try {
-        const response = await fetch(data.shop.logo_url);
-        const blob = await response.blob();
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-        
-        const logoWidth = 20;
-        const logoHeight = 20;
-        const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(base64, 'PNG', logoX, yPos, logoWidth, logoHeight);
-        yPos += logoHeight + 4;
-      } catch (error) {
-        console.error('Failed to load logo:', error);
-      }
-    }
-
-    // Header - Shop Name
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(data.shop.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    // Shop Address
-    if (data.shop.address) {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const addressLines = doc.splitTextToSize(data.shop.address, pageWidth - 10);
-      addressLines.forEach((line: string) => {
-        doc.text(line, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      });
-    }
-
-    // Shop Phone
-    if (data.shop.phone) {
-      doc.setFontSize(8);
-      doc.text(`Tel: ${data.shop.phone}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
-
-    // Shop Email
-    if (data.shop.email) {
-      doc.setFontSize(8);
-      doc.text(`Email: ${data.shop.email}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
-
-    // Divider
-    yPos += 2;
-    doc.setLineWidth(0.5);
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    // Receipt Info
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 5, yPos);
-    yPos += 4;
-
-    if (data.reference_number) {
-      doc.text(`Ref: ${data.reference_number}`, 5, yPos);
-      yPos += 4;
-    }
-
-    doc.text(`Payment: ${data.payment_method.replace('_', ' ')}`, 5, yPos);
-    yPos += 4;
-
-    if (data.customer_name) {
-      doc.text(`Customer: ${data.customer_name}`, 5, yPos);
-      yPos += 4;
-    }
-
-    // Divider
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    // Items Header
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 5, yPos);
-    doc.text('Qty', 40, yPos);
-    doc.text('Price', 50, yPos);
-    doc.text('Total', 65, yPos);
-    yPos += 4;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    // Items
-    doc.setFont('helvetica', 'normal');
-    data.items.forEach(item => {
-      const itemName = item.product_name.length > 15 
-        ? item.product_name.substring(0, 15) + '...' 
-        : item.product_name;
-      doc.text(itemName, 5, yPos);
-      doc.text(item.quantity.toString(), 42, yPos);
-      doc.text(item.price.toFixed(0), 50, yPos);
-      doc.text(item.total_price.toFixed(0), 65, yPos);
-      yPos += 4;
-    });
-
-    // Divider
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    // Total
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', 5, yPos);
-    doc.text(`$${data.total_amount.toFixed(2)}`, pageWidth - 5, yPos, { align: 'right' });
-    yPos += 8;
-
-    // Footer
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
-
-    return doc;
+  const handlePrint = () => {
+    setOpen(true);
+    // Wait a tick for the dialog DOM to render before triggering print
+    setTimeout(() => {
+      window.print();
+    }, 250);
   };
 
-  const generatePDF = async () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200]
+  const handleDownloadPDF = () => {
+    // Dynamic-height thermal receipt PDF (80mm wide)
+    const lineHeight = 4;
+    const baseHeight = 80; // header + footer baseline
+    const itemsHeight = data.items.length * (lineHeight + 2);
+    const totalHeight = Math.max(120, baseHeight + itemsHeight + 40);
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, totalHeight] });
+    const w = 80;
+    let y = 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(data.shop.name || 'Shop', w / 2, y, { align: 'center' }); y += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    if (data.shop.address) { doc.text(data.shop.address, w / 2, y, { align: 'center' }); y += 4; }
+    if (data.shop.phone) { doc.text(`Tel: ${data.shop.phone}`, w / 2, y, { align: 'center' }); y += 4; }
+
+    y += 1;
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(4, y, w - 4, y); y += 4;
+
+    doc.setFontSize(8);
+    doc.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, 4, y); y += 4;
+    if (data.reference_number) { doc.text(`Ref: ${data.reference_number}`, 4, y); y += 4; }
+    doc.text(`Pay: ${data.payment_method.replace('_', ' ')}`, 4, y); y += 4;
+    if (data.customer_name) { doc.text(`Customer: ${data.customer_name}`, 4, y); y += 4; }
+
+    doc.line(4, y, w - 4, y); y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Item', 4, y);
+    doc.text('Qty', 42, y);
+    doc.text('Price', 52, y);
+    doc.text('Total', w - 4, y, { align: 'right' });
+    y += 3;
+    doc.line(4, y, w - 4, y); y += 4;
+
+    doc.setFont('helvetica', 'normal');
+    data.items.forEach((it) => {
+      const name = it.product_name.length > 16 ? it.product_name.substring(0, 16) + '…' : it.product_name;
+      doc.text(name, 4, y);
+      doc.text(String(it.quantity), 42, y);
+      doc.text(fmtMoney(it.price), 52, y);
+      doc.text(fmtMoney(it.total_price), w - 4, y, { align: 'right' });
+      y += lineHeight + 1;
     });
 
-    await generateReceiptContent(doc);
+    y += 2;
+    doc.line(4, y, w - 4, y); y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('TOTAL', 4, y);
+    doc.text(`UGX ${fmtMoney(data.total_amount)}`, w - 4, y, { align: 'right' });
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Thank you for your business!', w / 2, y, { align: 'center' });
+
     doc.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
   };
 
-  const printReceipt = async () => {
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, 200]
-    });
-
-    await generateReceiptContent(doc);
-    doc.autoPrint();
-    window.open(doc.output('bloburl'), '_blank');
-  };
-
   return (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={generatePDF}>
-        <FileText className="mr-2 h-4 w-4" />
-        Download
-      </Button>
-      <Button variant="outline" size="sm" onClick={printReceipt}>
-        <Printer className="mr-2 h-4 w-4" />
-        Print
-      </Button>
-    </div>
+    <>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+          <FileText className="mr-2 h-4 w-4" />
+          Download
+        </Button>
+        <Button variant="outline" size="sm" onClick={handlePrint}>
+          <Printer className="mr-2 h-4 w-4" />
+          Print
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm p-0 print:shadow-none print:max-w-none print:p-0 print:border-0">
+          {/* Print-only styles: hide everything except the receipt area */}
+          <style>{`
+            @media print {
+              @page { size: 80mm auto; margin: 0; }
+              html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+              body * { visibility: hidden !important; }
+              #receipt-print-area, #receipt-print-area * { visibility: visible !important; }
+              #receipt-print-area {
+                position: absolute !important;
+                left: 0 !important; top: 0 !important;
+                width: 80mm !important;
+                padding: 4mm !important;
+                box-shadow: none !important;
+                border: 0 !important;
+              }
+              .no-print { display: none !important; }
+            }
+          `}</style>
+
+          <div className="flex justify-end p-2 no-print border-b">
+            <Button variant="ghost" size="sm" onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-1" /> Print
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div
+            id="receipt-print-area"
+            className="mx-auto bg-white text-black font-mono text-[12px] leading-tight p-4"
+            style={{ width: '300px' }}
+          >
+            <div className="text-center mb-2">
+              {data.shop.logo_url && (
+                <img src={data.shop.logo_url} alt="" className="h-12 mx-auto mb-1 object-contain" />
+              )}
+              <div className="font-bold text-base">{data.shop.name}</div>
+              {data.shop.address && <div className="text-[10px]">{data.shop.address}</div>}
+              {data.shop.phone && <div className="text-[10px]">Tel: {data.shop.phone}</div>}
+              {data.shop.email && <div className="text-[10px]">{data.shop.email}</div>}
+            </div>
+
+            <div className="border-t border-dashed border-black my-2" />
+
+            <div className="text-center font-bold mb-1">RECEIPT</div>
+
+            <div className="text-[11px] space-y-0.5">
+              <div>Date: {format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}</div>
+              {data.reference_number && <div>Ref: {data.reference_number}</div>}
+              <div>Payment: {data.payment_method.replace('_', ' ')}</div>
+              {data.customer_name && <div>Customer: {data.customer_name}</div>}
+            </div>
+
+            <div className="border-t border-dashed border-black my-2" />
+
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="font-bold">
+                  <th className="text-left">Item</th>
+                  <th className="text-center w-8">Qty</th>
+                  <th className="text-right w-14">Price</th>
+                  <th className="text-right w-16">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((it) => (
+                  <tr key={it.id}>
+                    <td className="text-left pr-1 align-top">{it.product_name}</td>
+                    <td className="text-center align-top">{it.quantity}</td>
+                    <td className="text-right align-top">{fmtMoney(it.price)}</td>
+                    <td className="text-right align-top">{fmtMoney(it.total_price)}</td>
+                  </tr>
+                ))}
+                {data.items.length === 0 && (
+                  <tr><td colSpan={4} className="text-center py-2">No items</td></tr>
+                )}
+              </tbody>
+            </table>
+
+            <div className="border-t border-dashed border-black my-2" />
+
+            <div className="flex justify-between font-bold text-sm">
+              <span>TOTAL</span>
+              <span>UGX {fmtMoney(data.total_amount)}</span>
+            </div>
+
+            <div className="border-t border-dashed border-black my-2" />
+
+            <div className="text-center text-[10px] mt-2">
+              <div>Thank you for your business!</div>
+              <div>Please come again</div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
