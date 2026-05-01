@@ -210,7 +210,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
 
             <div className="border-t border-dashed border-black my-2" />
 
-            <table className="w-full text-[11px]">
+            <table className={`w-full ${itemFontClass}`}>
               <thead>
                 <tr className="font-bold">
                   <th className="text-left">Item</th>
@@ -221,8 +221,13 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
               </thead>
               <tbody>
                 {data.items.map((it) => (
-                  <tr key={it.id}>
-                    <td className="text-left pr-1 align-top">{it.product_name}</td>
+                  <tr key={it.id} className={rowPadClass}>
+                    <td
+                      className="text-left pr-1 align-top"
+                      style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+                    >
+                      {it.product_name}
+                    </td>
                     <td className="text-center align-top">{it.quantity}</td>
                     <td className="text-right align-top">{fmtMoney(it.price)}</td>
                     <td className="text-right align-top">{fmtMoney(it.total_price)}</td>
@@ -236,7 +241,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
 
             <div className="border-t border-dashed border-black my-2" />
 
-            <div className="flex justify-between font-bold text-sm">
+            <div className={`flex justify-between font-bold ${totalFontClass}`}>
               <span>TOTAL</span>
               <span>UGX {fmtMoney(data.total_amount)}</span>
             </div>
