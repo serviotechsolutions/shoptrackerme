@@ -336,9 +336,14 @@ const Users = () => {
                     <TableCell className="text-sm text-muted-foreground">{format(new Date(inv.created_at), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
                       {inv.status === 'pending' && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" title="Resend invitation" onClick={() => handleResendInvitation(inv)}>
+                            <Send className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
