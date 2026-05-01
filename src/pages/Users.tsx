@@ -97,8 +97,8 @@ const Users = () => {
 
       // Send invitation email
       const joinUrl = `${window.location.origin}/auth?invite=${invitation.token}`;
-      
-      await supabase.functions.invoke('send-user-invitation', {
+
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-user-invitation', {
         body: {
           email: newUser.email,
           full_name: newUser.full_name,
@@ -109,7 +109,19 @@ const Users = () => {
         }
       });
 
-      toast({ title: 'Invitation Sent', description: `Invitation sent to ${newUser.email}` });
+      // If email failed to send, delete the invitation record so user can retry
+      if (emailError || (emailData && (emailData as any).error)) {
+        await supabase.from('team_invitations').delete().eq('id', invitation.id);
+        const errMsg = (emailData as any)?.error || emailError?.message || 'Email could not be delivered';
+        toast({
+          title: 'Email Not Sent',
+          description: `${errMsg}. Verify a sender domain at resend.com/domains to send to any address.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({ title: 'Invitation Sent', description: `Invitation email delivered to ${newUser.email}` });
       setDialogOpen(false);
       setNewUser({ email: '', full_name: '', role: 'staff' });
       fetchData();
