@@ -147,7 +147,7 @@ const Payments = () => {
 
         const { data: productsData } = await supabase
           .from('products')
-          .select('id, name, selling_price, stock')
+          .select('id, name, selling_price, buying_price, stock')
           .eq('tenant_id', profile.tenant_id)
           .order('name');
         if (productsData) setProducts(productsData);
