@@ -28,6 +28,7 @@ interface Product {
   id: string;
   name: string;
   selling_price: number;
+  buying_price: number;
   stock: number;
 }
 
@@ -146,7 +147,7 @@ const Payments = () => {
 
         const { data: productsData } = await supabase
           .from('products')
-          .select('id, name, selling_price, stock')
+          .select('id, name, selling_price, buying_price, stock')
           .eq('tenant_id', profile.tenant_id)
           .order('name');
         if (productsData) setProducts(productsData);
@@ -159,15 +160,23 @@ const Payments = () => {
     }
   };
 
+  const getEffectivePrice = (product: Product) => {
+    const sell = Number(product.selling_price) || 0;
+    if (sell > 0) return sell;
+    const buy = Number(product.buying_price) || 0;
+    return buy > 0 ? buy : 0;
+  };
+
   const addToCart = (product: Product) => {
     if (product.stock <= 0) {
       toast({ title: 'Out of stock', description: 'This product is out of stock', variant: 'destructive' });
       return;
     }
-    if (!product.selling_price || Number(product.selling_price) <= 0) {
+    const effectivePrice = getEffectivePrice(product);
+    if (effectivePrice <= 0) {
       toast({
-        title: 'Missing selling price',
-        description: `"${product.name}" has no selling price set. Please update it on the Products page before selling.`,
+        title: 'No price set',
+        description: `"${product.name}" has no selling or buying price. Update it on the Products page first.`,
         variant: 'destructive'
       });
       return;
@@ -180,7 +189,7 @@ const Payments = () => {
       }
       setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      setCart([...cart, { product_id: product.id, product_name: product.name, quantity: 1, price: Number(product.selling_price) }]);
+      setCart([...cart, { product_id: product.id, product_name: product.name, quantity: 1, price: effectivePrice }]);
     }
   };
 
@@ -559,8 +568,12 @@ const Payments = () => {
                         </p>
                       ) : (
                         filteredProducts.map(product => {
-                          const noPrice = !product.selling_price || Number(product.selling_price) <= 0;
-                          const disabled = product.stock <= 0 || noPrice;
+                          const sellPrice = Number(product.selling_price) || 0;
+                          const buyPrice = Number(product.buying_price) || 0;
+                          const effectivePrice = sellPrice > 0 ? sellPrice : buyPrice;
+                          const noPrice = effectivePrice <= 0;
+                          const outOfStock = product.stock <= 0;
+                          const disabled = outOfStock || noPrice;
                           return (
                             <Button
                               key={product.id}
@@ -569,15 +582,17 @@ const Payments = () => {
                               className={`justify-start text-left h-auto py-2 ${disabled ? 'opacity-60' : ''}`}
                               onClick={() => addToCart(product)}
                               disabled={disabled}
-                              title={noPrice ? 'No selling price set' : undefined}
+                              title={noPrice ? 'No price set on product' : undefined}
                             >
                               <ShoppingBag className="mr-2 h-3 w-3 flex-shrink-0" />
                               <div className="flex flex-col items-start overflow-hidden">
                                 <span className="truncate w-full">{product.name}</span>
-                                <span className={`text-xs ${noPrice ? 'text-destructive font-medium' : product.stock <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                <span className={`text-xs ${noPrice ? 'text-destructive font-medium' : outOfStock ? 'text-destructive' : 'text-muted-foreground'}`}>
                                   {noPrice
                                     ? '⚠ No price set'
-                                    : `UGX ${Number(product.selling_price).toLocaleString()} • ${product.stock <= 0 ? 'Out of stock' : `Stock: ${product.stock}`}`}
+                                    : sellPrice > 0
+                                      ? `UGX ${sellPrice.toLocaleString()} • ${outOfStock ? 'Out of stock' : `Stock: ${product.stock}`}`
+                                      : `Cost: UGX ${buyPrice.toLocaleString()} • ${outOfStock ? 'Out of stock' : `Stock: ${product.stock}`}`}
                                 </span>
                               </div>
                             </Button>
