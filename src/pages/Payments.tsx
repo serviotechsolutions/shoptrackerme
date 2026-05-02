@@ -28,6 +28,7 @@ interface Product {
   id: string;
   name: string;
   selling_price: number;
+  buying_price: number;
   stock: number;
 }
 
