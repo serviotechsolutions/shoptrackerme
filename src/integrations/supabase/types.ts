@@ -630,7 +630,7 @@ export type Database = {
           discount_value: number | null
           id: string
           payment_method: string
-          product_id: string
+          product_id: string | null
           product_name: string
           profit: number
           promo_code: string | null
@@ -648,7 +648,7 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method: string
-          product_id: string
+          product_id?: string | null
           product_name: string
           profit: number
           promo_code?: string | null
@@ -666,7 +666,7 @@ export type Database = {
           discount_value?: number | null
           id?: string
           payment_method?: string
-          product_id?: string
+          product_id?: string | null
           product_name?: string
           profit?: number
           promo_code?: string | null
