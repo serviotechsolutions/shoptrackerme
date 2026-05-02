@@ -32,6 +32,8 @@ import {
 } from './ui/dropdown-menu';
 import { useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -43,9 +45,24 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAdmin, canMakeSales, canManageProducts, canViewReports, canManageTeam, canManageSettings, canManagePromotions } = useUserRole();
-  
+  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null } | null>(null);
+
   // Initialize smart notifications monitoring
   useSmartNotifications();
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('avatar_url, full_name')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setProfile(data);
+      });
+  }, [user?.id]);
+
+  const initial = (profile?.full_name || user?.email || 'U').charAt(0).toUpperCase();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' || 'light';
@@ -154,12 +171,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-sm font-medium text-primary-foreground">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                <Button variant="ghost" size="icon" className="rounded-full p-0">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt="Profile" />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+                      {initial}
+                    </AvatarFallback>
+                  </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
