@@ -275,13 +275,57 @@ const POS = () => {
   const calculateProfit = () => cart.reduce((sum, item) => sum + (item.selling_price - item.buying_price) * item.quantity, 0) - calculateDiscount();
 
   const validatePromoCode = async () => {
-    if (!promoCode.trim()) { toast({ title: "Error", description: "Please enter a promo code", variant: "destructive" }); return; }
-    const { data, error } = await supabase.from("promo_codes").select("*").eq("code", promoCode.toUpperCase()).eq("is_active", true).single();
-    if (error || !data) { toast({ title: "Invalid Code", description: "Promo code not found or inactive", variant: "destructive" }); return; }
-    if (data.valid_until && new Date(data.valid_until) < new Date()) { toast({ title: "Expired", description: "This promo code has expired", variant: "destructive" }); return; }
-    if (data.usage_limit && data.times_used >= data.usage_limit) { toast({ title: "Limit Reached", description: "Usage limit reached", variant: "destructive" }); return; }
-    setValidatedPromo(data); setDiscountType("promo");
-    toast({ title: "Success", description: `Applied ${data.discount_type === "percentage" ? data.discount_value + "%" : formatCurrency(data.discount_value)} discount` });
+    const code = promoCode.trim().toUpperCase();
+    if (!code) { toast({ title: "Error", description: "Please enter a promo code", variant: "destructive" }); return; }
+    const now = new Date();
+    console.log("[Promo] Validating", code, "at", now.toISOString());
+
+    // 1) Check promo_codes table (case-insensitive)
+    const { data: pcList } = await supabase.from("promo_codes").select("*").ilike("code", code);
+    const pc = pcList?.find(p => p.code.trim().toUpperCase() === code);
+    if (pc) {
+      console.log("[Promo] Found in promo_codes", pc);
+      if (pc.is_active === false) { toast({ title: "Invalid Code", description: "Promo code is inactive", variant: "destructive" }); return; }
+      if (pc.valid_from && new Date(pc.valid_from) > now) { toast({ title: "Not Yet Active", description: "Promo code not yet valid", variant: "destructive" }); return; }
+      if (pc.valid_until && new Date(pc.valid_until) < now) { toast({ title: "Expired", description: "This promo code has expired", variant: "destructive" }); return; }
+      if (pc.usage_limit && pc.times_used >= pc.usage_limit) { toast({ title: "Limit Reached", description: "Usage limit reached", variant: "destructive" }); return; }
+      setValidatedPromo({ ...pc, _source: "promo_codes" } as any); setDiscountType("promo");
+      toast({ title: "Success", description: `Applied ${pc.discount_type === "percentage" ? pc.discount_value + "%" : formatCurrency(pc.discount_value)} discount` });
+      return;
+    }
+
+    // 2) Check promotions table (flash sales / campaigns)
+    const { data: promoList } = await supabase.from("promotions").select("*").ilike("promo_code", code);
+    const promo = promoList?.find(p => p.promo_code?.trim().toUpperCase() === code);
+    if (promo) {
+      console.log("[Promo] Found in promotions", promo, "start:", promo.start_time, "end:", promo.end_time);
+      const start = promo.start_time ? new Date(promo.start_time) : null;
+      const end = promo.end_time ? new Date(promo.end_time) : null;
+      const inWindow = (!start || start <= now) && (!end || end >= now);
+      if (!inWindow) {
+        toast({ title: end && end < now ? "Expired" : "Not Yet Active", description: end && end < now ? "This promo has ended" : "This promo hasn't started yet", variant: "destructive" });
+        return;
+      }
+      if (promo.max_redemptions && promo.current_redemptions >= promo.max_redemptions) { toast({ title: "Limit Reached", description: "Redemption limit reached", variant: "destructive" }); return; }
+      // Auto-mark active if in window
+      if (promo.status !== "active") {
+        await supabase.from("promotions").update({ status: "active" } as any).eq("id", promo.id);
+      }
+      const adapted = {
+        id: promo.id,
+        code: promo.promo_code,
+        discount_type: promo.discount_type,
+        discount_value: Number(promo.discount_value),
+        times_used: promo.current_redemptions || 0,
+        _source: "promotions",
+      };
+      setValidatedPromo(adapted as any); setDiscountType("promo");
+      toast({ title: "Success", description: `Applied ${promo.discount_type === "percentage" ? promo.discount_value + "%" : formatCurrency(Number(promo.discount_value))} discount` });
+      return;
+    }
+
+    console.log("[Promo] Not found in either table");
+    toast({ title: "Invalid Code", description: "Promo code not found or inactive", variant: "destructive" });
   };
 
   const holdSale = () => {
