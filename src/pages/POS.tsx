@@ -280,7 +280,39 @@ const POS = () => {
     const now = new Date();
     console.log("[Promo] Validating", code, "at", now.toISOString());
 
-    // 1) Check promo_codes table (case-insensitive)
+    // 1) PRIORITY: Check Smart Promotions / Flash Sales first (time-sensitive)
+    const { data: promoList } = await supabase.from("promotions").select("*").ilike("promo_code", code);
+    const promo = promoList?.find(p => p.promo_code?.trim().toUpperCase() === code);
+    if (promo) {
+      const start = promo.start_time ? new Date(promo.start_time) : null;
+      const end = promo.end_time ? new Date(promo.end_time) : null;
+      const inWindow = (!start || start <= now) && (!end || end >= now);
+      console.log("[Promo] Found in smart_promotions", { code, now: now.toISOString(), start: start?.toISOString(), end: end?.toISOString(), inWindow });
+      if (inWindow) {
+        if (promo.max_redemptions && promo.current_redemptions >= promo.max_redemptions) {
+          toast({ title: "Limit Reached", description: "Redemption limit reached", variant: "destructive" }); return;
+        }
+        // Auto-activate if within window (ignore is_active/status)
+        if (promo.status !== "active") {
+          await supabase.from("promotions").update({ status: "active" } as any).eq("id", promo.id);
+        }
+        const adapted = {
+          id: promo.id,
+          code: promo.promo_code,
+          discount_type: promo.discount_type,
+          discount_value: Number(promo.discount_value),
+          times_used: promo.current_redemptions || 0,
+          _source: "promotions",
+        };
+        setValidatedPromo(adapted as any); setDiscountType("promo");
+        toast({ title: "Flash Sale Applied", description: `Applied ${promo.discount_type === "percentage" ? promo.discount_value + "%" : formatCurrency(Number(promo.discount_value))} discount` });
+        return;
+      }
+      // Found but outside window — fall through to check promo_codes too
+      console.log("[Promo] Smart promotion outside time window, checking promo_codes...");
+    }
+
+    // 2) Check promo_codes table (case-insensitive)
     const { data: pcList } = await supabase.from("promo_codes").select("*").ilike("code", code);
     const pc = pcList?.find(p => p.code.trim().toUpperCase() === code);
     if (pc) {
@@ -294,33 +326,10 @@ const POS = () => {
       return;
     }
 
-    // 2) Check promotions table (flash sales / campaigns)
-    const { data: promoList } = await supabase.from("promotions").select("*").ilike("promo_code", code);
-    const promo = promoList?.find(p => p.promo_code?.trim().toUpperCase() === code);
+    // If smart promo existed but was out of window, report that specifically
     if (promo) {
-      console.log("[Promo] Found in promotions", promo, "start:", promo.start_time, "end:", promo.end_time);
-      const start = promo.start_time ? new Date(promo.start_time) : null;
       const end = promo.end_time ? new Date(promo.end_time) : null;
-      const inWindow = (!start || start <= now) && (!end || end >= now);
-      if (!inWindow) {
-        toast({ title: end && end < now ? "Expired" : "Not Yet Active", description: end && end < now ? "This promo has ended" : "This promo hasn't started yet", variant: "destructive" });
-        return;
-      }
-      if (promo.max_redemptions && promo.current_redemptions >= promo.max_redemptions) { toast({ title: "Limit Reached", description: "Redemption limit reached", variant: "destructive" }); return; }
-      // Auto-mark active if in window
-      if (promo.status !== "active") {
-        await supabase.from("promotions").update({ status: "active" } as any).eq("id", promo.id);
-      }
-      const adapted = {
-        id: promo.id,
-        code: promo.promo_code,
-        discount_type: promo.discount_type,
-        discount_value: Number(promo.discount_value),
-        times_used: promo.current_redemptions || 0,
-        _source: "promotions",
-      };
-      setValidatedPromo(adapted as any); setDiscountType("promo");
-      toast({ title: "Success", description: `Applied ${promo.discount_type === "percentage" ? promo.discount_value + "%" : formatCurrency(Number(promo.discount_value))} discount` });
+      toast({ title: end && end < now ? "Expired" : "Not Yet Active", description: end && end < now ? "This flash sale has ended" : "This flash sale hasn't started yet", variant: "destructive" });
       return;
     }
 
