@@ -403,7 +403,12 @@ const POS = () => {
       const profit = calculateProfit();
 
       if (discountType === "promo" && validatedPromo) {
-        await supabase.from("promo_codes").update({ times_used: validatedPromo.times_used + 1 }).eq("id", validatedPromo.id);
+        const src = (validatedPromo as any)._source;
+        if (src === "promotions") {
+          await supabase.from("promotions").update({ current_redemptions: (validatedPromo.times_used || 0) + 1 } as any).eq("id", validatedPromo.id);
+        } else {
+          await supabase.from("promo_codes").update({ times_used: (validatedPromo.times_used || 0) + 1 }).eq("id", validatedPromo.id);
+        }
       }
 
       for (const item of cart) {
