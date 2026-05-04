@@ -389,6 +389,48 @@ const Reports = () => {
           </TabsContent>
         </Tabs>
         )}
+
+        {/* Hidden offscreen charts for PDF export capture */}
+        {hasData && (
+          <div style={{ position: 'fixed', left: '-10000px', top: 0, width: '800px', background: '#fff', padding: '16px' }} aria-hidden>
+            <div ref={trendChartRef} style={{ width: '768px', height: '320px', background: '#fff' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#374151" />
+                  <YAxis stroke="#374151" />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} name="Sales" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} name="Profit" isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div ref={productsChartRef} style={{ width: '768px', height: '380px', background: '#fff', marginTop: 16 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={productStats.slice(0, 10)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis type="number" stroke="#374151" />
+                  <YAxis dataKey="product_name" type="category" width={140} stroke="#374151" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="total_sales" fill="#3b82f6" name="Revenue" isAnimationActive={false} />
+                  <Bar dataKey="total_profit" fill="#10b981" name="Profit" isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div ref={paymentsChartRef} style={{ width: '768px', height: '320px', background: '#fff', marginTop: 16 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={paymentMethods} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} isAnimationActive={false}>
+                    {paymentMethods.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
