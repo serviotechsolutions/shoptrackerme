@@ -236,9 +236,28 @@ const Reports = () => {
         tableWidth: chartW,
       });
 
-      // Footer
-      doc.setFontSize(6).setFont('helvetica', 'italic').setTextColor(120);
-      doc.text(`${tenant?.name || 'Shop'} • ${filteredTx.length} transactions • Page 1 of 1`, pageW / 2, pageH - 6, { align: 'center' });
+      // Transactions table — include in full, allow page break instead of cutting off
+      const afterChartsY = Math.max(y + halfH + 5, (doc as any).lastAutoTable.finalY + 5);
+      autoTable(doc, {
+        startY: afterChartsY,
+        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        body: filteredTx.map(t => [
+          format(new Date(t.created_at), 'MM/dd HH:mm'),
+          t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
+        ]),
+        theme: 'striped', headStyles: { fillColor: [100, 100, 100], fontSize: 7 },
+        styles: { fontSize: 6.5, cellPadding: 1 },
+        margin: { left: 10, right: 10, bottom: 10 },
+        showHead: 'everyPage',
+      });
+
+      // Footer on every page
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(6).setFont('helvetica', 'italic').setTextColor(120);
+        doc.text(`${tenant?.name || 'Shop'} • ${filteredTx.length} transactions • Page ${i} of ${pageCount}`, pageW / 2, pageH - 6, { align: 'center' });
+      }
     } else {
       // ===== Multi-page (Year / All Time) =====
       autoTable(doc, {
