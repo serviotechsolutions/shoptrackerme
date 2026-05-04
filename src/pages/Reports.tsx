@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +29,9 @@ const Reports = () => {
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
+  const trendChartRef = useRef<HTMLDivElement>(null);
+  const productsChartRef = useRef<HTMLDivElement>(null);
+  const paymentsChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -185,6 +189,30 @@ const Reports = () => {
       ],
       theme: 'grid', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 },
     });
+
+    // Capture and add charts
+    const captureChart = async (ref: React.RefObject<HTMLDivElement>, title: string) => {
+      if (!ref.current) return;
+      try {
+        const canvas = await html2canvas(ref.current, { backgroundColor: '#ffffff', scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgW = pageW - 28;
+        const imgH = (canvas.height * imgW) / canvas.width;
+        let curY = (doc as any).lastAutoTable.finalY + 8;
+        if (curY + imgH + 12 > doc.internal.pageSize.getHeight()) {
+          doc.addPage();
+          curY = 15;
+        }
+        doc.setFontSize(11).setFont('helvetica', 'bold');
+        doc.text(title, 14, curY);
+        doc.addImage(imgData, 'PNG', 14, curY + 4, imgW, imgH);
+        (doc as any).lastAutoTable = { finalY: curY + 4 + imgH };
+      } catch (e) { console.error('Chart capture failed', e); }
+    };
+
+    await captureChart(trendChartRef, 'Sales Trend');
+    await captureChart(productsChartRef, 'Top Products by Revenue');
+    await captureChart(paymentsChartRef, 'Payment Methods');
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
@@ -360,6 +388,48 @@ const Reports = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
+
+        {/* Hidden offscreen charts for PDF export capture */}
+        {hasData && (
+          <div style={{ position: 'fixed', left: '-10000px', top: 0, width: '800px', background: '#fff', padding: '16px' }} aria-hidden>
+            <div ref={trendChartRef} style={{ width: '768px', height: '320px', background: '#fff' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="name" stroke="#374151" />
+                  <YAxis stroke="#374151" />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} name="Sales" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} name="Profit" isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div ref={productsChartRef} style={{ width: '768px', height: '380px', background: '#fff', marginTop: 16 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={productStats.slice(0, 10)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis type="number" stroke="#374151" />
+                  <YAxis dataKey="product_name" type="category" width={140} stroke="#374151" />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="total_sales" fill="#3b82f6" name="Revenue" isAnimationActive={false} />
+                  <Bar dataKey="total_profit" fill="#10b981" name="Profit" isAnimationActive={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div ref={paymentsChartRef} style={{ width: '768px', height: '320px', background: '#fff', marginTop: 16 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={paymentMethods} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} isAnimationActive={false}>
+                    {paymentMethods.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>
