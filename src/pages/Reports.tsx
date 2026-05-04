@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
