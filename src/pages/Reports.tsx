@@ -156,80 +156,139 @@ const Reports = () => {
 
   const exportPDF = async () => {
     if (filteredTx.length === 0) { toast({ title: 'No data', description: 'No data for selected period', variant: 'destructive' }); return; }
-    const doc = new jsPDF();
-    const pageW = doc.internal.pageSize.getWidth();
-    let y = 15;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();   // 210
+    const pageH = doc.internal.pageSize.getHeight();  // 297
+    const singlePage = rangeKey !== 'year' && rangeKey !== 'all';
 
-    // Logo
+    // ===== Header =====
+    let y = 12;
     if (tenant?.logo_url) {
       try {
         const resp = await fetch(tenant.logo_url);
         const blob = await resp.blob();
         const dataUrl: string = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(blob); });
-        doc.addImage(dataUrl, 'PNG', 14, y, 20, 20);
+        doc.addImage(dataUrl, 'PNG', 10, y, 16, 16);
       } catch {}
     }
-    doc.setFontSize(16).setFont('helvetica', 'bold');
-    doc.text(tenant?.name || 'Shop Report', pageW / 2, y + 8, { align: 'center' });
-    doc.setFontSize(10).setFont('helvetica', 'normal');
-    doc.text('Business Report', pageW / 2, y + 15, { align: 'center' });
-    doc.text(`Period: ${rangeLabel}`, pageW / 2, y + 21, { align: 'center' });
-    doc.text(`Generated: ${format(new Date(), 'PPpp')}`, pageW / 2, y + 27, { align: 'center' });
-    y += 35;
+    doc.setFontSize(14).setFont('helvetica', 'bold');
+    doc.text(tenant?.name || 'Shop Report', pageW / 2, y + 5, { align: 'center' });
+    doc.setFontSize(8).setFont('helvetica', 'normal');
+    doc.text('Business Report', pageW / 2, y + 10, { align: 'center' });
+    doc.text(`Period: ${rangeLabel}`, pageW / 2, y + 14, { align: 'center' });
+    doc.text(`Generated: ${format(new Date(), 'PPp')}`, pageW / 2, y + 18, { align: 'center' });
+    y += 24;
 
-    autoTable(doc, {
-      startY: y,
-      head: [['Metric', 'Value']],
-      body: [
-        ['Total Sales', fmt(stats.sales)],
-        ['Total Profit', fmt(stats.profit)],
-        ['Transactions', String(stats.transactions)],
-        ['Avg Transaction', stats.transactions ? fmt(stats.sales / stats.transactions) : fmt(0)],
-        ['Profit Margin', stats.sales ? `${(stats.profit / stats.sales * 100).toFixed(1)}%` : '0%'],
-      ],
-      theme: 'grid', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 },
-    });
-
-    // Capture and add charts
-    const captureChart = async (ref: React.RefObject<HTMLDivElement>, title: string) => {
-      if (!ref.current) return;
+    const captureChart = async (ref: React.RefObject<HTMLDivElement>) => {
+      if (!ref.current) return null;
       try {
         const canvas = await html2canvas(ref.current, { backgroundColor: '#ffffff', scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
-        const imgW = pageW - 28;
-        const imgH = (canvas.height * imgW) / canvas.width;
-        let curY = (doc as any).lastAutoTable.finalY + 8;
-        if (curY + imgH + 12 > doc.internal.pageSize.getHeight()) {
-          doc.addPage();
-          curY = 15;
-        }
-        doc.setFontSize(11).setFont('helvetica', 'bold');
-        doc.text(title, 14, curY);
-        doc.addImage(imgData, 'PNG', 14, curY + 4, imgW, imgH);
-        (doc as any).lastAutoTable = { finalY: curY + 4 + imgH };
-      } catch (e) { console.error('Chart capture failed', e); }
+        return canvas.toDataURL('image/png');
+      } catch (e) { console.error('Chart capture failed', e); return null; }
     };
 
-    await captureChart(trendChartRef, 'Sales Trend');
-    await captureChart(productsChartRef, 'Top Products by Revenue');
-    await captureChart(paymentsChartRef, 'Payment Methods');
+    if (singlePage) {
+      // ===== Compact single A4 page layout =====
+      // Summary metrics (compact 2 cols)
+      autoTable(doc, {
+        startY: y,
+        head: [['Metric', 'Value', 'Metric', 'Value']],
+        body: [
+          ['Total Sales', fmt(stats.sales), 'Transactions', String(stats.transactions)],
+          ['Total Profit', fmt(stats.profit), 'Avg Txn', stats.transactions ? fmt(stats.sales / stats.transactions) : fmt(0)],
+          ['Profit Margin', stats.sales ? `${(stats.profit / stats.sales * 100).toFixed(1)}%` : '0%', 'Top Product', productStats[0]?.product_name?.slice(0, 18) || '—'],
+        ],
+        theme: 'grid', headStyles: { fillColor: [59, 130, 246], fontSize: 7 },
+        styles: { fontSize: 7, cellPadding: 1.2 },
+        margin: { left: 10, right: 10 },
+      });
+      y = (doc as any).lastAutoTable.finalY + 3;
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Top Products', 'Qty', 'Revenue', 'Profit']],
-      body: productStats.slice(0, 10).map(p => [p.product_name, p.total_quantity, fmt(p.total_sales), fmt(p.total_profit)]),
-      theme: 'striped', headStyles: { fillColor: [16, 185, 129] }, styles: { fontSize: 9 },
-    });
+      // Two charts side-by-side
+      const chartW = (pageW - 20 - 4) / 2; // 93mm
+      const chartH = 55;
+      const trendImg = await captureChart(trendChartRef);
+      const productsImg = await captureChart(productsChartRef);
+      doc.setFontSize(8).setFont('helvetica', 'bold');
+      doc.text('Sales Trend', 10, y + 3);
+      doc.text('Top Products', 10 + chartW + 4, y + 3);
+      if (trendImg) doc.addImage(trendImg, 'PNG', 10, y + 5, chartW, chartH);
+      if (productsImg) doc.addImage(productsImg, 'PNG', 10 + chartW + 4, y + 5, chartW, chartH);
+      y += 5 + chartH + 3;
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 8,
-      head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
-      body: filteredTx.map(t => [
-        format(new Date(t.created_at), 'MM/dd HH:mm'),
-        t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
-      ]),
-      theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 100, 100] },
-    });
+      // Payments chart + Top products table side by side
+      const paymentsImg = await captureChart(paymentsChartRef);
+      const halfH = 50;
+      doc.setFontSize(8).setFont('helvetica', 'bold');
+      doc.text('Payment Methods', 10, y + 3);
+      if (paymentsImg) doc.addImage(paymentsImg, 'PNG', 10, y + 5, chartW, halfH);
+
+      autoTable(doc, {
+        startY: y + 5,
+        head: [['Top Products', 'Qty', 'Revenue', 'Profit']],
+        body: productStats.slice(0, 8).map(p => [
+          p.product_name.length > 18 ? p.product_name.slice(0, 17) + '…' : p.product_name,
+          p.total_quantity, fmt(p.total_sales), fmt(p.total_profit),
+        ]),
+        theme: 'striped', headStyles: { fillColor: [16, 185, 129], fontSize: 7 },
+        styles: { fontSize: 6.5, cellPadding: 1 },
+        margin: { left: 10 + chartW + 4, right: 10 },
+        tableWidth: chartW,
+      });
+
+      // Footer
+      doc.setFontSize(6).setFont('helvetica', 'italic').setTextColor(120);
+      doc.text(`${tenant?.name || 'Shop'} • ${filteredTx.length} transactions • Page 1 of 1`, pageW / 2, pageH - 6, { align: 'center' });
+    } else {
+      // ===== Multi-page (Year / All Time) =====
+      autoTable(doc, {
+        startY: y,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Sales', fmt(stats.sales)],
+          ['Total Profit', fmt(stats.profit)],
+          ['Transactions', String(stats.transactions)],
+          ['Avg Transaction', stats.transactions ? fmt(stats.sales / stats.transactions) : fmt(0)],
+          ['Profit Margin', stats.sales ? `${(stats.profit / stats.sales * 100).toFixed(1)}%` : '0%'],
+        ],
+        theme: 'grid', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 },
+      });
+
+      const addChart = async (ref: React.RefObject<HTMLDivElement>, title: string) => {
+        const img = await captureChart(ref);
+        if (!img) return;
+        const tmp = new Image(); tmp.src = img;
+        await new Promise(r => { tmp.onload = r; });
+        const imgW = pageW - 20;
+        const imgH = (tmp.height * imgW) / tmp.width;
+        let curY = (doc as any).lastAutoTable.finalY + 6;
+        if (curY + imgH + 8 > pageH - 10) { doc.addPage(); curY = 15; }
+        doc.setFontSize(11).setFont('helvetica', 'bold');
+        doc.text(title, 10, curY);
+        doc.addImage(img, 'PNG', 10, curY + 3, imgW, imgH);
+        (doc as any).lastAutoTable = { finalY: curY + 3 + imgH };
+      };
+      await addChart(trendChartRef, 'Sales Trend');
+      await addChart(productsChartRef, 'Top Products by Revenue');
+      await addChart(paymentsChartRef, 'Payment Methods');
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 8,
+        head: [['Top Products', 'Qty', 'Revenue', 'Profit']],
+        body: productStats.slice(0, 10).map(p => [p.product_name, p.total_quantity, fmt(p.total_sales), fmt(p.total_profit)]),
+        theme: 'striped', headStyles: { fillColor: [16, 185, 129] }, styles: { fontSize: 9 },
+      });
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 8,
+        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        body: filteredTx.map(t => [
+          format(new Date(t.created_at), 'MM/dd HH:mm'),
+          t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
+        ]),
+        theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 100, 100] },
+      });
+    }
 
     doc.save(`report-${rangeKey}-${Date.now()}.pdf`);
   };
