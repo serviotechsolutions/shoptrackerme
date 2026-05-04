@@ -190,6 +190,30 @@ const Reports = () => {
       theme: 'grid', headStyles: { fillColor: [59, 130, 246] }, styles: { fontSize: 9 },
     });
 
+    // Capture and add charts
+    const captureChart = async (ref: React.RefObject<HTMLDivElement>, title: string) => {
+      if (!ref.current) return;
+      try {
+        const canvas = await html2canvas(ref.current, { backgroundColor: '#ffffff', scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const imgW = pageW - 28;
+        const imgH = (canvas.height * imgW) / canvas.width;
+        let curY = (doc as any).lastAutoTable.finalY + 8;
+        if (curY + imgH + 12 > doc.internal.pageSize.getHeight()) {
+          doc.addPage();
+          curY = 15;
+        }
+        doc.setFontSize(11).setFont('helvetica', 'bold');
+        doc.text(title, 14, curY);
+        doc.addImage(imgData, 'PNG', 14, curY + 4, imgW, imgH);
+        (doc as any).lastAutoTable = { finalY: curY + 4 + imgH };
+      } catch (e) { console.error('Chart capture failed', e); }
+    };
+
+    await captureChart(trendChartRef, 'Sales Trend');
+    await captureChart(productsChartRef, 'Top Products by Revenue');
+    await captureChart(paymentsChartRef, 'Payment Methods');
+
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 8,
       head: [['Top Products', 'Qty', 'Revenue', 'Profit']],
