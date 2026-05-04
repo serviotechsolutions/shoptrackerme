@@ -29,6 +29,9 @@ const Reports = () => {
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
+  const trendChartRef = useRef<HTMLDivElement>(null);
+  const productsChartRef = useRef<HTMLDivElement>(null);
+  const paymentsChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchData(); }, []);
 
