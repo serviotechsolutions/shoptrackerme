@@ -152,6 +152,7 @@ const Reports = () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
     const txRows = filteredTx.map(t => ({
       Date: format(new Date(t.created_at), 'yyyy-MM-dd HH:mm'),
+      'Customer Name': customerOf(t),
       Product: t.product_name, Quantity: t.quantity,
       'Unit Price': Number(t.unit_price), Discount: Number(t.discount_amount || 0),
       Total: Number(t.total_amount), Profit: Number(t.profit),
