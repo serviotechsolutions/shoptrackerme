@@ -163,8 +163,30 @@ const Reports = () => {
     XLSX.writeFile(wb, `report-${rangeKey}-${Date.now()}.xlsx`);
   };
 
+  const fetchAIInsights = async () => {
+    try {
+      const [forecastRes, reorderRes, customerRes, fraudRes, promoRes] = await Promise.allSettled([
+        supabase.functions.invoke('ai-sales-forecast', { body: {} }),
+        supabase.functions.invoke('ai-reorder-alerts', { body: {} }),
+        supabase.functions.invoke('ai-customer-insights', { body: {} }),
+        supabase.functions.invoke('ai-fraud-detection', { body: {} }),
+        supabase.functions.invoke('ai-promo-suggestions', { body: {} }),
+      ]);
+      const get = (r: any) => r.status === 'fulfilled' ? r.value?.data : null;
+      return {
+        forecast: get(forecastRes),
+        reorder: get(reorderRes),
+        customer: get(customerRes),
+        fraud: get(fraudRes),
+        promo: get(promoRes),
+      };
+    } catch (e) { console.error('AI insights fetch failed', e); return null; }
+  };
+
   const exportPDF = async () => {
     if (filteredTx.length === 0) { toast({ title: 'No data', description: 'No data for selected period', variant: 'destructive' }); return; }
+    toast({ title: 'Generating PDF', description: 'Fetching AI insights...' });
+    const aiInsights = await fetchAIInsights();
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();   // 210
     const pageH = doc.internal.pageSize.getHeight();  // 297
