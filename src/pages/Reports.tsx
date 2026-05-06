@@ -249,9 +249,10 @@ const Reports = () => {
       const afterChartsY = Math.max(y + halfH + 5, (doc as any).lastAutoTable.finalY + 5);
       autoTable(doc, {
         startY: afterChartsY,
-        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        head: [['Date', 'Customer', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
         body: filteredTx.map(t => [
           format(new Date(t.created_at), 'MM/dd HH:mm'),
+          customerOf(t),
           t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
         ]),
         theme: 'striped', headStyles: { fillColor: [100, 100, 100], fontSize: 7 },
