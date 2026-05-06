@@ -310,9 +310,10 @@ const Reports = () => {
 
       autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 8,
-        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        head: [['Date', 'Customer', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
         body: filteredTx.map(t => [
           format(new Date(t.created_at), 'MM/dd HH:mm'),
+          customerOf(t),
           t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
         ]),
         theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 100, 100] },
