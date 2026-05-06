@@ -48,6 +48,10 @@ const Reports = () => {
       }
       const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
       setAllTransactions(data || []);
+      const { data: sales } = await supabase.from('sales').select('id, customer_name');
+      const map: Record<string, string> = {};
+      (sales || []).forEach((s: any) => { if (s.id) map[s.id] = s.customer_name || ''; });
+      setSalesMap(map);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
