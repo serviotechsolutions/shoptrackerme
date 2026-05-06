@@ -342,6 +342,47 @@ const Reports = () => {
       });
     }
 
+    // ===== AI Insights Section (always on a new page) =====
+    if (aiInsights) {
+      doc.addPage();
+      let ay = 15;
+      doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(59, 130, 246);
+      doc.text('AI Business Insights', pageW / 2, ay, { align: 'center' });
+      doc.setTextColor(0); ay += 8;
+
+      const stringify = (v: any): string => {
+        if (v == null) return '';
+        if (typeof v === 'string') return v;
+        if (Array.isArray(v)) return v.map(stringify).join('\n• ');
+        if (typeof v === 'object') {
+          return Object.entries(v).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
+        }
+        return String(v);
+      };
+
+      const addSection = (title: string, data: any) => {
+        if (!data) return;
+        const text = stringify(data).trim();
+        if (!text) return;
+        doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(16, 185, 129);
+        if (ay > pageH - 25) { doc.addPage(); ay = 15; }
+        doc.text(title, 10, ay); ay += 5;
+        doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(40);
+        const lines = doc.splitTextToSize(text, pageW - 20);
+        for (const line of lines) {
+          if (ay > pageH - 12) { doc.addPage(); ay = 15; }
+          doc.text(line, 10, ay); ay += 4;
+        }
+        ay += 4;
+      };
+
+      addSection('Sales Forecast', aiInsights.forecast);
+      addSection('Reorder Alerts', aiInsights.reorder);
+      addSection('Customer Insights', aiInsights.customer);
+      addSection('Fraud Detection', aiInsights.fraud);
+      addSection('Promotion Suggestions', aiInsights.promo);
+    }
+
     doc.save(`report-${rangeKey}-${Date.now()}.pdf`);
   };
 
