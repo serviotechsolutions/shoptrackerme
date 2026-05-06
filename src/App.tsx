@@ -22,6 +22,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsAndConditions from "./pages/TermsAndConditions";
 import DeleteAccount from "./pages/DeleteAccount";
 import Promotions from "./pages/Promotions";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
