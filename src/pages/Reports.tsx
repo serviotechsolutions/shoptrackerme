@@ -24,6 +24,7 @@ type RangeKey = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
 const Reports = () => {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [salesMap, setSalesMap] = useState<Record<string, string>>({});
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
@@ -47,6 +48,10 @@ const Reports = () => {
       }
       const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
       setAllTransactions(data || []);
+      const { data: sales } = await supabase.from('sales').select('id, customer_name');
+      const map: Record<string, string> = {};
+      (sales || []).forEach((s: any) => { if (s.id) map[s.id] = s.customer_name || ''; });
+      setSalesMap(map);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -108,10 +113,13 @@ const Reports = () => {
   const fmt = (amount: number) => new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(amount);
   const rangeLabel = rangeKey === 'today' ? 'Today' : rangeKey === 'week' ? 'This Week' : rangeKey === 'month' ? 'This Month' : rangeKey === 'year' ? 'This Year' : rangeKey === 'all' ? 'All Time' : `${customStart ? format(customStart, 'PP') : '...'} - ${customEnd ? format(customEnd, 'PP') : '...'}`;
 
+  const customerOf = (t: any) => (t.sale_id && salesMap[t.sale_id]) || 'Walk-in';
+
   const exportCSV = () => {
     if (filteredTx.length === 0) { toast({ title: 'No data', description: 'No data for selected period', variant: 'destructive' }); return; }
     const rows = filteredTx.map(t => ({
       Date: format(new Date(t.created_at), 'yyyy-MM-dd HH:mm'),
+      'Customer Name': customerOf(t),
       Product: t.product_name,
       Quantity: t.quantity,
       'Unit Price': Number(t.unit_price),
@@ -144,6 +152,7 @@ const Reports = () => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
     const txRows = filteredTx.map(t => ({
       Date: format(new Date(t.created_at), 'yyyy-MM-dd HH:mm'),
+      'Customer Name': customerOf(t),
       Product: t.product_name, Quantity: t.quantity,
       'Unit Price': Number(t.unit_price), Discount: Number(t.discount_amount || 0),
       Total: Number(t.total_amount), Profit: Number(t.profit),
@@ -154,8 +163,30 @@ const Reports = () => {
     XLSX.writeFile(wb, `report-${rangeKey}-${Date.now()}.xlsx`);
   };
 
+  const fetchAIInsights = async () => {
+    try {
+      const [forecastRes, reorderRes, customerRes, fraudRes, promoRes] = await Promise.allSettled([
+        supabase.functions.invoke('ai-sales-forecast', { body: {} }),
+        supabase.functions.invoke('ai-reorder-alerts', { body: {} }),
+        supabase.functions.invoke('ai-customer-insights', { body: {} }),
+        supabase.functions.invoke('ai-fraud-detection', { body: {} }),
+        supabase.functions.invoke('ai-promo-suggestions', { body: {} }),
+      ]);
+      const get = (r: any) => r.status === 'fulfilled' ? r.value?.data : null;
+      return {
+        forecast: get(forecastRes),
+        reorder: get(reorderRes),
+        customer: get(customerRes),
+        fraud: get(fraudRes),
+        promo: get(promoRes),
+      };
+    } catch (e) { console.error('AI insights fetch failed', e); return null; }
+  };
+
   const exportPDF = async () => {
     if (filteredTx.length === 0) { toast({ title: 'No data', description: 'No data for selected period', variant: 'destructive' }); return; }
+    toast({ title: 'Generating PDF', description: 'Fetching AI insights...' });
+    const aiInsights = await fetchAIInsights();
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();   // 210
     const pageH = doc.internal.pageSize.getHeight();  // 297
@@ -240,9 +271,10 @@ const Reports = () => {
       const afterChartsY = Math.max(y + halfH + 5, (doc as any).lastAutoTable.finalY + 5);
       autoTable(doc, {
         startY: afterChartsY,
-        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        head: [['Date', 'Customer', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
         body: filteredTx.map(t => [
           format(new Date(t.created_at), 'MM/dd HH:mm'),
+          customerOf(t),
           t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
         ]),
         theme: 'striped', headStyles: { fillColor: [100, 100, 100], fontSize: 7 },
@@ -300,13 +332,55 @@ const Reports = () => {
 
       autoTable(doc, {
         startY: (doc as any).lastAutoTable.finalY + 8,
-        head: [['Date', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
+        head: [['Date', 'Customer', 'Product', 'Qty', 'Total', 'Profit', 'Method']],
         body: filteredTx.map(t => [
           format(new Date(t.created_at), 'MM/dd HH:mm'),
+          customerOf(t),
           t.product_name, t.quantity, fmt(Number(t.total_amount)), fmt(Number(t.profit)), t.payment_method,
         ]),
         theme: 'striped', styles: { fontSize: 8 }, headStyles: { fillColor: [100, 100, 100] },
       });
+    }
+
+    // ===== AI Insights Section (always on a new page) =====
+    if (aiInsights) {
+      doc.addPage();
+      let ay = 15;
+      doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(59, 130, 246);
+      doc.text('AI Business Insights', pageW / 2, ay, { align: 'center' });
+      doc.setTextColor(0); ay += 8;
+
+      const stringify = (v: any): string => {
+        if (v == null) return '';
+        if (typeof v === 'string') return v;
+        if (Array.isArray(v)) return v.map(stringify).join('\n• ');
+        if (typeof v === 'object') {
+          return Object.entries(v).map(([k, val]) => `${k}: ${typeof val === 'object' ? JSON.stringify(val) : val}`).join('\n');
+        }
+        return String(v);
+      };
+
+      const addSection = (title: string, data: any) => {
+        if (!data) return;
+        const text = stringify(data).trim();
+        if (!text) return;
+        doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(16, 185, 129);
+        if (ay > pageH - 25) { doc.addPage(); ay = 15; }
+        doc.text(title, 10, ay); ay += 5;
+        doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(40);
+        const lines = doc.splitTextToSize(text, pageW - 20);
+        for (const line of lines) {
+          if (ay > pageH - 12) { doc.addPage(); ay = 15; }
+          doc.text(line, 10, ay); ay += 4;
+        }
+        ay += 4;
+      };
+
+      addSection('Sales Forecast', aiInsights.forecast);
+      addSection('Reorder Alerts', aiInsights.reorder);
+      addSection('Customer Insights', aiInsights.customer);
+      addSection('Fraud Detection', aiInsights.fraud);
+      addSection('Promotion Suggestions', aiInsights.promo);
     }
 
     doc.save(`report-${rangeKey}-${Date.now()}.pdf`);
