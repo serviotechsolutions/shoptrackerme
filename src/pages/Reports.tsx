@@ -24,6 +24,7 @@ type RangeKey = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
 const Reports = () => {
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [salesMap, setSalesMap] = useState<Record<string, string>>({});
   const [tenant, setTenant] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rangeKey, setRangeKey] = useState<RangeKey>('month');
