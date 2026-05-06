@@ -113,10 +113,13 @@ const Reports = () => {
   const fmt = (amount: number) => new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(amount);
   const rangeLabel = rangeKey === 'today' ? 'Today' : rangeKey === 'week' ? 'This Week' : rangeKey === 'month' ? 'This Month' : rangeKey === 'year' ? 'This Year' : rangeKey === 'all' ? 'All Time' : `${customStart ? format(customStart, 'PP') : '...'} - ${customEnd ? format(customEnd, 'PP') : '...'}`;
 
+  const customerOf = (t: any) => (t.sale_id && salesMap[t.sale_id]) || 'Walk-in';
+
   const exportCSV = () => {
     if (filteredTx.length === 0) { toast({ title: 'No data', description: 'No data for selected period', variant: 'destructive' }); return; }
     const rows = filteredTx.map(t => ({
       Date: format(new Date(t.created_at), 'yyyy-MM-dd HH:mm'),
+      'Customer Name': customerOf(t),
       Product: t.product_name,
       Quantity: t.quantity,
       'Unit Price': Number(t.unit_price),
