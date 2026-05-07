@@ -143,6 +143,7 @@ const productData = {
       tenant_id: tenantId,
       image_url: imageUrl,
       barcode: formData.get('barcode') as string || null,
+      product_code: (formData.get('product_code') as string) || null,
       category: selectedCategory
     };
     
@@ -150,7 +151,7 @@ const productData = {
       if (editingProduct) {
         const {
           error
-        } = await supabase.from('products').update(productData).eq('id', editingProduct.id);
+        } = await supabase.from('products').update(productData as any).eq('id', editingProduct.id);
         if (error) throw error;
         toast({
           title: 'Success',
@@ -159,7 +160,7 @@ const productData = {
       } else {
         const {
           error
-        } = await supabase.from('products').insert([productData]);
+        } = await supabase.from('products').insert([productData as any]);
         if (error) throw error;
         toast({
           title: 'Success',
@@ -349,6 +350,10 @@ const productData = {
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Input id="description" name="description" defaultValue={editingProduct?.description || ''} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="product_code">Product Code (Optional)</Label>
+                  <Input id="product_code" name="product_code" defaultValue={(editingProduct as any)?.product_code || ''} placeholder="e.g. SKU-1234" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="barcode">Barcode</Label>
