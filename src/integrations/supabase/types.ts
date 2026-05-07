@@ -229,6 +229,7 @@ export type Database = {
           image_url: string | null
           low_stock_threshold: number
           name: string
+          product_code: string | null
           selling_price: number
           stock: number
           tenant_id: string
@@ -244,6 +245,7 @@ export type Database = {
           image_url?: string | null
           low_stock_threshold?: number
           name: string
+          product_code?: string | null
           selling_price?: number
           stock?: number
           tenant_id: string
@@ -259,6 +261,7 @@ export type Database = {
           image_url?: string | null
           low_stock_threshold?: number
           name?: string
+          product_code?: string | null
           selling_price?: number
           stock?: number
           tenant_id?: string
