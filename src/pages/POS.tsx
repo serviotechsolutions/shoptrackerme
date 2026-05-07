@@ -565,20 +565,14 @@ const POS = () => {
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/auth"); };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Navigation */}
+    <DashboardLayout>
+    <div className="-m-4 md:-m-6">
+      {/* POS Sub-header */}
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")} className="flex items-center gap-1 sm:gap-2 shrink-0">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to Dashboard</span>
-              <span className="sm:hidden">Back</span>
-            </Button>
-            <div className="flex items-center gap-2 min-w-0">
-              <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
-              <h1 className="text-base sm:text-xl font-bold truncate">Shop POS</h1>
-            </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
+            <h1 className="text-base sm:text-xl font-bold truncate">Shop POS</h1>
           </div>
           <div className="hidden md:block text-center">
             <p className="text-sm font-medium whitespace-nowrap">{currentTime}</p>
@@ -591,18 +585,6 @@ const POS = () => {
                 <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">{heldSales.length}</Badge>
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 p-0">
-                  <span className="font-semibold text-sm">{userName.split(" ").map(n => n[0]).join("").toUpperCase()}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" /><span>Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </header>
