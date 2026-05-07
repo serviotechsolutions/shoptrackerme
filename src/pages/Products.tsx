@@ -282,21 +282,21 @@ const productData = {
   }
   return <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h1 className="font-bold tracking-tight text-xl text-left">Products</h1>
-            <p className="text-muted-foreground">Manage your inventory</p>
+            <p className="text-muted-foreground text-sm">Manage your inventory</p>
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExportCSV} disabled={products.length === 0}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={products.length === 0}>
               <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              Export
             </Button>
-            <Button variant="outline" disabled={importing} asChild>
+            <Button variant="outline" size="sm" disabled={importing} asChild>
               <label className="cursor-pointer flex items-center">
                 <Upload className="h-4 w-4 mr-2" />
-                {importing ? "Importing..." : "Import CSV"}
+                {importing ? "..." : "Import"}
                 <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} disabled={importing} />
               </label>
             </Button>
@@ -304,17 +304,20 @@ const productData = {
               setDialogOpen(open);
               if (open) {
                 setSelectedCategory(editingProduct?.category || "Others");
+                setBarcodeValue(editingProduct?.barcode || "");
               } else {
                 setEditingProduct(null);
                 setImageFile(null);
                 setSelectedCategory("Others");
+                setBarcodeValue("");
               }
             }}>
               <DialogTrigger asChild>
-                <Button onClick={() => {
+                <Button size="sm" onClick={() => {
                   setEditingProduct(null);
                   setSelectedCategory("Others");
-                }} className="mx-0 px-0 py-0 my-0">
+                  setBarcodeValue("");
+                }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
