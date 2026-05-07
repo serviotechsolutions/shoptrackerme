@@ -7,14 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag,
-  ArrowLeft, LogOut, Trash2, PauseCircle, PlayCircle, CheckCircle,
-  Printer, Download, Package, UserPlus, Users
+  Trash2, PauseCircle, PlayCircle, CheckCircle,
+  Printer, Download, UserPlus, Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import DashboardLayout from "@/components/DashboardLayout";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
