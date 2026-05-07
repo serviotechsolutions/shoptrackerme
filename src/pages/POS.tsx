@@ -929,6 +929,7 @@ const POS = () => {
         </DialogContent>
       </Dialog>
     </div>
+    </DashboardLayout>
   );
 };
 
