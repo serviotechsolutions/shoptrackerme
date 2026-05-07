@@ -46,6 +46,7 @@ const Products = () => {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Others");
+  const [barcodeValue, setBarcodeValue] = useState<string>("");
   const {
     toast
   } = useToast();
