@@ -351,6 +351,10 @@ const productData = {
                   <Input id="description" name="description" defaultValue={editingProduct?.description || ''} />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="product_code">Product Code (Optional)</Label>
+                  <Input id="product_code" name="product_code" defaultValue={(editingProduct as any)?.product_code || ''} placeholder="e.g. SKU-1234" />
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="barcode">Barcode</Label>
                   <Input id="barcode" name="barcode" defaultValue={editingProduct?.barcode || ''} placeholder="Enter or scan barcode" />
                 </div>
