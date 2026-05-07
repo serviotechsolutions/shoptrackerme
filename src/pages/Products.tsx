@@ -424,7 +424,44 @@ const productData = {
           </div>
         </div>
 
-        <div className="border rounded-lg">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3">
+          {products.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground border rounded-lg">
+              No products found. Add your first product to get started!
+            </div>
+          ) : products.map(product => (
+            <div key={product.id} className="border rounded-lg p-3 flex gap-3 bg-card">
+              {product.image_url ? (
+                <img src={product.image_url} alt={product.name} className="h-16 w-16 object-cover rounded-lg border shrink-0" />
+              ) : (
+                <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between gap-2">
+                  <p className="font-medium truncate">{product.name}</p>
+                  {product.stock <= product.low_stock_threshold ? (
+                    <Badge variant="destructive" className="gap-1 shrink-0"><AlertTriangle className="h-3 w-3" />Low</Badge>
+                  ) : <Badge variant="default" className="shrink-0">In Stock</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground">{formatCurrency(product.buying_price)} · Stock: {product.stock}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
