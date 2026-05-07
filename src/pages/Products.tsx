@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
 interface Product {
   id: string;
   name: string;
