@@ -144,8 +144,7 @@ const productData = {
       low_stock_threshold: parseInt(formData.get('low_stock_threshold') as string),
       tenant_id: tenantId,
       image_url: imageUrl,
-      barcode: formData.get('barcode') as string || null,
-      product_code: (formData.get('product_code') as string) || null,
+      barcode: (formData.get('barcode') as string) || null,
       category: selectedCategory
     };
     
