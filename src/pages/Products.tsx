@@ -151,7 +151,7 @@ const productData = {
       if (editingProduct) {
         const {
           error
-        } = await supabase.from('products').update(productData).eq('id', editingProduct.id);
+        } = await supabase.from('products').update(productData as any).eq('id', editingProduct.id);
         if (error) throw error;
         toast({
           title: 'Success',
@@ -160,7 +160,7 @@ const productData = {
       } else {
         const {
           error
-        } = await supabase.from('products').insert([productData]);
+        } = await supabase.from('products').insert([productData as any]);
         if (error) throw error;
         toast({
           title: 'Success',
