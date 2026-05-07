@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
 interface Product {
   id: string;
   name: string;
@@ -45,6 +46,7 @@ const Products = () => {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Others");
+  const [barcodeValue, setBarcodeValue] = useState<string>("");
   const {
     toast
   } = useToast();
@@ -142,8 +144,7 @@ const productData = {
       low_stock_threshold: parseInt(formData.get('low_stock_threshold') as string),
       tenant_id: tenantId,
       image_url: imageUrl,
-      barcode: formData.get('barcode') as string || null,
-      product_code: (formData.get('product_code') as string) || null,
+      barcode: (formData.get('barcode') as string) || null,
       category: selectedCategory
     };
     
@@ -281,21 +282,21 @@ const productData = {
   }
   return <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h1 className="font-bold tracking-tight text-xl text-left">Products</h1>
-            <p className="text-muted-foreground">Manage your inventory</p>
+            <p className="text-muted-foreground text-sm">Manage your inventory</p>
           </div>
           
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExportCSV} disabled={products.length === 0}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={products.length === 0}>
               <Download className="h-4 w-4 mr-2" />
-              Export CSV
+              Export
             </Button>
-            <Button variant="outline" disabled={importing} asChild>
+            <Button variant="outline" size="sm" disabled={importing} asChild>
               <label className="cursor-pointer flex items-center">
                 <Upload className="h-4 w-4 mr-2" />
-                {importing ? "Importing..." : "Import CSV"}
+                {importing ? "..." : "Import"}
                 <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} disabled={importing} />
               </label>
             </Button>
@@ -303,17 +304,20 @@ const productData = {
               setDialogOpen(open);
               if (open) {
                 setSelectedCategory(editingProduct?.category || "Others");
+                setBarcodeValue(editingProduct?.barcode || "");
               } else {
                 setEditingProduct(null);
                 setImageFile(null);
                 setSelectedCategory("Others");
+                setBarcodeValue("");
               }
             }}>
               <DialogTrigger asChild>
-                <Button onClick={() => {
+                <Button size="sm" onClick={() => {
                   setEditingProduct(null);
                   setSelectedCategory("Others");
-                }} className="mx-0 px-0 py-0 my-0">
+                  setBarcodeValue("");
+                }}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
@@ -352,12 +356,21 @@ const productData = {
                   <Input id="description" name="description" defaultValue={editingProduct?.description || ''} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="product_code">Product Code (Optional)</Label>
-                  <Input id="product_code" name="product_code" defaultValue={(editingProduct as any)?.product_code || ''} placeholder="e.g. SKU-1234" />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="barcode">Barcode</Label>
-                  <Input id="barcode" name="barcode" defaultValue={editingProduct?.barcode || ''} placeholder="Enter or scan barcode" />
+                  <div className="flex gap-2">
+                    <Input
+                      id="barcode"
+                      name="barcode"
+                      value={barcodeValue}
+                      onChange={(e) => setBarcodeValue(e.target.value)}
+                      placeholder="Enter or scan barcode"
+                      className="flex-1"
+                    />
+                    <BarcodeScanner onScan={(code) => {
+                      setBarcodeValue(code);
+                      toast({ title: 'Barcode scanned', description: code });
+                    }} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="image">Product Image</Label>
@@ -411,7 +424,44 @@ const productData = {
           </div>
         </div>
 
-        <div className="border rounded-lg">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3">
+          {products.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground border rounded-lg">
+              No products found. Add your first product to get started!
+            </div>
+          ) : products.map(product => (
+            <div key={product.id} className="border rounded-lg p-3 flex gap-3 bg-card">
+              {product.image_url ? (
+                <img src={product.image_url} alt={product.name} className="h-16 w-16 object-cover rounded-lg border shrink-0" />
+              ) : (
+                <div className="h-16 w-16 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between gap-2">
+                  <p className="font-medium truncate">{product.name}</p>
+                  {product.stock <= product.low_stock_threshold ? (
+                    <Badge variant="destructive" className="gap-1 shrink-0"><AlertTriangle className="h-3 w-3" />Low</Badge>
+                  ) : <Badge variant="default" className="shrink-0">In Stock</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground">{formatCurrency(product.buying_price)} · Stock: {product.stock}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
