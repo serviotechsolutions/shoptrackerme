@@ -629,11 +629,12 @@ const POS = () => {
                     `}
                   >
                     <div className="aspect-square bg-muted flex items-center justify-center relative">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Package className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/40" />
-                      )}
+                      <img
+                        src={product.image_url || "/placeholder.svg"}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
+                      />
                       {product.stock <= product.low_stock_threshold && (
                         <Badge variant="destructive" className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5">
                           {product.stock} left
