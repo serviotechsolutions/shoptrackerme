@@ -143,6 +143,7 @@ const productData = {
       tenant_id: tenantId,
       image_url: imageUrl,
       barcode: formData.get('barcode') as string || null,
+      product_code: (formData.get('product_code') as string) || null,
       category: selectedCategory
     };
     
