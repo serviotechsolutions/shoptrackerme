@@ -8,11 +8,11 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Search, ShoppingCart, X, Plus, Minus, Percent, DollarSign, Tag,
   Trash2, PauseCircle, PlayCircle, CheckCircle,
-  Printer, Download, UserPlus, Users
+  Printer, Download, UserPlus, Users, MessageCircle, Mail
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
-import { VoiceSale, VoiceApplyResult } from "@/components/VoiceSale";
+import { VoiceSale, VoiceApplyResult, VoiceCompleteData } from "@/components/VoiceSale";
 import { useUserRole } from "@/hooks/useUserRole";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -73,6 +73,8 @@ interface CompletedSale {
   customerName: string;
   date: Date;
   paymentId: string;
+  amountReceived?: number | null;
+  change?: number | null;
 }
 
 interface Customer {
@@ -365,6 +367,226 @@ const POS = () => {
     return spoken || result.summary;
   };
 
+  // ============ SPEAK RECEIPT — full voice checkout ============
+  const buildReceiptText = (sale: CompletedSale) => {
+    const lines = [
+      `${shopInfo?.name || "Shop"} — Receipt ${sale.invoiceId}`,
+      format(sale.date, "MMM dd, yyyy HH:mm"),
+      sale.customerName ? `Customer: ${sale.customerName}` : "",
+      `Served by: ${userName}`,
+      "------------------------",
+      ...sale.items.map(i => `${i.quantity} x ${i.name} @ ${formatCurrency(i.selling_price)} = ${formatCurrency(i.selling_price * i.quantity)}`),
+      "------------------------",
+      sale.discount > 0 ? `Discount: -${formatCurrency(sale.discount)}` : "",
+      `TOTAL: ${formatCurrency(sale.total)}`,
+      sale.amountReceived != null ? `Paid: ${formatCurrency(sale.amountReceived)} (${paymentMethodLabel(sale.paymentMethod)})` : `Payment: ${paymentMethodLabel(sale.paymentMethod)}`,
+      sale.change != null && sale.change > 0 ? `Change: ${formatCurrency(sale.change)}` : "",
+      "Thank you for your business!",
+    ].filter(Boolean);
+    return lines.join("\n");
+  };
+
+  const handleShareWhatsApp = (sale: CompletedSale, phone?: string | null) => {
+    const text = encodeURIComponent(buildReceiptText(sale));
+    const target = phone ? phone.replace(/[^0-9]/g, "") : "";
+    window.open(`https://wa.me/${target}?text=${text}`, "_blank");
+  };
+
+  const handleShareEmail = (sale: CompletedSale, email?: string | null) => {
+    const subject = encodeURIComponent(`Receipt ${sale.invoiceId} — ${shopInfo?.name || "Shop"}`);
+    const body = encodeURIComponent(buildReceiptText(sale));
+    window.location.href = `mailto:${email || ""}?subject=${subject}&body=${body}`;
+  };
+
+  const triggerReceiptAction = async (action: string, sale: CompletedSale, custPhone?: string | null, custEmail?: string | null) => {
+    try {
+      if (action === "download") { const doc = await generateReceiptPDF(sale); doc.save(`receipt-${sale.invoiceId}.pdf`); }
+      else if (action === "print") { const doc = await generateReceiptPDF(sale); doc.autoPrint(); window.open(doc.output("bloburl"), "_blank"); }
+      else if (action === "whatsapp") handleShareWhatsApp(sale, custPhone);
+      else if (action === "email") handleShareEmail(sale, custEmail);
+    } catch (e) { console.error("Receipt action failed", e); }
+  };
+
+  const handleVoiceCompleteSale = async (data: VoiceCompleteData): Promise<string> => {
+    if (!user || !tenantId) return "User session not found. Please sign in again.";
+    const notes: string[] = [];
+    const logs: any[] = [];
+
+    // Merge voice items into the existing cart
+    let saleItems: CartItem[] = [...cart];
+    for (const it of data.items) {
+      const product = products.find(p => p.id === it.product.id);
+      if (!product) continue;
+      const existing = saleItems.find(c => c.id === product.id);
+      const currentQty = existing?.quantity || 0;
+      const addQty = Math.min(it.quantity, Math.max(0, product.stock - currentQty));
+      if (addQty <= 0) { notes.push(`${product.name} is out of stock`); continue; }
+      if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available`);
+      const defaultPrice = product.selling_price > 0 ? product.selling_price : product.buying_price;
+      let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
+      if (it.unitPrice != null && !isAdmin && it.unitPrice < product.buying_price) {
+        price = product.buying_price;
+        notes.push(`Price for ${product.name} kept at cost price. Manager approval is needed to sell below cost.`);
+      }
+      if (existing) saleItems = saleItems.map(c => c.id === product.id ? { ...c, quantity: c.quantity + addQty, selling_price: price } : c);
+      else saleItems = [...saleItems, { ...product, quantity: addQty, selling_price: price }];
+      logs.push({
+        action_type: it.unitPrice != null ? "price_override" : "add_items",
+        product_id: product.id, product_name: product.name, quantity: addQty,
+        original_price: defaultPrice, new_price: price,
+      });
+    }
+    if (saleItems.length === 0) return "There are no items to sell.";
+
+    const subtotal = saleItems.reduce((s, i) => s + i.selling_price * i.quantity, 0);
+
+    // Discount with role limits
+    let discountAmount = 0;
+    let appliedDiscount: { kind: "percentage" | "fixed"; value: number } | null = null;
+    if (data.discount) {
+      let { kind, value } = data.discount;
+      if (!isAdmin) {
+        if (kind === "percentage" && value > CASHIER_MAX_DISCOUNT_PERCENT) {
+          value = CASHIER_MAX_DISCOUNT_PERCENT;
+          notes.push(`Discount limited to ${CASHIER_MAX_DISCOUNT_PERCENT}% for cashiers.`);
+        }
+        if (kind === "fixed") {
+          const cap = Math.floor((subtotal * CASHIER_MAX_DISCOUNT_PERCENT) / 100);
+          if (value > cap) { value = cap; notes.push(`Discount limited to ${formatCurrency(cap)} for cashiers.`); }
+        }
+      }
+      if (value > 0) {
+        appliedDiscount = { kind, value };
+        discountAmount = kind === "percentage" ? (subtotal * value) / 100 : Math.min(value, subtotal);
+        logs.push({ action_type: "discount", discount_type: kind, discount_value: value });
+      }
+    }
+
+    const total = subtotal - discountAmount;
+    const profit = saleItems.reduce((s, i) => s + (i.selling_price - i.buying_price) * i.quantity, 0) - discountAmount;
+
+    // Customer: match existing or create new
+    let custId: string | null = null;
+    let custName = "";
+    let custPhone: string | null = null;
+    let custEmail: string | null = null;
+    if (data.customer) {
+      if (data.customer.id) {
+        const found = customers.find(c => c.id === data.customer!.id);
+        custId = data.customer.id;
+        custName = found?.name || data.customer.name;
+        custPhone = found?.phone || null;
+        custEmail = found?.email || null;
+      } else if (data.customer.name) {
+        try {
+          const { data: created } = await supabase.from("customers")
+            .insert({ tenant_id: tenantId, name: data.customer.name })
+            .select().single();
+          if (created) {
+            custId = created.id; custName = created.name;
+            setCustomers(prev => [...prev, created]);
+            notes.push(`New customer ${created.name} created.`);
+          } else custName = data.customer.name;
+        } catch { custName = data.customer.name; }
+      }
+    }
+
+    const payMethod = data.payment?.method || "cash";
+    const amountReceived = data.payment?.amount ?? null;
+    const change = amountReceived != null ? Math.max(0, amountReceived - total) : null;
+    if (amountReceived != null && amountReceived < total) {
+      notes.push(`Amount received ${formatCurrency(amountReceived)} is less than the total. Balance: ${formatCurrency(total - amountReceived)}.`);
+    }
+
+    setLoading(true);
+    try {
+      for (const item of saleItems) {
+        const itemSubtotal = item.selling_price * item.quantity;
+        const ratio = subtotal > 0 ? itemSubtotal / subtotal : 0;
+        const itemDiscount = discountAmount * ratio;
+        const { error: txErr } = await supabase.from("transactions").insert({
+          tenant_id: tenantId, product_id: item.id, product_name: item.name,
+          quantity: item.quantity, unit_price: item.selling_price,
+          total_amount: itemSubtotal - itemDiscount,
+          profit: (item.selling_price - item.buying_price) * item.quantity - itemDiscount,
+          payment_method: payMethod, created_by: user.id,
+          discount_type: appliedDiscount?.kind || null,
+          discount_value: appliedDiscount?.value || 0,
+          discount_amount: itemDiscount,
+        });
+        if (txErr) throw txErr;
+        const { error: stockErr } = await supabase.from("products").update({ stock: item.stock - item.quantity }).eq("id", item.id);
+        if (stockErr) throw stockErr;
+      }
+
+      const { data: paymentData, error: paymentError } = await supabase.from("payments").insert({
+        tenant_id: tenantId, amount: total, payment_method: payMethod,
+        payment_status: "completed",
+        customer_id: custId, customer_name: custName || null,
+        payment_date: new Date().toISOString(),
+        notes: `Speak Receipt sale — ${saleItems.length} item(s)` +
+          (amountReceived != null ? ` | Paid: ${formatCurrency(amountReceived)} | Change: ${formatCurrency(change || 0)}` : ""),
+      }).select().single();
+      if (paymentError) throw paymentError;
+
+      await supabase.from("payment_items").insert(saleItems.map(item => ({
+        payment_id: paymentData.id, product_id: item.id, product_name: item.name,
+        quantity: item.quantity, price: item.selling_price, total_price: item.selling_price * item.quantity,
+      })));
+
+      // Audit log — full voice transaction including payment details
+      try {
+        await (supabase as any).from("voice_sale_logs").insert(
+          [...logs, { action_type: "complete_sale" }].map(l => ({
+            ...l, tenant_id: tenantId, user_id: user.id,
+            transcript: data.transcript || data.summary,
+            details: {
+              summary: data.summary, is_admin: isAdmin, customer: custName || null,
+              payment_method: payMethod, amount_received: amountReceived, change,
+              total, subtotal, discount: appliedDiscount,
+            },
+          }))
+        );
+      } catch (e) { console.error("Voice audit log failed", e); }
+
+      const now = new Date();
+      const invoiceId = `INV-${format(now, "yyyyMMddHHmmss")}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const sale: CompletedSale = {
+        invoiceId, items: [...saleItems], subtotal, discount: discountAmount, total, profit,
+        paymentMethod: payMethod, customerName: custName, date: now, paymentId: paymentData.id,
+        amountReceived, change,
+      };
+      setCompletedSale(sale);
+      setReceiptDialogOpen(true);
+
+      setCart([]); setPaymentMethod("cash"); setDiscountType("percentage"); setDiscountValue("");
+      setPromoCode(""); setValidatedPromo(null); setCustomerName("");
+      fetchProducts(); fetchQuickStats();
+
+      if (data.receiptAction) {
+        const action = data.receiptAction;
+        setTimeout(() => { triggerReceiptAction(action, sale, custPhone, custEmail); }, 800);
+      }
+
+      let spoken = `Sale completed. Total ${formatCurrency(Math.round(total))}.`;
+      if (amountReceived != null) {
+        spoken += ` Customer paid ${formatCurrency(amountReceived)} by ${paymentMethodLabel(payMethod)}.`;
+        if ((change || 0) > 0) spoken += ` Change is ${formatCurrency(Math.round(change || 0))}.`;
+      }
+      if (custName) spoken += ` Recorded for ${custName}.`;
+      spoken += " Receipt is ready.";
+      if (notes.length) spoken += ` Note: ${notes.join(". ")}`;
+      toast({ title: "Sale Completed by Voice", description: spoken });
+      return spoken;
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to complete sale", variant: "destructive" });
+      return `Sale failed. ${error.message || ""}`;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.selling_price * item.quantity, 0);
 
   const calculateDiscount = () => {
@@ -502,8 +724,14 @@ const POS = () => {
       doc.text("Discount:", 5, y); doc.text(`-${formatCurrency(sale.discount)}`, pw - 5, y, { align: "right" }); y += 4;
     }
     doc.setFontSize(10); doc.setFont("helvetica", "bold");
-    doc.text("TOTAL:", 5, y); doc.text(formatCurrency(sale.total), pw - 5, y, { align: "right" }); y += 8;
+    doc.text("TOTAL:", 5, y); doc.text(formatCurrency(sale.total), pw - 5, y, { align: "right" }); y += 5;
     doc.setFontSize(8); doc.setFont("helvetica", "normal");
+    if (sale.amountReceived != null) {
+      doc.text("Paid:", 5, y); doc.text(formatCurrency(sale.amountReceived), pw - 5, y, { align: "right" }); y += 4;
+      doc.text("Change:", 5, y); doc.text(formatCurrency(sale.change || 0), pw - 5, y, { align: "right" }); y += 4;
+    }
+    y += 2;
+    doc.text(`Served by: ${userName}`, 5, y); y += 5;
     doc.text("Thank you for your business!", pw / 2, y, { align: "center" }); y += 4;
     doc.text("Please come again", pw / 2, y, { align: "center" });
     return doc;
@@ -715,7 +943,7 @@ const POS = () => {
                   <Input placeholder="Search products..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-12 text-base" />
                 </div>
                 <BarcodeScanner onScan={handleBarcodeScanned} />
-                <VoiceSale products={products} onApply={handleVoiceApply} />
+                <VoiceSale products={products} customers={customers} onApply={handleVoiceApply} onCompleteSale={handleVoiceCompleteSale} />
               </div>
             </div>
 
@@ -1001,12 +1229,20 @@ const POS = () => {
                 <div className="flex justify-between text-sm"><span>Items</span><span className="font-medium">{completedSale.items.reduce((s, i) => s + i.quantity, 0)}</span></div>
                 {completedSale.discount > 0 && <div className="flex justify-between text-sm text-green-600 dark:text-green-400"><span>Discount</span><span>-{formatCurrency(completedSale.discount)}</span></div>}
                 <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total Paid</span><span className="text-primary">{formatCurrency(completedSale.total)}</span></div>
+                {completedSale.amountReceived != null && (
+                  <>
+                    <div className="flex justify-between text-sm"><span>Amount Received</span><span className="font-medium">{formatCurrency(completedSale.amountReceived)}</span></div>
+                    <div className="flex justify-between text-sm font-semibold text-green-600 dark:text-green-400"><span>Change</span><span>{formatCurrency(completedSale.change || 0)}</span></div>
+                  </>
+                )}
                 <div className="flex justify-between text-sm"><span>Payment</span><Badge variant="secondary">{paymentMethodLabel(completedSale.paymentMethod)}</Badge></div>
                 {completedSale.customerName && <div className="flex justify-between text-sm"><span>Customer</span><span className="font-medium">{completedSale.customerName}</span></div>}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleDownloadReceipt} className="gap-2"><Download className="h-4 w-4" /> Download</Button>
                 <Button variant="outline" onClick={handlePrintReceipt} className="gap-2"><Printer className="h-4 w-4" /> Print</Button>
+                <Button variant="outline" onClick={() => completedSale && handleShareWhatsApp(completedSale, customers.find(c => c.name === completedSale.customerName)?.phone)} className="gap-2"><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
+                <Button variant="outline" onClick={() => completedSale && handleShareEmail(completedSale, customers.find(c => c.name === completedSale.customerName)?.email)} className="gap-2"><Mail className="h-4 w-4" /> Email</Button>
               </div>
               <Button className="w-full" onClick={() => setReceiptDialogOpen(false)}>New Sale</Button>
             </div>

@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Mic, MicOff, Loader2, Volume2, Keyboard } from "lucide-react";
+import { Mic, MicOff, Loader2, Volume2, Keyboard, CheckCircle, ShoppingCart, User, Banknote } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -14,6 +15,13 @@ export interface VoiceProduct {
   selling_price: number;
   buying_price: number;
   stock: number;
+}
+
+export interface VoiceCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
 }
 
 export interface ResolvedVoiceItem {
@@ -30,6 +38,16 @@ export interface VoiceApplyResult {
   summary: string;
 }
 
+export interface VoiceCompleteData {
+  transcript: string;
+  items: ResolvedVoiceItem[];
+  discount: { kind: "percentage" | "fixed"; value: number } | null;
+  customer: { id: string | null; name: string } | null;
+  payment: { amount: number | null; method: string | null } | null;
+  receiptAction: "print" | "download" | "whatsapp" | "email" | null;
+  summary: string;
+}
+
 interface ParsedItem {
   query: string;
   product_id: string | null;
@@ -42,30 +60,44 @@ interface ParsedResult {
   items: ParsedItem[];
   discount: { kind: "percentage" | "fixed"; value: number } | null;
   price_updates: { product_id: string; new_price: number }[];
+  customer: { query: string; customer_id: string | null } | null;
+  payment: { amount: number | null; method: string | null } | null;
+  receipt_action: "print" | "download" | "whatsapp" | "email" | null;
   summary: string;
 }
 
 interface VoiceSaleProps {
   products: VoiceProduct[];
+  customers: VoiceCustomer[];
   onApply: (result: VoiceApplyResult) => Promise<string | void>;
+  onCompleteSale: (data: VoiceCompleteData) => Promise<string | void>;
 }
 
-const speak = (text: string) => {
+const speak = (text: string, onEnd?: () => void) => {
   try {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       utter.rate = 1;
+      if (onEnd) utter.onend = () => onEnd();
       window.speechSynthesis.speak(utter);
+      return;
     }
   } catch { /* ignore */ }
+  if (onEnd) onEnd();
 };
 
-export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
+const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+
+const methodLabel = (m: string | null) =>
+  ({ cash: "Cash", mobile_money: "Mobile Money", card: "Card", other: "Other" } as Record<string, string>)[m || ""] || "Cash";
+
+export const VoiceSale = ({ products, customers, onApply, onCompleteSale }: VoiceSaleProps) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
   const [manualMode, setManualMode] = useState(false);
@@ -73,17 +105,27 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
   const [ambiguous, setAmbiguous] = useState<{ item: ParsedItem; candidates: VoiceProduct[] }[]>([]);
   const [pendingParsed, setPendingParsed] = useState<ParsedResult | null>(null);
   const [resolvedItems, setResolvedItems] = useState<ResolvedVoiceItem[]>([]);
+  const [review, setReview] = useState<VoiceCompleteData | null>(null);
+  const [confirmListening, setConfirmListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const confirmRecRef = useRef<any>(null);
   const finalRef = useRef("");
+  const reviewRef = useRef<VoiceCompleteData | null>(null);
 
   const speechSupported = typeof window !== "undefined" &&
     !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
-  useEffect(() => () => { try { recognitionRef.current?.abort?.(); } catch { /* */ } }, []);
+  useEffect(() => () => {
+    try { recognitionRef.current?.abort?.(); } catch { /* */ }
+    try { confirmRecRef.current?.abort?.(); } catch { /* */ }
+    try { window.speechSynthesis?.cancel(); } catch { /* */ }
+  }, []);
 
   const reset = () => {
     setTranscript(""); setInterim(""); setAmbiguous([]); setPendingParsed(null);
-    setResolvedItems([]); setManualText(""); finalRef.current = "";
+    setResolvedItems([]); setManualText(""); setReview(null); reviewRef.current = null;
+    setConfirmListening(false); finalRef.current = "";
+    try { confirmRecRef.current?.abort?.(); } catch { /* */ }
   };
 
   const startListening = () => {
@@ -153,7 +195,6 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
     setOpen(true);
     reset();
     if (speechSupported && window.isSecureContext) {
-      // slight delay so dialog mounts before permission prompt
       setTimeout(startListening, 300);
     } else {
       setManualMode(true);
@@ -168,6 +209,7 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
         body: {
           transcript: text,
           products: products.map(p => ({ id: p.id, name: p.name, price: p.selling_price, stock: p.stock })),
+          customers: customers.map(c => ({ id: c.id, name: c.name })),
         },
       });
       if (error) throw new Error(error.message || "Failed to process command");
@@ -210,16 +252,133 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
         setAmbiguous(needsChoice);
         speak("Which product did you mean?");
       } else {
-        await finalize(parsed, resolved);
+        buildReview(parsed, resolved, text);
       }
     } catch (err: any) {
       toast({ title: "Voice command failed", description: err.message, variant: "destructive" });
     } finally {
       setProcessing(false);
     }
-  }, [products]);
+  }, [products, customers]);
 
-  const finalize = async (parsed: ParsedResult, items: ResolvedVoiceItem[]) => {
+  // Resolve customer locally against the customer list
+  const resolveCustomer = (parsed: ParsedResult): { id: string | null; name: string } | null => {
+    if (!parsed.customer) return null;
+    if (parsed.customer.customer_id) {
+      const found = customers.find(c => c.id === parsed.customer!.customer_id);
+      if (found) return { id: found.id, name: found.name };
+    }
+    const q = (parsed.customer.query || "").trim();
+    if (!q) return null;
+    const matches = customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
+    if (matches.length === 1) return { id: matches[0].id, name: matches[0].name };
+    return { id: null, name: q }; // new customer (created on completion)
+  };
+
+  const buildReview = (parsed: ParsedResult, items: ResolvedVoiceItem[], text: string) => {
+    const priceUpdates = (parsed.price_updates || []).length > 0;
+
+    if (items.length === 0 && !parsed.discount && !priceUpdates) {
+      toast({ title: "Nothing to apply", description: "No recognizable products or actions in the command.", variant: "destructive" });
+      speak("I couldn't find any products in that command. Please try again.");
+      return;
+    }
+
+    // Price-update-only commands go straight to the draft handler
+    if (items.length === 0 && priceUpdates) {
+      applyDraftOnly(parsed, items, text);
+      return;
+    }
+
+    const data: VoiceCompleteData = {
+      transcript: text,
+      items,
+      discount: parsed.discount,
+      customer: resolveCustomer(parsed),
+      payment: parsed.payment,
+      receiptAction: parsed.receipt_action,
+      summary: parsed.summary,
+    };
+    setReview(data);
+    reviewRef.current = data;
+
+    // Speak-back summary with totals + change, then listen for confirmation
+    const subtotal = items.reduce((s, it) => s + (it.unitPrice ?? defaultPrice(it.product)) * it.quantity, 0);
+    let discountAmt = 0;
+    if (parsed.discount) {
+      discountAmt = parsed.discount.kind === "percentage"
+        ? (subtotal * parsed.discount.value) / 100
+        : Math.min(parsed.discount.value, subtotal);
+    }
+    const total = subtotal - discountAmt;
+    const itemPhrases = items.map(it => `${it.quantity} ${it.product.name} at ${fmt(it.unitPrice ?? defaultPrice(it.product))} each`);
+    let spoken = itemPhrases.join(", ") + ".";
+    if (discountAmt > 0) spoken += ` Discount of ${fmt(discountAmt)} applied.`;
+    spoken += ` Total amount is ${fmt(total)}.`;
+    if (data.customer) spoken += ` Customer is ${data.customer.name}.`;
+    if (data.payment?.amount) {
+      spoken += ` Customer paid ${fmt(data.payment.amount)} ${methodLabel(data.payment.method)}.`;
+      if (data.payment.amount >= total) spoken += ` Change is ${fmt(data.payment.amount - total)}.`;
+      else spoken += ` Balance remaining is ${fmt(total - data.payment.amount)}.`;
+    }
+    spoken += " Would you like to complete the sale?";
+    speak(spoken, () => startConfirmListening());
+  };
+
+  const defaultPrice = (p: VoiceProduct) => (p.selling_price > 0 ? p.selling_price : p.buying_price);
+
+  const startConfirmListening = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR || !window.isSecureContext) return;
+    if (!reviewRef.current) return;
+    try {
+      const rec = new SR();
+      confirmRecRef.current = rec;
+      rec.lang = "en-US";
+      rec.interimResults = false;
+      rec.continuous = false;
+      rec.onresult = (e: any) => {
+        const heard = (e.results?.[0]?.[0]?.transcript || "").toLowerCase();
+        if (/(confirm|complete|finish|yes|yeah|go ahead|sure|okay|ok)/.test(heard)) {
+          handleCompleteSale();
+        } else if (/(no|cancel|stop|wait)/.test(heard)) {
+          speak("Sale not completed. You can review and confirm manually.");
+        }
+        setConfirmListening(false);
+      };
+      rec.onerror = () => setConfirmListening(false);
+      rec.onend = () => setConfirmListening(false);
+      rec.start();
+      setConfirmListening(true);
+    } catch { setConfirmListening(false); }
+  };
+
+  const handleCompleteSale = async () => {
+    const data = reviewRef.current;
+    if (!data || completing) return;
+    try { confirmRecRef.current?.abort?.(); } catch { /* */ }
+    setCompleting(true);
+    try {
+      const spoken = await onCompleteSale(data);
+      if (typeof spoken === "string" && spoken) speak(spoken);
+      setOpen(false);
+      reset();
+    } catch (err: any) {
+      toast({ title: "Sale failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const handleAddToCartOnly = async () => {
+    const data = reviewRef.current;
+    const parsed = pendingParsed;
+    if (!data || !parsed) return;
+    try { confirmRecRef.current?.abort?.(); } catch { /* */ }
+    await applyDraftOnly(parsed, data.items, data.transcript);
+  };
+
+  const applyDraftOnly = async (parsed: ParsedResult, items: ResolvedVoiceItem[], text: string) => {
     const priceUpdates = (parsed.price_updates || [])
       .map(u => {
         const product = products.find(p => p.id === u.product_id);
@@ -234,7 +393,7 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
     }
 
     const spoken = await onApply({
-      transcript,
+      transcript: text,
       items,
       discount: parsed.discount,
       priceUpdates,
@@ -245,47 +404,56 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
     reset();
   };
 
-  const chooseCandidate = async (product: VoiceProduct) => {
+  const chooseCandidate = (product: VoiceProduct) => {
     const [current, ...rest] = ambiguous;
     const newResolved = [...resolvedItems, { product, quantity: current.item.quantity, unitPrice: current.item.unit_price }];
     setResolvedItems(newResolved);
     setAmbiguous(rest);
     if (rest.length === 0 && pendingParsed) {
-      await finalize(pendingParsed, newResolved);
+      buildReview(pendingParsed, newResolved, transcript);
     }
   };
 
-  const skipCandidate = async () => {
+  const skipCandidate = () => {
     const [, ...rest] = ambiguous;
     setAmbiguous(rest);
     if (rest.length === 0 && pendingParsed) {
-      await finalize(pendingParsed, resolvedItems);
+      buildReview(pendingParsed, resolvedItems, transcript);
     }
   };
 
   const current = ambiguous[0];
 
+  // Review totals for display
+  const reviewSubtotal = review ? review.items.reduce((s, it) => s + (it.unitPrice ?? defaultPrice(it.product)) * it.quantity, 0) : 0;
+  const reviewDiscount = review?.discount
+    ? (review.discount.kind === "percentage" ? (reviewSubtotal * review.discount.value) / 100 : Math.min(review.discount.value, reviewSubtotal))
+    : 0;
+  const reviewTotal = reviewSubtotal - reviewDiscount;
+  const reviewPaid = review?.payment?.amount ?? null;
+  const reviewChange = reviewPaid != null ? reviewPaid - reviewTotal : null;
+
   return (
     <>
       <Button
         type="button"
-        variant="outline"
-        size="icon"
-        className="h-12 w-12 shrink-0"
+        variant="default"
+        className="h-12 shrink-0 gap-2 px-3 sm:px-4 font-semibold"
         onClick={handleOpen}
-        title="Speech-to-Sell (voice command)"
+        title="Speak Sale — complete a sale by voice"
       >
-        <Mic className="h-5 w-5 text-primary" />
+        <Mic className="h-5 w-5" />
+        <span className="hidden xs:inline sm:inline">Speak Sale</span>
       </Button>
 
-      <Dialog open={open} onOpenChange={(o) => { if (!o) { stopListening(); reset(); } setOpen(o); }}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={open} onOpenChange={(o) => { if (!o) { stopListening(); try { window.speechSynthesis?.cancel(); } catch { /* */ } reset(); } setOpen(o); }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-primary" /> Speech-to-Sell
+              <Volume2 className="h-5 w-5 text-primary" /> Speak Sale
             </DialogTitle>
             <DialogDescription>
-              Say things like "Sell two bags of rice at twenty-five thousand each" or "Give ten percent discount".
+              Try: "Sell two bags of rice at twenty-five thousand each to John, ten percent discount, customer paid sixty thousand cash."
             </DialogDescription>
           </DialogHeader>
 
@@ -301,6 +469,72 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
                 ))}
               </div>
               <Button variant="ghost" size="sm" className="w-full" onClick={skipCandidate}>Skip this item</Button>
+            </div>
+          ) : review ? (
+            <div className="space-y-3">
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                {review.items.map((it, idx) => (
+                  <div key={idx} className="flex justify-between text-sm gap-2">
+                    <span className="truncate">{it.quantity} × {it.product.name}
+                      {it.unitPrice != null && <Badge variant="secondary" className="ml-1 text-[10px]">price set</Badge>}
+                    </span>
+                    <span className="font-medium shrink-0">{fmt((it.unitPrice ?? defaultPrice(it.product)) * it.quantity)}</span>
+                  </div>
+                ))}
+                {reviewDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
+                    <span>Discount{review.discount?.kind === "percentage" ? ` (${review.discount.value}%)` : ""}</span>
+                    <span>-{fmt(reviewDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold border-t pt-2">
+                  <span>Total</span><span className="text-primary">{fmt(reviewTotal)}</span>
+                </div>
+                {review.customer && (
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Customer</span>
+                    <span className="font-medium">{review.customer.name}{!review.customer.id && <Badge variant="outline" className="ml-1 text-[10px]">new</Badge>}</span>
+                  </div>
+                )}
+                {review.payment && (
+                  <>
+                    <div className="flex justify-between text-sm items-center">
+                      <span className="flex items-center gap-1"><Banknote className="h-3.5 w-3.5" /> Paid</span>
+                      <span className="font-medium">{reviewPaid != null ? fmt(reviewPaid) : "—"} <Badge variant="secondary" className="ml-1 text-[10px]">{methodLabel(review.payment.method)}</Badge></span>
+                    </div>
+                    {reviewChange != null && reviewChange >= 0 && (
+                      <div className="flex justify-between text-sm font-semibold text-green-600 dark:text-green-400">
+                        <span>Change</span><span>{fmt(reviewChange)}</span>
+                      </div>
+                    )}
+                    {reviewChange != null && reviewChange < 0 && (
+                      <div className="flex justify-between text-sm font-semibold text-destructive">
+                        <span>Balance due</span><span>{fmt(-reviewChange)}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                {review.receiptAction && (
+                  <p className="text-xs text-muted-foreground">Receipt will be {review.receiptAction === "print" ? "printed" : review.receiptAction === "download" ? "downloaded" : `sent by ${review.receiptAction}`} automatically.</p>
+                )}
+              </div>
+
+              {confirmListening && (
+                <p className="text-xs text-center text-primary animate-pulse">Listening for "Confirm sale" or "Yes"…</p>
+              )}
+
+              <Button className="w-full h-12 gap-2 font-semibold" onClick={handleCompleteSale} disabled={completing}>
+                {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                {completing ? "Completing…" : "Complete Sale"}
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" className="gap-1.5" onClick={handleAddToCartOnly} disabled={completing}>
+                  <ShoppingCart className="h-4 w-4" /> Cart only
+                </Button>
+                <Button variant="ghost" className="text-muted-foreground" onClick={() => { try { window.speechSynthesis?.cancel(); } catch { /* */ } setOpen(false); reset(); }} disabled={completing}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -332,7 +566,7 @@ export const VoiceSale = ({ products, onApply }: VoiceSaleProps) => {
               {manualMode ? (
                 <div className="space-y-2">
                   <Input
-                    placeholder='e.g. "Sell 2 bags of rice at 25000 each"'
+                    placeholder='e.g. "Sell 2 bags of rice to John, paid 60000 cash"'
                     value={manualText}
                     onChange={(e) => setManualText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && manualText.trim() && !processing) processTranscript(manualText.trim()); }}
