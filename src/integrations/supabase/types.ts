@@ -724,6 +724,57 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_sale_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          details: Json | null
+          discount_type: string | null
+          discount_value: number | null
+          id: string
+          new_price: number | null
+          original_price: number | null
+          product_id: string | null
+          product_name: string | null
+          quantity: number | null
+          tenant_id: string
+          transcript: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          details?: Json | null
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string
+          new_price?: number | null
+          original_price?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          tenant_id: string
+          transcript: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          details?: Json | null
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string
+          new_price?: number | null
+          original_price?: number | null
+          product_id?: string | null
+          product_name?: string | null
+          quantity?: number | null
+          tenant_id?: string
+          transcript?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

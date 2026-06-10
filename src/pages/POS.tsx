@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { VoiceSale, VoiceApplyResult } from "@/components/VoiceSale";
+import { useUserRole } from "@/hooks/useUserRole";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -80,10 +82,13 @@ interface Customer {
   email: string | null;
 }
 
+const CASHIER_MAX_DISCOUNT_PERCENT = 10;
+
 const POS = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
@@ -250,6 +255,114 @@ const POS = () => {
   const updateCartPrice = (productId: string, price: number) => {
     if (price < 0) return;
     setCart(cart.map(item => item.id === productId ? { ...item, selling_price: price } : item));
+  };
+
+  // ============ SPEECH-TO-SELL ============
+  const handleVoiceApply = async (result: VoiceApplyResult): Promise<string> => {
+    const notes: string[] = [];
+    const logs: any[] = [];
+    const addedDesc: string[] = [];
+    let next = [...cart];
+
+    // 1) Add items (with optional spoken price overrides)
+    for (const it of result.items) {
+      const product = products.find(p => p.id === it.product.id);
+      if (!product) continue;
+      const existing = next.find(c => c.id === product.id);
+      const currentQty = existing?.quantity || 0;
+      const addQty = Math.min(it.quantity, Math.max(0, product.stock - currentQty));
+      if (addQty <= 0) { notes.push(`${product.name} has no more stock available`); continue; }
+      if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available in stock`);
+
+      const defaultPrice = product.selling_price > 0 ? product.selling_price : product.buying_price;
+      let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
+      if (it.unitPrice != null && !isAdmin && it.unitPrice < product.buying_price) {
+        price = product.buying_price;
+        notes.push(`Price for ${product.name} kept at cost price. Manager approval is needed to sell below cost.`);
+      }
+
+      if (existing) {
+        next = next.map(c => c.id === product.id ? { ...c, quantity: c.quantity + addQty, selling_price: price } : c);
+      } else {
+        next = [...next, { ...product, quantity: addQty, selling_price: price }];
+      }
+      addedDesc.push(`${currentQty + addQty} ${product.name} at ${formatCurrency(price)} each`);
+      logs.push({
+        action_type: it.unitPrice != null ? "price_override" : "add_items",
+        product_id: product.id, product_name: product.name, quantity: addQty,
+        original_price: defaultPrice, new_price: price,
+      });
+    }
+
+    // 2) Permanent / temporary price updates ("Update rice price to 27,000")
+    for (const u of result.priceUpdates) {
+      if (isAdmin) {
+        const { error } = await supabase.from("products").update({ selling_price: u.newPrice }).eq("id", u.product.id);
+        if (!error) {
+          notes.push(`${u.product.name} price permanently updated to ${formatCurrency(u.newPrice)}`);
+          logs.push({ action_type: "price_update", product_id: u.product.id, product_name: u.product.name, original_price: u.product.selling_price, new_price: u.newPrice });
+          next = next.map(c => c.id === u.product.id ? { ...c, selling_price: u.newPrice } : c);
+        }
+      } else {
+        const inCart = next.find(c => c.id === u.product.id);
+        if (inCart) {
+          next = next.map(c => c.id === u.product.id ? { ...c, selling_price: u.newPrice } : c);
+          notes.push(`${u.product.name} set to ${formatCurrency(u.newPrice)} for this sale only. Only managers can update prices permanently.`);
+          logs.push({ action_type: "price_override", product_id: u.product.id, product_name: u.product.name, original_price: u.product.selling_price, new_price: u.newPrice });
+        } else {
+          notes.push(`Only managers can permanently update the price of ${u.product.name}.`);
+        }
+      }
+    }
+
+    setCart(next);
+
+    // 3) Discount with role limits
+    const subtotalAfter = next.reduce((s, i) => s + i.selling_price * i.quantity, 0);
+    let discountAmount = 0;
+    if (result.discount) {
+      let { kind, value } = result.discount;
+      if (!isAdmin) {
+        if (kind === "percentage" && value > CASHIER_MAX_DISCOUNT_PERCENT) {
+          value = CASHIER_MAX_DISCOUNT_PERCENT;
+          notes.push(`Discount limited to ${CASHIER_MAX_DISCOUNT_PERCENT}% for cashiers. Ask a manager for bigger discounts.`);
+        }
+        if (kind === "fixed") {
+          const cap = Math.floor((subtotalAfter * CASHIER_MAX_DISCOUNT_PERCENT) / 100);
+          if (value > cap) { value = cap; notes.push(`Discount limited to ${formatCurrency(cap)} for cashiers.`); }
+        }
+      }
+      if (value > 0) {
+        setDiscountType(kind); setDiscountValue(String(value)); setValidatedPromo(null); setPromoCode("");
+        discountAmount = kind === "percentage" ? (subtotalAfter * value) / 100 : Math.min(value, subtotalAfter);
+        logs.push({ action_type: "discount", discount_type: kind, discount_value: value });
+      }
+    }
+
+    // 4) Audit log every voice action
+    if (user && tenantId && logs.length > 0) {
+      try {
+        await (supabase as any).from("voice_sale_logs").insert(logs.map(l => ({
+          ...l, tenant_id: tenantId, user_id: user.id,
+          transcript: result.transcript || result.summary,
+          details: { summary: result.summary, is_admin: isAdmin },
+        })));
+      } catch (e) { console.error("Voice audit log failed", e); }
+    }
+
+    // 5) Build spoken + toast feedback
+    const totalAfter = subtotalAfter - discountAmount;
+    let spoken = "";
+    if (addedDesc.length) spoken += `Added ${addedDesc.join(", ")}. `;
+    if (discountAmount > 0) spoken += `Discount of ${formatCurrency(Math.round(discountAmount))} applied. `;
+    if (next.length > 0) spoken += `Cart total is ${formatCurrency(Math.round(totalAfter))}. Please review the cart before completing the sale.`;
+    if (notes.length) spoken += ` Note: ${notes.join(". ")}`;
+
+    toast({
+      title: "Voice command applied",
+      description: spoken || result.summary,
+    });
+    return spoken || result.summary;
   };
 
   const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.selling_price * item.quantity, 0);
@@ -602,6 +715,7 @@ const POS = () => {
                   <Input placeholder="Search products..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 h-12 text-base" />
                 </div>
                 <BarcodeScanner onScan={handleBarcodeScanned} />
+                <VoiceSale products={products} onApply={handleVoiceApply} />
               </div>
             </div>
 
