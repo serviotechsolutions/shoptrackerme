@@ -205,6 +205,19 @@ Always call the build_sale_actions tool exactly once.`;
       price_updates: (parsed.price_updates || [])
         .filter((u: any) => u.product_id && Number(u.new_price) > 0)
         .map((u: any) => ({ product_id: String(u.product_id), new_price: Number(u.new_price) })),
+      customer: parsed.customer && (parsed.customer.customer_id || (parsed.customer.query || '').trim())
+        ? {
+            query: String(parsed.customer.query || '').trim(),
+            customer_id: parsed.customer.customer_id ? String(parsed.customer.customer_id) : null,
+          }
+        : null,
+      payment: parsed.payment && (Number(parsed.payment.amount) > 0 || parsed.payment.method)
+        ? {
+            amount: Number(parsed.payment.amount) > 0 ? Number(parsed.payment.amount) : null,
+            method: ['cash', 'mobile_money', 'card', 'other'].includes(parsed.payment.method) ? parsed.payment.method : null,
+          }
+        : null,
+      receipt_action: ['print', 'download', 'whatsapp', 'email'].includes(parsed.receipt_action) ? parsed.receipt_action : null,
       summary: String(parsed.summary || 'Command processed.'),
     };
 
