@@ -59,6 +59,7 @@ serve(async (req) => {
 Parse the attendant's spoken command into structured sale actions.
 
 PRODUCT CATALOG (JSON): ${JSON.stringify(catalog)}
+CUSTOMER LIST (JSON): ${JSON.stringify(customerCatalog)}
 
 RULES:
 - Match spoken product names to catalog products using fuzzy/natural matching (e.g. "rice" matches "Super Rice 10kg").
@@ -68,6 +69,9 @@ RULES:
 - "give X percent discount" / "X percent off" = percentage discount. "discount X (shillings)" = fixed discount.
 - "update PRODUCT price to X" (without selling) = a permanent price_update, not a sale item.
 - Default quantity is 1 when not stated.
+- CUSTOMER: phrases like "sell to John", "customer is Sarah", "add this sale to Peter" name the customer. Match against the CUSTOMER LIST (fuzzy). If one clear match, set customer.customer_id; otherwise leave it empty and keep the spoken name in customer.query. If no customer mentioned, omit customer.
+- PAYMENT: phrases like "customer paid fifty thousand cash", "received 100000", "paid by mobile money / Airtel Money / MTN / momo" = payment. Map Airtel Money, MTN, momo, mobile money to method "mobile_money"; cash to "cash"; card/visa to "card"; anything else to "other". amount = the amount received (0 if only a method was spoken).
+- RECEIPT: "print receipt" = print, "download receipt" = download, "send receipt by whatsapp" = whatsapp, "send receipt by email" = email. Omit if not mentioned.
 - summary: a short natural sentence confirming what was understood, suitable to be read aloud, using UGX amounts.
 Always call the build_sale_actions tool exactly once.`;
 
@@ -112,6 +116,22 @@ Always call the build_sale_actions tool exactly once.`;
                 required: ["product_id", "new_price"],
               },
             },
+            customer: {
+              type: "object",
+              properties: {
+                query: { type: "string", description: "customer name as spoken" },
+                customer_id: { type: "string", description: "matched customer id, empty if not in list" },
+              },
+              required: ["query"],
+            },
+            payment: {
+              type: "object",
+              properties: {
+                amount: { type: "number", description: "amount received, 0 if not stated" },
+                method: { type: "string", enum: ["cash", "mobile_money", "card", "other"] },
+              },
+            },
+            receipt_action: { type: "string", enum: ["print", "download", "whatsapp", "email", "none"] },
             summary: { type: "string" },
           },
           required: ["items", "summary"],
