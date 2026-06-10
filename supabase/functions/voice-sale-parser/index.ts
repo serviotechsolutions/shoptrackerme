@@ -36,6 +36,7 @@ serve(async (req) => {
     const body = await req.json();
     const transcript = String(body?.transcript || '').slice(0, 1000);
     const products = Array.isArray(body?.products) ? body.products.slice(0, 400) : [];
+    const customers = Array.isArray(body?.customers) ? body.customers.slice(0, 400) : [];
     if (!transcript.trim()) {
       return new Response(JSON.stringify({ error: 'Empty transcript' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -47,6 +48,11 @@ serve(async (req) => {
       name: String(p.name),
       price: Number(p.price) || 0,
       stock: Number(p.stock) || 0,
+    }));
+
+    const customerCatalog = customers.map((c: any) => ({
+      id: String(c.id),
+      name: String(c.name),
     }));
 
     const systemPrompt = `You are a POS voice command parser for a shop in Uganda (currency UGX).
