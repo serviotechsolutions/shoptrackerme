@@ -23,6 +23,7 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import DeleteAccount from "./pages/DeleteAccount";
 import Promotions from "./pages/Promotions";
 import ResetPassword from "./pages/ResetPassword";
+import StockPredictions from "./pages/StockPredictions";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/promotions" element={<ProtectedRoute><Promotions /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="/ai-insights" element={<ProtectedRoute><AIInsights /></ProtectedRoute>} />
+            <Route path="/stock-predictions" element={<ProtectedRoute><StockPredictions /></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
