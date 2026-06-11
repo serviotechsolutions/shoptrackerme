@@ -22,7 +22,8 @@ import {
   Brain,
   User,
   Tag,
-  Sparkles
+  Sparkles,
+  Brain as BrainIcon
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -86,6 +87,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/promo-codes', label: 'Promo Codes', icon: Tag, show: canManagePromotions },
     { path: '/reports', label: 'Reports', icon: BarChart3, show: canViewReports },
     { path: '/ai-insights', label: 'AI Insights', icon: Brain, show: canViewReports },
+    { path: '/stock-predictions', label: 'Stock Forecast', icon: BrainIcon, show: canManageProducts },
     { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
     { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
     { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
