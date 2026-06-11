@@ -6,6 +6,7 @@ import { Brain, ArrowRight, AlertTriangle, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { fetchStockPredictions, ProductPrediction, riskBadgeClass, riskLabel, formatDays } from "@/lib/stockPredictions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 export const InventoryIntelligenceWidget = () => {
   const [loading, setLoading] = useState(true);
@@ -14,17 +15,37 @@ export const InventoryIntelligenceWidget = () => {
   const [warningCount, setWarningCount] = useState(0);
 
   useEffect(() => {
-    fetchStockPredictions()
-      .then(({ predictions, summary }) => {
-        setCriticalCount(summary.critical);
-        setWarningCount(summary.warning);
-        const risky = predictions
-          .filter(p => p.risk === "critical" || p.risk === "warning")
-          .sort((a, b) => a.daysUntilStockout - b.daysUntilStockout)
-          .slice(0, 4);
-        setAtRisk(risky);
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const load = () =>
+      fetchStockPredictions()
+        .then(({ predictions, summary }) => {
+          if (cancelled) return;
+          setCriticalCount(summary.critical);
+          setWarningCount(summary.warning);
+          const risky = predictions
+            .filter(p => p.risk === "critical" || p.risk === "warning")
+            .sort((a, b) => a.daysUntilStockout - b.daysUntilStockout)
+            .slice(0, 4);
+          setAtRisk(risky);
+        })
+        .finally(() => !cancelled && setLoading(false));
+
+    load();
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(load, 1000);
+    };
+    const channel = supabase
+      .channel("inventory-intel-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, schedule)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      if (debounce) clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (

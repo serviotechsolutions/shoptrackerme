@@ -16,6 +16,7 @@ import {
   formatDays,
 } from "@/lib/stockPredictions";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const PERIODS = [7, 14, 30, 60] as const;
 type Period = typeof PERIODS[number];
@@ -47,7 +48,24 @@ const StockPredictions = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Live updates: refresh forecasts when sales or stock change
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => load(), 800);
+    };
+    const channel = supabase
+      .channel("stock-predictions-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, scheduleReload)
+      .subscribe();
+    return () => {
+      if (debounce) clearTimeout(debounce);
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return data
