@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { InventoryIntelligenceWidget } from '@/components/InventoryIntelligenceWidget';
 
 interface DashboardStats {
   totalProducts: number;
@@ -287,6 +288,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Inventory Intelligence */}
+        <InventoryIntelligenceWidget />
 
         {/* Quick Actions */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
