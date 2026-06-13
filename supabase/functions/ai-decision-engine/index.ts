@@ -47,6 +47,20 @@ serve(async (req) => {
 
     const { message, conversationHistory } = await req.json();
 
+    // Sanitize conversation history to prevent prompt injection via system messages
+    const safeHistory = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+          .map((m: any) => ({ role: m.role, content: String(m.content).slice(0, 4000) }))
+          .slice(-20)
+      : [];
+
+    if (typeof message !== 'string' || message.length === 0 || message.length > 4000) {
+      return new Response(JSON.stringify({ error: 'Invalid message' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Gather business data for context
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -163,7 +177,7 @@ ${businessContext}`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...(conversationHistory || []),
+      ...safeHistory,
       { role: 'user', content: message },
     ];
 

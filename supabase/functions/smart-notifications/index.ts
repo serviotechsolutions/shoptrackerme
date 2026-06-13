@@ -14,15 +14,52 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const authHeader = req.headers.get("Authorization") || "";
+
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Determine scope: service-role => all tenants (cron); authenticated user => only their tenant
+    let tenantFilter: string[] | null = null;
+
+    if (authHeader === `Bearer ${supabaseKey}`) {
+      // Cron / service-role call: process all tenants
+      tenantFilter = null;
+    } else if (authHeader.startsWith("Bearer ")) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claims } = await userClient.auth.getClaims(token);
+      const userId = claims?.claims?.sub as string | undefined;
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', userId).single();
+      if (!profile?.tenant_id) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      tenantFilter = [profile.tenant_id];
+    } else {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Starting smart notifications check...');
 
-    const { data: tenants, error: tenantsError } = await supabase
-      .from('tenants')
-      .select('id');
-
-    if (tenantsError) throw tenantsError;
+    let tenants: { id: string }[] | null = null;
+    if (tenantFilter) {
+      tenants = tenantFilter.map((id) => ({ id }));
+    } else {
+      const { data, error: tenantsError } = await supabase.from('tenants').select('id');
+      if (tenantsError) throw tenantsError;
+      tenants = data;
+    }
 
     let notificationsCreated = 0;
 
