@@ -63,6 +63,7 @@ const StockPredictions = () => {
 
   useEffect(() => {
     load();
+    loadSuppliers();
     // Live updates: refresh forecasts when sales or stock change
     let debounce: ReturnType<typeof setTimeout> | null = null;
     const scheduleReload = () => {
