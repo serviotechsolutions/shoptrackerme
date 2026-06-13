@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus, Package, AlertTriangle, Download, Search, RefreshCw, Brain, Zap, Snowflake } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Package, AlertTriangle, Download, Search, RefreshCw, Brain, Zap, Snowflake, Truck } from "lucide-react";
 import {
   fetchStockPredictions,
   ProductPrediction,
@@ -34,6 +35,18 @@ const StockPredictions = () => {
   const [period, setPeriod] = useState<Period>(14);
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState<"all" | "critical" | "warning" | "monitor" | "healthy">("all");
+  const [supplierMap, setSupplierMap] = useState<Record<string, { id: string; name: string }>>({});
+
+  const loadSuppliers = async () => {
+    const { data: prods } = await (supabase as any)
+      .from("products")
+      .select("id, preferred_supplier_id, suppliers(id, name)");
+    const map: Record<string, { id: string; name: string }> = {};
+    (prods || []).forEach((p: any) => {
+      if (p.suppliers) map[p.id] = { id: p.suppliers.id, name: p.suppliers.name };
+    });
+    setSupplierMap(map);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -50,6 +63,7 @@ const StockPredictions = () => {
 
   useEffect(() => {
     load();
+    loadSuppliers();
     // Live updates: refresh forecasts when sales or stock change
     let debounce: ReturnType<typeof setTimeout> | null = null;
     const scheduleReload = () => {
@@ -284,6 +298,14 @@ const StockPredictions = () => {
                             <p className="text-xs text-muted-foreground mt-1">
                               Stock: <span className="font-medium text-foreground">{p.stock}</span> · Sells ~{p.avgDaily.toFixed(1)}/day · {formatDays(p.daysUntilStockout)} until stock-out
                             </p>
+                            {supplierMap[p.id] && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Truck className="h-3 w-3" /> Supplier:{" "}
+                                <Link to={`/suppliers/${supplierMap[p.id].id}`} className="text-primary hover:underline">
+                                  {supplierMap[p.id].name}
+                                </Link>
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex sm:flex-col sm:items-end gap-2 sm:gap-1 sm:text-right">
@@ -291,6 +313,11 @@ const StockPredictions = () => {
                             <>
                               <p className="text-xs text-muted-foreground">Reorder</p>
                               <p className="text-lg font-bold text-primary">{reorder} <span className="text-xs font-normal text-muted-foreground">units</span></p>
+                              <Button size="sm" variant="outline" asChild className="mt-1">
+                                <Link to={`/purchase-orders?product=${p.id}&qty=${reorder}${supplierMap[p.id] ? `&supplier=${supplierMap[p.id].id}` : ""}`}>
+                                  Create PO
+                                </Link>
+                              </Button>
                             </>
                           ) : (
                             <Badge variant="secondary" className="text-xs">No reorder needed</Badge>
