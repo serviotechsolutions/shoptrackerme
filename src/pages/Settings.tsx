@@ -91,8 +91,8 @@ const Settings = () => {
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${settings.id}-logo-${Date.now()}.${fileExt}`;
-      const filePath = `shop-logos/${fileName}`;
+      const fileName = `logo-${Date.now()}.${fileExt}`;
+      const filePath = `shop-logos/${settings.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('profile-images')
