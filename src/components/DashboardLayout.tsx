@@ -23,7 +23,9 @@ import {
   User,
   Tag,
   Sparkles,
-  Brain as BrainIcon
+  Brain as BrainIcon,
+  Truck,
+  ShoppingBag
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -88,6 +90,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/reports', label: 'Reports', icon: BarChart3, show: canViewReports },
     { path: '/ai-insights', label: 'AI Insights', icon: Brain, show: canViewReports },
     { path: '/stock-predictions', label: 'Stock Forecast', icon: BrainIcon, show: canManageProducts },
+    { path: '/suppliers', label: 'Suppliers', icon: Truck, show: true },
+    { path: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingBag, show: canManageProducts },
     { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
     { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
     { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
