@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus, Package, AlertTriangle, Download, Search, RefreshCw, Brain, Zap, Snowflake } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Package, AlertTriangle, Download, Search, RefreshCw, Brain, Zap, Snowflake, Truck } from "lucide-react";
 import {
   fetchStockPredictions,
   ProductPrediction,
@@ -34,6 +35,18 @@ const StockPredictions = () => {
   const [period, setPeriod] = useState<Period>(14);
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState<"all" | "critical" | "warning" | "monitor" | "healthy">("all");
+  const [supplierMap, setSupplierMap] = useState<Record<string, { id: string; name: string }>>({});
+
+  const loadSuppliers = async () => {
+    const { data: prods } = await (supabase as any)
+      .from("products")
+      .select("id, preferred_supplier_id, suppliers(id, name)");
+    const map: Record<string, { id: string; name: string }> = {};
+    (prods || []).forEach((p: any) => {
+      if (p.suppliers) map[p.id] = { id: p.suppliers.id, name: p.suppliers.name };
+    });
+    setSupplierMap(map);
+  };
 
   const load = async () => {
     setLoading(true);
