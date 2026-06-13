@@ -298,6 +298,14 @@ const StockPredictions = () => {
                             <p className="text-xs text-muted-foreground mt-1">
                               Stock: <span className="font-medium text-foreground">{p.stock}</span> · Sells ~{p.avgDaily.toFixed(1)}/day · {formatDays(p.daysUntilStockout)} until stock-out
                             </p>
+                            {supplierMap[p.id] && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <Truck className="h-3 w-3" /> Supplier:{" "}
+                                <Link to={`/suppliers/${supplierMap[p.id].id}`} className="text-primary hover:underline">
+                                  {supplierMap[p.id].name}
+                                </Link>
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex sm:flex-col sm:items-end gap-2 sm:gap-1 sm:text-right">
@@ -305,6 +313,11 @@ const StockPredictions = () => {
                             <>
                               <p className="text-xs text-muted-foreground">Reorder</p>
                               <p className="text-lg font-bold text-primary">{reorder} <span className="text-xs font-normal text-muted-foreground">units</span></p>
+                              <Button size="sm" variant="outline" asChild className="mt-1">
+                                <Link to={`/purchase-orders?product=${p.id}&qty=${reorder}${supplierMap[p.id] ? `&supplier=${supplierMap[p.id].id}` : ""}`}>
+                                  Create PO
+                                </Link>
+                              </Button>
                             </>
                           ) : (
                             <Badge variant="secondary" className="text-xs">No reorder needed</Badge>
