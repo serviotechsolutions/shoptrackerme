@@ -27,6 +27,8 @@ import StockPredictions from "./pages/StockPredictions";
 import Suppliers from "./pages/Suppliers";
 import SupplierProfile from "./pages/SupplierProfile";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import Customers from "./pages/Customers";
+import CustomerProfile from "./pages/CustomerProfile";
 
 const queryClient = new QueryClient();
 
