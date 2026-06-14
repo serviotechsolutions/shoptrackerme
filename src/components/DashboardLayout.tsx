@@ -84,6 +84,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const allNavItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
     { path: '/pos', label: 'POS', icon: CreditCard, show: canMakeSales },
+    { path: '/customers', label: 'Customers', icon: UserCircle2, show: true },
     { path: '/products', label: 'Products', icon: Package, show: canManageProducts },
     { path: '/sales', label: 'Sales', icon: ShoppingCart, show: canMakeSales },
     { path: '/promotions', label: 'Promotions', icon: Sparkles, show: canManagePromotions },
