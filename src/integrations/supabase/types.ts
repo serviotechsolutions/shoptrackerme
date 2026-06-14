@@ -17,38 +17,93 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          alt_phone: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          credit_limit: number
           date_of_birth: string | null
+          district: string | null
           email: string | null
+          first_name: string | null
+          gender: string | null
           id: string
+          last_name: string | null
+          lifetime_value: number
+          loyalty_points: number
+          loyalty_tier: string
           name: string
+          notes: string | null
           phone: string | null
+          photo_url: string | null
+          referral_count: number
+          referred_by: string | null
+          status: string
           tenant_id: string
           updated_at: string
         }
         Insert: {
           address?: string | null
+          alt_phone?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          credit_limit?: number
           date_of_birth?: string | null
+          district?: string | null
           email?: string | null
+          first_name?: string | null
+          gender?: string | null
           id?: string
+          last_name?: string | null
+          lifetime_value?: number
+          loyalty_points?: number
+          loyalty_tier?: string
           name: string
+          notes?: string | null
           phone?: string | null
+          photo_url?: string | null
+          referral_count?: number
+          referred_by?: string | null
+          status?: string
           tenant_id: string
           updated_at?: string
         }
         Update: {
           address?: string | null
+          alt_phone?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          credit_limit?: number
           date_of_birth?: string | null
+          district?: string | null
           email?: string | null
+          first_name?: string | null
+          gender?: string | null
           id?: string
+          last_name?: string | null
+          lifetime_value?: number
+          loyalty_points?: number
+          loyalty_tier?: string
           name?: string
+          notes?: string | null
           phone?: string | null
+          photo_url?: string | null
+          referral_count?: number
+          referred_by?: string | null
+          status?: string
           tenant_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "customers_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "customers_tenant_id_fkey"
             columns: ["tenant_id"]
