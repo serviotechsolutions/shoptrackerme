@@ -25,7 +25,8 @@ import {
   Sparkles,
   Brain as BrainIcon,
   Truck,
-  ShoppingBag
+  ShoppingBag,
+  UserCircle2
 } from 'lucide-react';
 import {
   DropdownMenu,
