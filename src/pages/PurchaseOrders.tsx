@@ -212,9 +212,11 @@ const PurchaseOrders = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <p className="font-semibold">{Number(po.total_amount).toLocaleString()}</p>
-                      {canEdit && po.status !== "received" && po.status !== "cancelled" && (
-                        <Button size="sm" variant="outline" onClick={() => markReceived(po)}>
-                          Mark received <ArrowRight className="h-3 w-3 ml-1" />
+                      {canEdit && po.status === "approved" && (
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to={`/grn?po=${po.id}`}>
+                            Receive goods <ArrowRight className="h-3 w-3 ml-1" />
+                          </Link>
                         </Button>
                       )}
                     </div>

@@ -27,6 +27,7 @@ import StockPredictions from "./pages/StockPredictions";
 import Suppliers from "./pages/Suppliers";
 import SupplierProfile from "./pages/SupplierProfile";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
 import Customers from "./pages/Customers";
 import CustomerProfile from "./pages/CustomerProfile";
 
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
             <Route path="/suppliers/:id" element={<ProtectedRoute><SupplierProfile /></ProtectedRoute>} />
             <Route path="/purchase-orders" element={<ProtectedRoute><PurchaseOrders /></ProtectedRoute>} />
+            <Route path="/grn" element={<ProtectedRoute><GoodsReceivedNotes /></ProtectedRoute>} />
             <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
             <Route path="/customers/:id" element={<ProtectedRoute><CustomerProfile /></ProtectedRoute>} />
             <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
