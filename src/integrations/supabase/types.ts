@@ -113,6 +113,215 @@ export type Database = {
           },
         ]
       }
+      goods_received_notes: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          delivery_note_ref: string | null
+          documents: Json
+          grn_number: string
+          id: string
+          invoice_ref: string | null
+          notes: string | null
+          purchase_order_id: string | null
+          received_by: string | null
+          received_date: string
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          status: string
+          supplier_id: string | null
+          tenant_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_note_ref?: string | null
+          documents?: Json
+          grn_number: string
+          id?: string
+          invoice_ref?: string | null
+          notes?: string | null
+          purchase_order_id?: string | null
+          received_by?: string | null
+          received_date?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_note_ref?: string | null
+          documents?: Json
+          grn_number?: string
+          id?: string
+          invoice_ref?: string | null
+          notes?: string | null
+          purchase_order_id?: string | null
+          received_by?: string | null
+          received_date?: string
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          status?: string
+          supplier_id?: string | null
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_received_notes_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_received_notes_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_received_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grn_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          grn_id: string
+          id: string
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          grn_id: string
+          id?: string
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          grn_id?: string
+          id?: string
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_audit_log_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "goods_received_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grn_items: {
+        Row: {
+          created_at: string
+          excess_accepted: boolean
+          grn_id: string
+          id: string
+          notes: string | null
+          ordered_quantity: number
+          previously_received: number
+          product_id: string | null
+          product_name: string
+          purchase_order_item_id: string | null
+          received_quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          excess_accepted?: boolean
+          grn_id: string
+          id?: string
+          notes?: string | null
+          ordered_quantity?: number
+          previously_received?: number
+          product_id?: string | null
+          product_name: string
+          purchase_order_item_id?: string | null
+          received_quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          excess_accepted?: boolean
+          grn_id?: string
+          id?: string
+          notes?: string | null
+          ordered_quantity?: number
+          previously_received?: number
+          product_id?: string | null
+          product_name?: string
+          purchase_order_item_id?: string | null
+          received_quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_items_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "goods_received_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_purchase_order_item_id_fkey"
+            columns: ["purchase_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
