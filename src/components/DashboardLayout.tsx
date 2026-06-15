@@ -26,7 +26,8 @@ import {
   Brain as BrainIcon,
   Truck,
   ShoppingBag,
-  UserCircle2
+  UserCircle2,
+  PackageCheck
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -94,6 +95,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/stock-predictions', label: 'Stock Forecast', icon: BrainIcon, show: canManageProducts },
     { path: '/suppliers', label: 'Suppliers', icon: Truck, show: true },
     { path: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingBag, show: canManageProducts },
+    { path: '/grn', label: 'Goods Received (GRN)', icon: PackageCheck, show: true },
     { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
     { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
     { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
