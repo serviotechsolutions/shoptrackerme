@@ -18,7 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2 } from "lucide-react";
+import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2 } from "lucide-react";
+
+type SuppliedItem = { name: string; unit: string; price: number };
 
 type Supplier = {
   id: string;
@@ -35,11 +37,12 @@ type Supplier = {
   tax_number: string | null;
   business_reg_number: string | null;
   products_supplied: string | null;
+  supplied_items: SuppliedItem[] | null;
   notes: string | null;
   status: "active" | "inactive";
 };
 
-const emptyForm: Partial<Supplier> = { status: "active" };
+const emptyForm: Partial<Supplier> = { status: "active", supplied_items: [] };
 
 const Suppliers = () => {
   const { user } = useAuth();
