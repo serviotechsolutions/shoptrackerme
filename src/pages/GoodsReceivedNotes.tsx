@@ -335,15 +335,17 @@ const GoodsReceivedNotes = () => {
     const { data: rows } = await (supabase as any)
       .from("grn_items").select("*").eq("grn_id", g.id);
     if (!rows?.length) { toast.error("No items"); return; }
-    await applyStockMovement(rows, +1);
+    const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+    const created = await applyStockMovement(rows, +1, profile?.tenant_id, g.supplier_id, g.id);
     await (supabase as any).from("goods_received_notes").update({
       status: "approved", approved_by: user!.id, approved_at: new Date().toISOString(),
     }).eq("id", g.id);
     await maybeMarkPoReceived(g.purchase_order_id);
-    const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
     await (supabase as any).from("grn_audit_log").insert({
-      grn_id: g.id, tenant_id: profile?.tenant_id, user_id: user!.id, action: "approved", details: {},
+      grn_id: g.id, tenant_id: profile?.tenant_id, user_id: user!.id, action: "approved",
+      details: { created_products: created },
     });
+    if (created > 0) toast.success(`${created} new product${created > 1 ? "s" : ""} added to inventory`);
     toast.success("GRN approved");
     load();
   };
