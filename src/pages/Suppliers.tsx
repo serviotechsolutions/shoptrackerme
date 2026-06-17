@@ -123,9 +123,23 @@ const Suppliers = () => {
   };
   const startEdit = (s: Supplier) => {
     setEditing(s);
-    setForm(s);
+    // Migrate legacy comma-separated string into structured rows if needed
+    let items: SuppliedItem[] = Array.isArray(s.supplied_items) ? s.supplied_items : [];
+    if ((!items || items.length === 0) && s.products_supplied) {
+      items = s.products_supplied
+        .split(/[\n,;|]+/).map(x => x.trim()).filter(Boolean)
+        .map(name => ({ name, unit: "piece", price: 0 }));
+    }
+    setForm({ ...s, supplied_items: items });
     setOpen(true);
   };
+
+  const addSupplied = () => setForm(f => ({ ...f, supplied_items: [...(f.supplied_items || []), { name: "", unit: "piece", price: 0 }] }));
+  const updateSupplied = (i: number, patch: Partial<SuppliedItem>) => setForm(f => ({
+    ...f,
+    supplied_items: (f.supplied_items || []).map((it, idx) => idx === i ? { ...it, ...patch } : it),
+  }));
+  const removeSupplied = (i: number) => setForm(f => ({ ...f, supplied_items: (f.supplied_items || []).filter((_, idx) => idx !== i) }));
 
   const save = async () => {
     if (!form.name?.trim()) {
