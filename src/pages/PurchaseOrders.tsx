@@ -396,7 +396,7 @@ const PurchaseOrders = () => {
                     );
                   })}
                   <datalist id={`supplier-products-${form.supplier_id}`}>
-                    {supplierProducts.map(n => <option key={n} value={n} />)}
+                    {supplierItems.map(si => <option key={si.name} value={si.name} />)}
                   </datalist>
                 </div>
               )}
