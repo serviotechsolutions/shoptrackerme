@@ -20,17 +20,20 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
 
-type Supplier = { id: string; name: string; products_supplied: string | null };
+type SuppliedItem = { name: string; unit: string; price: number };
+type Supplier = { id: string; name: string; products_supplied: string | null; supplied_items: SuppliedItem[] | null };
 type Product = { id: string; name: string; buying_price: number | null; last_purchase_price: number | null };
-type Item = { product_id: string | null; product_name: string; quantity: number; unit_cost: number };
+type Item = { product_id: string | null; product_name: string; unit: string; quantity: number; unit_cost: number };
 type PO = { id: string; po_number: string; supplier_id: string | null; status: string; total_amount: number; amount_paid: number; ordered_at: string; received_at: string | null };
 
-const parseSupplied = (raw: string | null | undefined): string[] => {
-  if (!raw) return [];
-  return raw
-    .split(/[\n,;|]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+const parseSuppliedItems = (s: Supplier | null | undefined): SuppliedItem[] => {
+  if (!s) return [];
+  if (Array.isArray(s.supplied_items) && s.supplied_items.length) return s.supplied_items;
+  // Fallback: legacy comma/newline string with no price
+  if (!s.products_supplied) return [];
+  return s.products_supplied
+    .split(/[\n,;|]+/).map(x => x.trim()).filter(Boolean)
+    .map(name => ({ name, unit: "piece", price: 0 }));
 };
 
 const PurchaseOrders = () => {
