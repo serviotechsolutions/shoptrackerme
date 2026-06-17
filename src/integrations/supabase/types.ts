@@ -1064,6 +1064,7 @@ export type Database = {
           phone: string | null
           products_supplied: string | null
           status: string
+          supplied_items: Json
           tax_number: string | null
           tenant_id: string
           updated_at: string
@@ -1084,6 +1085,7 @@ export type Database = {
           phone?: string | null
           products_supplied?: string | null
           status?: string
+          supplied_items?: Json
           tax_number?: string | null
           tenant_id: string
           updated_at?: string
@@ -1104,6 +1106,7 @@ export type Database = {
           phone?: string | null
           products_supplied?: string | null
           status?: string
+          supplied_items?: Json
           tax_number?: string | null
           tenant_id?: string
           updated_at?: string

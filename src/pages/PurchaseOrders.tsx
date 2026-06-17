@@ -20,17 +20,20 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
 
-type Supplier = { id: string; name: string; products_supplied: string | null };
+type SuppliedItem = { name: string; unit: string; price: number };
+type Supplier = { id: string; name: string; products_supplied: string | null; supplied_items: SuppliedItem[] | null };
 type Product = { id: string; name: string; buying_price: number | null; last_purchase_price: number | null };
-type Item = { product_id: string | null; product_name: string; quantity: number; unit_cost: number };
+type Item = { product_id: string | null; product_name: string; unit: string; quantity: number; unit_cost: number };
 type PO = { id: string; po_number: string; supplier_id: string | null; status: string; total_amount: number; amount_paid: number; ordered_at: string; received_at: string | null };
 
-const parseSupplied = (raw: string | null | undefined): string[] => {
-  if (!raw) return [];
-  return raw
-    .split(/[\n,;|]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+const parseSuppliedItems = (s: Supplier | null | undefined): SuppliedItem[] => {
+  if (!s) return [];
+  if (Array.isArray(s.supplied_items) && s.supplied_items.length) return s.supplied_items;
+  // Fallback: legacy comma/newline string with no price
+  if (!s.products_supplied) return [];
+  return s.products_supplied
+    .split(/[\n,;|]+/).map(x => x.trim()).filter(Boolean)
+    .map(name => ({ name, unit: "piece", price: 0 }));
 };
 
 const PurchaseOrders = () => {
@@ -79,6 +82,7 @@ const PurchaseOrders = () => {
           items.push({
             product_id: prod.id,
             product_name: prod.name,
+            unit: "piece",
             quantity: presetQty ? Math.max(1, Number(presetQty)) : 1,
             unit_cost: Number(prod.last_purchase_price || prod.buying_price || 0),
           });
@@ -94,8 +98,8 @@ const PurchaseOrders = () => {
     () => suppliers.find(s => s.id === form.supplier_id) || null,
     [suppliers, form.supplier_id]
   );
-  const supplierProducts = useMemo(
-    () => parseSupplied(selectedSupplier?.products_supplied),
+  const supplierItems = useMemo(
+    () => parseSuppliedItems(selectedSupplier),
     [selectedSupplier]
   );
 
@@ -104,8 +108,26 @@ const PurchaseOrders = () => {
     [form.items]
   );
 
-  const addItem = (presetName = "") => {
-    // Pre-link inventory product if there's an exact (case-insensitive) match
+  const buildItemFromSupplied = (si: SuppliedItem): Item => {
+    const match = products.find(p => p.name.trim().toLowerCase() === si.name.trim().toLowerCase());
+    return {
+      product_id: match?.id || null,
+      product_name: si.name,
+      unit: si.unit || "piece",
+      quantity: 1,
+      // Use supplier's default price; fall back to inventory cost only when supplier has 0
+      unit_cost: Number(si.price) > 0
+        ? Number(si.price)
+        : Number(match?.last_purchase_price || match?.buying_price || 0),
+    };
+  };
+
+  const addItem = (preset?: SuppliedItem | string) => {
+    if (preset && typeof preset !== "string") {
+      setForm(f => ({ ...f, items: [...f.items, buildItemFromSupplied(preset)] }));
+      return;
+    }
+    const presetName = typeof preset === "string" ? preset : "";
     const match = presetName
       ? products.find(p => p.name.trim().toLowerCase() === presetName.trim().toLowerCase())
       : null;
@@ -113,7 +135,8 @@ const PurchaseOrders = () => {
       ...f,
       items: [...f.items, {
         product_id: match?.id || null,
-        product_name: presetName || "",
+        product_name: presetName,
+        unit: "piece",
         quantity: 1,
         unit_cost: Number(match?.last_purchase_price || match?.buying_price || 0),
       }],
@@ -125,11 +148,15 @@ const PurchaseOrders = () => {
     items: f.items.map((it, idx) => {
       if (idx !== i) return it;
       const next = { ...it, ...patch };
-      // Re-evaluate inventory linkage whenever the name changes
       if (patch.product_name !== undefined) {
         const match = products.find(p => p.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
         next.product_id = match?.id || null;
-        if (match && !it.unit_cost) {
+        // Try supplier default price first when name matches a supplier entry
+        const supplied = supplierItems.find(s => s.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
+        if (supplied) {
+          if (!it.unit_cost && Number(supplied.price) > 0) next.unit_cost = Number(supplied.price);
+          if (!it.unit || it.unit === "piece") next.unit = supplied.unit || next.unit;
+        } else if (match && !it.unit_cost) {
           next.unit_cost = Number(match.last_purchase_price || match.buying_price || 0);
         }
       }
@@ -138,23 +165,12 @@ const PurchaseOrders = () => {
   }));
 
   const addAllSupplierProducts = () => {
-    if (!supplierProducts.length) return;
+    if (!supplierItems.length) return;
     const existingNames = new Set(form.items.map(i => i.product_name.trim().toLowerCase()));
-    const toAdd = supplierProducts.filter(n => !existingNames.has(n.toLowerCase()));
+    const toAdd = supplierItems.filter(si => !existingNames.has(si.name.toLowerCase()));
     setForm(f => ({
       ...f,
-      items: [
-        ...f.items,
-        ...toAdd.map(name => {
-          const match = products.find(p => p.name.trim().toLowerCase() === name.toLowerCase());
-          return {
-            product_id: match?.id || null,
-            product_name: name,
-            quantity: 1,
-            unit_cost: Number(match?.last_purchase_price || match?.buying_price || 0),
-          };
-        }),
-      ],
+      items: [...f.items, ...toAdd.map(buildItemFromSupplied)],
     }));
   };
 
@@ -289,43 +305,45 @@ const PurchaseOrders = () => {
                     <Sparkles className="h-3 w-3 text-primary" />
                     Products supplied by {selectedSupplier?.name}
                   </p>
-                  {supplierProducts.length > 0 && (
+                  {supplierItems.length > 0 && (
                     <Button size="sm" variant="outline" onClick={addAllSupplierProducts}>
                       Add all
                     </Button>
                   )}
                 </div>
-                {supplierProducts.length === 0 ? (
+                {supplierItems.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    This supplier has no products listed. Edit the supplier and fill in
-                    "Products Supplied", or add custom items below.
+                    This supplier has no products listed. Edit the supplier and add the
+                    products they supply (with unit & price), or add a custom item below.
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-1">
-                    {supplierProducts.map(name => {
-                      const already = form.items.some(i => i.product_name.trim().toLowerCase() === name.toLowerCase());
-                      const inInventory = products.some(p => p.name.trim().toLowerCase() === name.toLowerCase());
+                    {supplierItems.map(si => {
+                      const already = form.items.some(i => i.product_name.trim().toLowerCase() === si.name.toLowerCase());
+                      const inInventory = products.some(p => p.name.trim().toLowerCase() === si.name.toLowerCase());
                       return (
                         <button
-                          key={name}
+                          key={si.name}
                           type="button"
                           disabled={already}
-                          onClick={() => addItem(name)}
+                          onClick={() => addItem(si)}
                           className={`text-xs px-2 py-1 rounded border transition ${
                             already
                               ? "opacity-50 cursor-not-allowed bg-background"
                               : "bg-background hover:bg-primary hover:text-primary-foreground"
                           }`}
-                          title={inInventory ? "In inventory" : "Will be created as new product on receipt"}
+                          title={`${si.price > 0 ? si.price.toLocaleString() + " / " + si.unit : "no default price"}${inInventory ? " · in inventory" : " · new product"}`}
                         >
-                          + {name}{!inInventory && " ✨"}
+                          + {si.name}
+                          {si.price > 0 && <span className="opacity-70"> · {si.price.toLocaleString()}/{si.unit}</span>}
+                          {!inInventory && " ✨"}
                         </button>
                       );
                     })}
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground">
-                  ✨ = not yet in your inventory. It will be created automatically when you receive the goods.
+                  Prices come from this supplier's profile. ✨ = not yet in your inventory; it will be created when goods are received.
                 </p>
               </div>
             )}
@@ -347,7 +365,7 @@ const PurchaseOrders = () => {
                     const isNew = !it.product_id && it.product_name.trim().length > 0;
                     return (
                       <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                        <div className="col-span-12 sm:col-span-5">
+                        <div className="col-span-12 sm:col-span-4">
                           <Label className="text-[10px] flex items-center gap-1">
                             Product
                             {isNew && <Badge variant="outline" className="text-[9px] py-0">new</Badge>}
@@ -361,24 +379,28 @@ const PurchaseOrders = () => {
                           />
                         </div>
                         <div className="col-span-4 sm:col-span-2">
+                          <Label className="text-[10px]">Unit</Label>
+                          <Input value={it.unit} onChange={e => updateItem(i, { unit: e.target.value })} placeholder="piece" />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
                           <Label className="text-[10px]">Qty</Label>
                           <Input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, { quantity: Number(e.target.value) })} />
                         </div>
-                        <div className="col-span-5 sm:col-span-3">
+                        <div className="col-span-4 sm:col-span-2">
                           <Label className="text-[10px]">Unit Cost</Label>
-                          <Input type="number" min={0} value={it.unit_cost} onChange={e => updateItem(i, { unit_cost: Number(e.target.value) })} />
+                          <Input type="number" min={0} value={it.unit_cost} readOnly className="bg-muted/40 cursor-not-allowed" title="Set from the supplier's profile" />
                         </div>
-                        <div className="col-span-2 sm:col-span-1 text-right text-sm font-semibold">
+                        <div className="col-span-10 sm:col-span-1 text-right text-sm font-semibold">
                           {(it.quantity * it.unit_cost).toLocaleString()}
                         </div>
-                        <div className="col-span-1">
+                        <div className="col-span-2 sm:col-span-1">
                           <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </div>
                     );
                   })}
                   <datalist id={`supplier-products-${form.supplier_id}`}>
-                    {supplierProducts.map(n => <option key={n} value={n} />)}
+                    {supplierItems.map(si => <option key={si.name} value={si.name} />)}
                   </datalist>
                 </div>
               )}
