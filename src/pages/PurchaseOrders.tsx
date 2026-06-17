@@ -305,43 +305,45 @@ const PurchaseOrders = () => {
                     <Sparkles className="h-3 w-3 text-primary" />
                     Products supplied by {selectedSupplier?.name}
                   </p>
-                  {supplierProducts.length > 0 && (
+                  {supplierItems.length > 0 && (
                     <Button size="sm" variant="outline" onClick={addAllSupplierProducts}>
                       Add all
                     </Button>
                   )}
                 </div>
-                {supplierProducts.length === 0 ? (
+                {supplierItems.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    This supplier has no products listed. Edit the supplier and fill in
-                    "Products Supplied", or add custom items below.
+                    This supplier has no products listed. Edit the supplier and add the
+                    products they supply (with unit & price), or add a custom item below.
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-1">
-                    {supplierProducts.map(name => {
-                      const already = form.items.some(i => i.product_name.trim().toLowerCase() === name.toLowerCase());
-                      const inInventory = products.some(p => p.name.trim().toLowerCase() === name.toLowerCase());
+                    {supplierItems.map(si => {
+                      const already = form.items.some(i => i.product_name.trim().toLowerCase() === si.name.toLowerCase());
+                      const inInventory = products.some(p => p.name.trim().toLowerCase() === si.name.toLowerCase());
                       return (
                         <button
-                          key={name}
+                          key={si.name}
                           type="button"
                           disabled={already}
-                          onClick={() => addItem(name)}
+                          onClick={() => addItem(si)}
                           className={`text-xs px-2 py-1 rounded border transition ${
                             already
                               ? "opacity-50 cursor-not-allowed bg-background"
                               : "bg-background hover:bg-primary hover:text-primary-foreground"
                           }`}
-                          title={inInventory ? "In inventory" : "Will be created as new product on receipt"}
+                          title={`${si.price > 0 ? si.price.toLocaleString() + " / " + si.unit : "no default price"}${inInventory ? " · in inventory" : " · new product"}`}
                         >
-                          + {name}{!inInventory && " ✨"}
+                          + {si.name}
+                          {si.price > 0 && <span className="opacity-70"> · {si.price.toLocaleString()}/{si.unit}</span>}
+                          {!inInventory && " ✨"}
                         </button>
                       );
                     })}
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground">
-                  ✨ = not yet in your inventory. It will be created automatically when you receive the goods.
+                  Prices come from this supplier's profile. ✨ = not yet in your inventory; it will be created when goods are received.
                 </p>
               </div>
             )}
