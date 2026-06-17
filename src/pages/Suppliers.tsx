@@ -328,8 +328,44 @@ const Suppliers = () => {
               <Textarea rows={2} value={form.address || ""} onChange={e => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <Label className="text-xs">Products Supplied</Label>
-              <Textarea rows={2} placeholder="e.g. Rice, Sugar, Soap" value={form.products_supplied || ""} onChange={e => setForm({ ...form, products_supplied: e.target.value })} />
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs">Products Supplied</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addSupplied}>
+                  <Plus className="h-3 w-3 mr-1" /> Add product
+                </Button>
+              </div>
+              {(form.supplied_items || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3 border rounded">
+                  No products yet. Add the items this supplier sells, with their unit and your agreed price.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(form.supplied_items || []).map((it, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                      <div className="col-span-12 sm:col-span-5">
+                        <Label className="text-[10px]">Product name</Label>
+                        <Input value={it.name} onChange={e => updateSupplied(i, { name: e.target.value })} placeholder="e.g. Rice 25kg" />
+                      </div>
+                      <div className="col-span-5 sm:col-span-3">
+                        <Label className="text-[10px]">Unit</Label>
+                        <Input value={it.unit} onChange={e => updateSupplied(i, { unit: e.target.value })} placeholder="piece, box, kg" />
+                      </div>
+                      <div className="col-span-6 sm:col-span-3">
+                        <Label className="text-[10px]">Default price / unit</Label>
+                        <Input type="number" min={0} value={it.price} onChange={e => updateSupplied(i, { price: Number(e.target.value) })} />
+                      </div>
+                      <div className="col-span-1">
+                        <Button type="button" size="icon" variant="ghost" onClick={() => removeSupplied(i)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-1">
+                These prices and units pre-fill every Purchase Order line for this supplier.
+              </p>
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Notes</Label>
