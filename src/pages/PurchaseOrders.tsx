@@ -98,8 +98,8 @@ const PurchaseOrders = () => {
     () => suppliers.find(s => s.id === form.supplier_id) || null,
     [suppliers, form.supplier_id]
   );
-  const supplierProducts = useMemo(
-    () => parseSupplied(selectedSupplier?.products_supplied),
+  const supplierItems = useMemo(
+    () => parseSuppliedItems(selectedSupplier),
     [selectedSupplier]
   );
 
@@ -108,8 +108,26 @@ const PurchaseOrders = () => {
     [form.items]
   );
 
-  const addItem = (presetName = "") => {
-    // Pre-link inventory product if there's an exact (case-insensitive) match
+  const buildItemFromSupplied = (si: SuppliedItem): Item => {
+    const match = products.find(p => p.name.trim().toLowerCase() === si.name.trim().toLowerCase());
+    return {
+      product_id: match?.id || null,
+      product_name: si.name,
+      unit: si.unit || "piece",
+      quantity: 1,
+      // Use supplier's default price; fall back to inventory cost only when supplier has 0
+      unit_cost: Number(si.price) > 0
+        ? Number(si.price)
+        : Number(match?.last_purchase_price || match?.buying_price || 0),
+    };
+  };
+
+  const addItem = (preset?: SuppliedItem | string) => {
+    if (preset && typeof preset !== "string") {
+      setForm(f => ({ ...f, items: [...f.items, buildItemFromSupplied(preset)] }));
+      return;
+    }
+    const presetName = typeof preset === "string" ? preset : "";
     const match = presetName
       ? products.find(p => p.name.trim().toLowerCase() === presetName.trim().toLowerCase())
       : null;
@@ -117,7 +135,8 @@ const PurchaseOrders = () => {
       ...f,
       items: [...f.items, {
         product_id: match?.id || null,
-        product_name: presetName || "",
+        product_name: presetName,
+        unit: "piece",
         quantity: 1,
         unit_cost: Number(match?.last_purchase_price || match?.buying_price || 0),
       }],
@@ -129,11 +148,15 @@ const PurchaseOrders = () => {
     items: f.items.map((it, idx) => {
       if (idx !== i) return it;
       const next = { ...it, ...patch };
-      // Re-evaluate inventory linkage whenever the name changes
       if (patch.product_name !== undefined) {
         const match = products.find(p => p.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
         next.product_id = match?.id || null;
-        if (match && !it.unit_cost) {
+        // Try supplier default price first when name matches a supplier entry
+        const supplied = supplierItems.find(s => s.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
+        if (supplied) {
+          if (!it.unit_cost && Number(supplied.price) > 0) next.unit_cost = Number(supplied.price);
+          if (!it.unit || it.unit === "piece") next.unit = supplied.unit || next.unit;
+        } else if (match && !it.unit_cost) {
           next.unit_cost = Number(match.last_purchase_price || match.buying_price || 0);
         }
       }
@@ -142,23 +165,12 @@ const PurchaseOrders = () => {
   }));
 
   const addAllSupplierProducts = () => {
-    if (!supplierProducts.length) return;
+    if (!supplierItems.length) return;
     const existingNames = new Set(form.items.map(i => i.product_name.trim().toLowerCase()));
-    const toAdd = supplierProducts.filter(n => !existingNames.has(n.toLowerCase()));
+    const toAdd = supplierItems.filter(si => !existingNames.has(si.name.toLowerCase()));
     setForm(f => ({
       ...f,
-      items: [
-        ...f.items,
-        ...toAdd.map(name => {
-          const match = products.find(p => p.name.trim().toLowerCase() === name.toLowerCase());
-          return {
-            product_id: match?.id || null,
-            product_name: name,
-            quantity: 1,
-            unit_cost: Number(match?.last_purchase_price || match?.buying_price || 0),
-          };
-        }),
-      ],
+      items: [...f.items, ...toAdd.map(buildItemFromSupplied)],
     }));
   };
 
