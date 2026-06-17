@@ -166,6 +166,11 @@ const Suppliers = () => {
         tax_number: form.tax_number || null,
         business_reg_number: form.business_reg_number || null,
         products_supplied: form.products_supplied || null,
+        supplied_items: (form.supplied_items || []).filter(it => it.name?.trim()).map(it => ({
+          name: it.name.trim(),
+          unit: (it.unit || "piece").trim(),
+          price: Number(it.price) || 0,
+        })),
         notes: form.notes || null,
         status: form.status || "active",
       };
