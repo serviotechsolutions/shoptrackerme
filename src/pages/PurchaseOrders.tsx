@@ -365,7 +365,7 @@ const PurchaseOrders = () => {
                     const isNew = !it.product_id && it.product_name.trim().length > 0;
                     return (
                       <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                        <div className="col-span-12 sm:col-span-5">
+                        <div className="col-span-12 sm:col-span-4">
                           <Label className="text-[10px] flex items-center gap-1">
                             Product
                             {isNew && <Badge variant="outline" className="text-[9px] py-0">new</Badge>}
@@ -379,17 +379,21 @@ const PurchaseOrders = () => {
                           />
                         </div>
                         <div className="col-span-4 sm:col-span-2">
+                          <Label className="text-[10px]">Unit</Label>
+                          <Input value={it.unit} onChange={e => updateItem(i, { unit: e.target.value })} placeholder="piece" />
+                        </div>
+                        <div className="col-span-4 sm:col-span-2">
                           <Label className="text-[10px]">Qty</Label>
                           <Input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, { quantity: Number(e.target.value) })} />
                         </div>
-                        <div className="col-span-5 sm:col-span-3">
+                        <div className="col-span-4 sm:col-span-2">
                           <Label className="text-[10px]">Unit Cost</Label>
-                          <Input type="number" min={0} value={it.unit_cost} onChange={e => updateItem(i, { unit_cost: Number(e.target.value) })} />
+                          <Input type="number" min={0} value={it.unit_cost} readOnly className="bg-muted/40 cursor-not-allowed" title="Set from the supplier's profile" />
                         </div>
-                        <div className="col-span-2 sm:col-span-1 text-right text-sm font-semibold">
+                        <div className="col-span-10 sm:col-span-1 text-right text-sm font-semibold">
                           {(it.quantity * it.unit_cost).toLocaleString()}
                         </div>
-                        <div className="col-span-1">
+                        <div className="col-span-2 sm:col-span-1">
                           <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </div>
