@@ -562,7 +562,14 @@ const GoodsReceivedNotes = () => {
                     return (
                       <div key={i} className="p-3 border rounded space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-medium text-sm">{it.product_name}</p>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="font-medium text-sm truncate">{it.product_name}</p>
+                            {!it.product_id && (
+                              <Badge variant="outline" className="text-[10px] border-primary text-primary shrink-0">
+                                will create
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex gap-1 text-xs">
                             <Badge variant="outline">Ordered: {it.ordered_quantity}</Badge>
                             {it.previously_received > 0 && <Badge variant="secondary">Prev: {it.previously_received}</Badge>}
