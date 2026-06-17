@@ -82,6 +82,7 @@ const PurchaseOrders = () => {
           items.push({
             product_id: prod.id,
             product_name: prod.name,
+            unit: "piece",
             quantity: presetQty ? Math.max(1, Number(presetQty)) : 1,
             unit_cost: Number(prod.last_purchase_price || prod.buying_price || 0),
           });
