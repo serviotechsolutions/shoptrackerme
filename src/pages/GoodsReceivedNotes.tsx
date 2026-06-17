@@ -226,8 +226,11 @@ const GoodsReceivedNotes = () => {
       if (itErr) throw itErr;
 
       if (status === "approved") {
-        await applyStockMovement(rows, +1);
+        const createdCount = await applyStockMovement(rows, +1, tenant_id, selSupplier || null, grn.id);
         await maybeMarkPoReceived(selPo);
+        if (createdCount > 0) {
+          toast.success(`${createdCount} new product${createdCount > 1 ? "s" : ""} added to inventory`);
+        }
       }
 
       await (supabase as any).from("grn_audit_log").insert({
@@ -246,16 +249,63 @@ const GoodsReceivedNotes = () => {
     }
   };
 
-  const applyStockMovement = async (rows: any[], direction: 1 | -1) => {
+  // Returns number of products auto-created in inventory.
+  const applyStockMovement = async (
+    rows: any[],
+    direction: 1 | -1,
+    tenantId?: string,
+    supplierId?: string | null,
+    grnId?: string,
+  ): Promise<number> => {
+    let created = 0;
     for (const r of rows) {
-      if (!r.product_id || !r.received_quantity) continue;
+      if (!r.received_quantity) continue;
+      let productId: string | null = r.product_id;
+
+      // Auto-create the product if it doesn't exist in inventory yet.
+      if (!productId && direction === 1 && tenantId && r.product_name) {
+        const { data: existing } = await supabase
+          .from("products")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .ilike("name", r.product_name.trim())
+          .maybeSingle();
+        if (existing?.id) {
+          productId = existing.id;
+        } else {
+          const { data: newProd, error: pErr } = await supabase
+            .from("products")
+            .insert({
+              tenant_id: tenantId,
+              name: r.product_name.trim(),
+              buying_price: Number(r.unit_cost || 0),
+              selling_price: 0,
+              stock: 0,
+              preferred_supplier_id: supplierId || null,
+              last_purchase_price: Number(r.unit_cost || 0),
+            })
+            .select("id")
+            .single();
+          if (pErr || !newProd) continue;
+          productId = newProd.id;
+          created += 1;
+        }
+        // Link the GRN item to the new/found product so future reversals work.
+        if (grnId && productId) {
+          await (supabase as any).from("grn_items")
+            .update({ product_id: productId }).eq("id", r.id);
+        }
+      }
+
+      if (!productId) continue;
       const { data: prod } = await supabase
-        .from("products").select("stock").eq("id", r.product_id).maybeSingle();
+        .from("products").select("stock").eq("id", productId).maybeSingle();
       const newStock = Math.max(0, Number(prod?.stock || 0) + direction * Number(r.received_quantity));
       const update: any = { stock: newStock };
       if (direction === 1) update.last_purchase_price = Number(r.unit_cost);
-      await supabase.from("products").update(update).eq("id", r.product_id);
+      await supabase.from("products").update(update).eq("id", productId);
     }
+    return created;
   };
 
   const maybeMarkPoReceived = async (poId: string | null) => {
