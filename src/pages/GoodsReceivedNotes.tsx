@@ -813,6 +813,13 @@ const GoodsReceivedNotes = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SellingPriceAdvisorDialog
+        open={advisorOpen}
+        reviews={advisorReviews}
+        onClose={() => setAdvisorOpen(false)}
+        onUpdated={() => load()}
+      />
     </DashboardLayout>
   );
 };
