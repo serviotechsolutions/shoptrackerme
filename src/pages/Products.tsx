@@ -470,18 +470,24 @@ const productData = {
               <TableRow>
                 <TableHead>Image</TableHead>
                 <TableHead>Product Name</TableHead>
-                <TableHead>Buying Price</TableHead>
+                <TableHead>Avg Cost</TableHead>
+                <TableHead>Selling Price</TableHead>
                 <TableHead>Stock</TableHead>
+                <TableHead>Inventory Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {products.length === 0 ? <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No products found. Add your first product to get started!
                   </TableCell>
-                </TableRow> : products.map(product => <TableRow key={product.id}>
+                </TableRow> : products.map(product => {
+                  const avg = Number(product.average_cost ?? product.buying_price ?? 0);
+                  const invValue = avg * Number(product.stock || 0);
+                  const belowCost = Number(product.selling_price || 0) > 0 && Number(product.selling_price) < avg;
+                  return <TableRow key={product.id}>
                     <TableCell>
                       {product.image_url ? (
                         <img 
@@ -496,8 +502,13 @@ const productData = {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{formatCurrency(product.buying_price)}</TableCell>
+                    <TableCell>{formatCurrency(avg)}</TableCell>
+                    <TableCell className={belowCost ? "text-destructive font-medium" : ""}>
+                      {formatCurrency(product.selling_price)}
+                      {belowCost && <Badge variant="destructive" className="ml-2">Below cost</Badge>}
+                    </TableCell>
                     <TableCell>{product.stock}</TableCell>
+                    <TableCell>{formatCurrency(invValue)}</TableCell>
                     <TableCell>
                       {product.stock <= product.low_stock_threshold ? <Badge variant="destructive" className="gap-1">
                           <AlertTriangle className="h-3 w-3" />
