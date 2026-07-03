@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, Save, FileText, Trash2, Upload, X, Loader2 } from 'lucide-react';
+import { Store, Save, FileText, Trash2, Upload, X, Loader2, Percent } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 interface TenantSettings {
   id: string;
@@ -16,6 +16,8 @@ interface TenantSettings {
   phone: string;
   address: string;
   logo_url: string;
+  min_profit_margin?: number;
+  price_rounding?: number;
 }
 const Settings = () => {
   const { toast } = useToast();
@@ -30,7 +32,9 @@ const Settings = () => {
     email: '',
     phone: '',
     address: '',
-    logo_url: ''
+    logo_url: '',
+    min_profit_margin: 20,
+    price_rounding: 100,
   });
   useEffect(() => {
     fetchSettings();
@@ -67,8 +71,10 @@ const Settings = () => {
         email: settings.email,
         phone: settings.phone,
         address: settings.address,
-        logo_url: settings.logo_url
-      }).eq('id', settings.id);
+        logo_url: settings.logo_url,
+        min_profit_margin: Number(settings.min_profit_margin ?? 20),
+        price_rounding: Number(settings.price_rounding ?? 100),
+      } as any).eq('id', settings.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Settings saved successfully' });
     } catch (error) {
