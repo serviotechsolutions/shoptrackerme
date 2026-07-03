@@ -449,7 +449,7 @@ const productData = {
                     <Badge variant="destructive" className="gap-1 shrink-0"><AlertTriangle className="h-3 w-3" />Low</Badge>
                   ) : <Badge variant="default" className="shrink-0">In Stock</Badge>}
                 </div>
-                <p className="text-xs text-muted-foreground">{formatCurrency(product.buying_price)} · Stock: {product.stock}</p>
+                <p className="text-xs text-muted-foreground">Avg Cost: {formatCurrency(Number(product.average_cost ?? product.buying_price ?? 0))} · Stock: {product.stock}</p>
                 <div className="flex gap-2 mt-2">
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}>
                     <Pencil className="h-3 w-3 mr-1" /> Edit
