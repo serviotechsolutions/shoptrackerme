@@ -241,10 +241,14 @@ const GoodsReceivedNotes = () => {
       if (itErr) throw itErr;
 
       if (status === "approved") {
-        const createdCount = await applyStockMovement(rows, +1, tenant_id, selSupplier || null, grn.id);
+        const { created: createdCount, reviews } = await applyStockMovement(rows, +1, tenant_id, selSupplier || null, grn.id, selPo || null);
         await maybeMarkPoReceived(selPo);
         if (createdCount > 0) {
           toast.success(`${createdCount} new product${createdCount > 1 ? "s" : ""} added to inventory`);
+        }
+        if (reviews.length) {
+          setAdvisorReviews(reviews);
+          setAdvisorOpen(true);
         }
       }
 
