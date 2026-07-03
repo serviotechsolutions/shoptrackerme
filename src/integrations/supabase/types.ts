@@ -482,8 +482,60 @@ export type Database = {
           },
         ]
       }
+      product_purchase_history: {
+        Row: {
+          created_at: string
+          grn_id: string | null
+          id: string
+          new_average_cost: number
+          new_stock: number
+          previous_average_cost: number
+          previous_stock: number
+          product_id: string
+          purchase_order_id: string | null
+          quantity: number
+          received_at: string
+          supplier_id: string | null
+          tenant_id: string
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          grn_id?: string | null
+          id?: string
+          new_average_cost?: number
+          new_stock?: number
+          previous_average_cost?: number
+          previous_stock?: number
+          product_id: string
+          purchase_order_id?: string | null
+          quantity: number
+          received_at?: string
+          supplier_id?: string | null
+          tenant_id: string
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          grn_id?: string | null
+          id?: string
+          new_average_cost?: number
+          new_stock?: number
+          previous_average_cost?: number
+          previous_stock?: number
+          product_id?: string
+          purchase_order_id?: string | null
+          quantity?: number
+          received_at?: string
+          supplier_id?: string | null
+          tenant_id?: string
+          unit_cost?: number
+        }
+        Relationships: []
+      }
       products: {
         Row: {
+          average_cost: number
           barcode: string | null
           buying_price: number
           category: string | null
@@ -491,6 +543,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          last_purchase_date: string | null
           last_purchase_price: number | null
           low_stock_threshold: number
           name: string
@@ -503,6 +556,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          average_cost?: number
           barcode?: string | null
           buying_price: number
           category?: string | null
@@ -510,6 +564,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          last_purchase_date?: string | null
           last_purchase_price?: number | null
           low_stock_threshold?: number
           name: string
@@ -522,6 +577,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          average_cost?: number
           barcode?: string | null
           buying_price?: number
           category?: string | null
@@ -529,6 +585,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          last_purchase_date?: string | null
           last_purchase_price?: number | null
           low_stock_threshold?: number
           name?: string
@@ -1175,8 +1232,10 @@ export type Database = {
           email: string | null
           id: string
           logo_url: string | null
+          min_profit_margin: number
           name: string
           phone: string | null
+          price_rounding: number
           updated_at: string
         }
         Insert: {
@@ -1185,8 +1244,10 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          min_profit_margin?: number
           name: string
           phone?: string | null
+          price_rounding?: number
           updated_at?: string
         }
         Update: {
@@ -1195,14 +1256,17 @@ export type Database = {
           email?: string | null
           id?: string
           logo_url?: string | null
+          min_profit_margin?: number
           name?: string
           phone?: string | null
+          price_rounding?: number
           updated_at?: string
         }
         Relationships: []
       }
       transactions: {
         Row: {
+          average_cost_at_sale: number | null
           created_at: string
           created_by: string
           discount_amount: number | null
@@ -1221,6 +1285,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          average_cost_at_sale?: number | null
           created_at?: string
           created_by: string
           discount_amount?: number | null
@@ -1239,6 +1304,7 @@ export type Database = {
           unit_price: number
         }
         Update: {
+          average_cost_at_sale?: number | null
           created_at?: string
           created_by?: string
           discount_amount?: number | null
