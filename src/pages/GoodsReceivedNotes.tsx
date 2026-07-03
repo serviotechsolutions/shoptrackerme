@@ -264,15 +264,20 @@ const GoodsReceivedNotes = () => {
     }
   };
 
-  // Returns number of products auto-created in inventory.
+  // Applies stock movement + weighted-average cost update + purchase-history logging.
+  // Returns list of pricing reviews (for advisor) and count of auto-created products.
   const applyStockMovement = async (
     rows: any[],
     direction: 1 | -1,
     tenantId?: string,
     supplierId?: string | null,
     grnId?: string,
-  ): Promise<number> => {
+    purchaseOrderId?: string | null,
+  ): Promise<{ created: number; reviews: PricingReview[] }> => {
     let created = 0;
+    const reviews: PricingReview[] = [];
+    const settings = tenantId ? await loadPricingSettings(tenantId) : DEFAULT_PRICING;
+
     for (const r of rows) {
       if (!r.received_quantity) continue;
       let productId: string | null = r.product_id;
@@ -298,14 +303,15 @@ const GoodsReceivedNotes = () => {
               stock: 0,
               preferred_supplier_id: supplierId || null,
               last_purchase_price: Number(r.unit_cost || 0),
-            })
+              average_cost: Number(r.unit_cost || 0),
+              last_purchase_date: new Date().toISOString(),
+            } as any)
             .select("id")
             .single();
           if (pErr || !newProd) continue;
           productId = newProd.id;
           created += 1;
         }
-        // Link the GRN item to the new/found product so future reversals work.
         if (grnId && productId) {
           await (supabase as any).from("grn_items")
             .update({ product_id: productId }).eq("id", r.id);
@@ -313,14 +319,64 @@ const GoodsReceivedNotes = () => {
       }
 
       if (!productId) continue;
+
       const { data: prod } = await supabase
-        .from("products").select("stock").eq("id", productId).maybeSingle();
-      const newStock = Math.max(0, Number(prod?.stock || 0) + direction * Number(r.received_quantity));
-      const update: any = { stock: newStock };
-      if (direction === 1) update.last_purchase_price = Number(r.unit_cost);
+        .from("products")
+        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price")
+        .eq("id", productId)
+        .maybeSingle();
+      if (!prod) continue;
+
+      const prevStock = Number(prod.stock || 0);
+      const prevAvg = Number((prod as any).average_cost || prod.last_purchase_price || prod.buying_price || 0);
+      const qty = Number(r.received_quantity);
+      const unitCost = Number(r.unit_cost || 0);
+      const newStock = Math.max(0, prevStock + direction * qty);
+
+      let newAvg = prevAvg;
+      if (direction === 1) {
+        newAvg = weightedAverageCost(prevStock, prevAvg, qty, unitCost);
+      } else if (newStock === 0) {
+        // On full reversal, keep previous avg cost as historical reference — don't reset.
+        newAvg = prevAvg;
+      }
+
+      const update: any = { stock: newStock, average_cost: newAvg };
+      if (direction === 1) {
+        update.last_purchase_price = unitCost;
+        update.last_purchase_date = new Date().toISOString();
+      }
       await supabase.from("products").update(update).eq("id", productId);
+
+      // Log purchase history (only on inbound movement)
+      if (direction === 1 && tenantId) {
+        await (supabase as any).from("product_purchase_history").insert({
+          tenant_id: tenantId,
+          product_id: productId,
+          supplier_id: supplierId || null,
+          grn_id: grnId || null,
+          purchase_order_id: purchaseOrderId || null,
+          quantity: qty,
+          unit_cost: unitCost,
+          previous_stock: prevStock,
+          previous_average_cost: prevAvg,
+          new_stock: newStock,
+          new_average_cost: newAvg,
+        });
+
+        reviews.push(
+          evaluatePricing({
+            productId,
+            productName: prod.name,
+            previousAverageCost: prevAvg,
+            newAverageCost: newAvg,
+            currentSellingPrice: Number(prod.selling_price || 0),
+            settings,
+          }),
+        );
+      }
     }
-    return created;
+    return { created, reviews };
   };
 
   const maybeMarkPoReceived = async (poId: string | null) => {
