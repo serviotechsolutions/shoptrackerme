@@ -23,6 +23,9 @@ interface Product {
   image_url: string | null;
   barcode: string | null;
   category: string;
+  average_cost?: number | null;
+  last_purchase_price?: number | null;
+  last_purchase_date?: string | null;
 }
 
 const CATEGORIES = [
