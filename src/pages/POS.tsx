@@ -777,11 +777,12 @@ const POS = () => {
           quantity: item.quantity, unit_price: item.selling_price,
           total_amount: totalAmount, profit: itemProfit, payment_method: paymentMethod,
           created_by: user.id,
+          average_cost_at_sale: costOf(item),
           discount_type: discountAmount > 0 ? discountType : null,
           discount_value: discountAmount > 0 ? (discountType === "promo" ? validatedPromo?.discount_value : parseFloat(discountValue)) : 0,
           promo_code: discountType === "promo" ? promoCode.toUpperCase() : null,
           discount_amount: itemDiscount
-        });
+        } as any);
         if (transactionError) throw transactionError;
 
         const { error: stockError } = await supabase.from("products").update({ stock: item.stock - item.quantity }).eq("id", item.id);
