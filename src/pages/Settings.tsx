@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Store, Save, FileText, Trash2, Upload, X, Loader2 } from 'lucide-react';
+import { Store, Save, FileText, Trash2, Upload, X, Loader2, Percent } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 interface TenantSettings {
   id: string;
@@ -16,6 +16,8 @@ interface TenantSettings {
   phone: string;
   address: string;
   logo_url: string;
+  min_profit_margin?: number;
+  price_rounding?: number;
 }
 const Settings = () => {
   const { toast } = useToast();
@@ -30,7 +32,9 @@ const Settings = () => {
     email: '',
     phone: '',
     address: '',
-    logo_url: ''
+    logo_url: '',
+    min_profit_margin: 20,
+    price_rounding: 100,
   });
   useEffect(() => {
     fetchSettings();
@@ -67,8 +71,10 @@ const Settings = () => {
         email: settings.email,
         phone: settings.phone,
         address: settings.address,
-        logo_url: settings.logo_url
-      }).eq('id', settings.id);
+        logo_url: settings.logo_url,
+        min_profit_margin: Number(settings.min_profit_margin ?? 20),
+        price_rounding: Number(settings.price_rounding ?? 100),
+      } as any).eq('id', settings.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Settings saved successfully' });
     } catch (error) {
@@ -248,6 +254,53 @@ const Settings = () => {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              Pricing Settings
+            </CardTitle>
+            <CardDescription>
+              Set your desired minimum profit margin. The Selling Price Advisor uses this to suggest prices after inventory cost changes. Your prices are never changed automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="min_margin">Minimum Profit Margin (%)</Label>
+                <Input
+                  id="min_margin"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={settings.min_profit_margin ?? 20}
+                  onChange={(e) => setSettings({ ...settings, min_profit_margin: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Common: 10, 15, 20, 25, 30</p>
+              </div>
+              <div>
+                <Label htmlFor="rounding">Price Rounding (nearest)</Label>
+                <Input
+                  id="rounding"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={settings.price_rounding ?? 100}
+                  onChange={(e) => setSettings({ ...settings, price_rounding: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Suggested prices are rounded to this step (e.g. 100 UGX).</p>
+              </div>
+            </div>
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Pricing Settings'}
+            </Button>
+          </CardContent>
+        </Card>
+
+
 
         <Card>
           <CardHeader>

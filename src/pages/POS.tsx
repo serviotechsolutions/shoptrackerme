@@ -28,6 +28,7 @@ interface Product {
   name: string;
   selling_price: number;
   buying_price: number;
+  average_cost?: number | null;
   stock: number;
   image_url: string | null;
   barcode: string | null;
@@ -35,6 +36,10 @@ interface Product {
   category: string;
   low_stock_threshold: number;
 }
+
+// Effective unit cost for profit + below-cost checks (prefer weighted average cost).
+const costOf = (p: { average_cost?: number | null; buying_price?: number | null }) =>
+  Number(p.average_cost ?? 0) > 0 ? Number(p.average_cost) : Number(p.buying_price || 0);
 
 interface CartItem extends Product {
   quantity: number;
@@ -229,7 +234,7 @@ const POS = () => {
       }
       setCart(cart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      setCart([...cart, { ...product, selling_price: product.selling_price > 0 ? product.selling_price : product.buying_price, quantity: 1 }]);
+      setCart([...cart, { ...product, selling_price: product.selling_price > 0 ? product.selling_price : costOf(product), quantity: 1 }]);
     }
     setSearchTerm("");
   };
@@ -276,10 +281,10 @@ const POS = () => {
       if (addQty <= 0) { notes.push(`${product.name} has no more stock available`); continue; }
       if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available in stock`);
 
-      const defaultPrice = product.selling_price > 0 ? product.selling_price : product.buying_price;
+      const defaultPrice = product.selling_price > 0 ? product.selling_price : costOf(product);
       let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
-      if (it.unitPrice != null && !isAdmin && it.unitPrice < product.buying_price) {
-        price = product.buying_price;
+      if (it.unitPrice != null && !isAdmin && it.unitPrice < costOf(product)) {
+        price = costOf(product);
         notes.push(`Price for ${product.name} kept at cost price. Manager approval is needed to sell below cost.`);
       }
 
@@ -422,10 +427,10 @@ const POS = () => {
       const addQty = Math.min(it.quantity, Math.max(0, product.stock - currentQty));
       if (addQty <= 0) { notes.push(`${product.name} is out of stock`); continue; }
       if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available`);
-      const defaultPrice = product.selling_price > 0 ? product.selling_price : product.buying_price;
+      const defaultPrice = product.selling_price > 0 ? product.selling_price : costOf(product);
       let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
-      if (it.unitPrice != null && !isAdmin && it.unitPrice < product.buying_price) {
-        price = product.buying_price;
+      if (it.unitPrice != null && !isAdmin && it.unitPrice < costOf(product)) {
+        price = costOf(product);
         notes.push(`Price for ${product.name} kept at cost price. Manager approval is needed to sell below cost.`);
       }
       if (existing) saleItems = saleItems.map(c => c.id === product.id ? { ...c, quantity: c.quantity + addQty, selling_price: price } : c);
@@ -463,7 +468,7 @@ const POS = () => {
     }
 
     const total = subtotal - discountAmount;
-    const profit = saleItems.reduce((s, i) => s + (i.selling_price - i.buying_price) * i.quantity, 0) - discountAmount;
+    const profit = saleItems.reduce((s, i) => s + (i.selling_price - costOf(i)) * i.quantity, 0) - discountAmount;
 
     // Customer: match existing or create new
     let custId: string | null = null;
@@ -508,12 +513,13 @@ const POS = () => {
           tenant_id: tenantId, product_id: item.id, product_name: item.name,
           quantity: item.quantity, unit_price: item.selling_price,
           total_amount: itemSubtotal - itemDiscount,
-          profit: (item.selling_price - item.buying_price) * item.quantity - itemDiscount,
+          profit: (item.selling_price - costOf(item)) * item.quantity - itemDiscount,
+          average_cost_at_sale: costOf(item),
           payment_method: payMethod, created_by: user.id,
           discount_type: appliedDiscount?.kind || null,
           discount_value: appliedDiscount?.value || 0,
           discount_amount: itemDiscount,
-        });
+        } as any);
         if (txErr) throw txErr;
         const { error: stockErr } = await supabase.from("products").update({ stock: item.stock - item.quantity }).eq("id", item.id);
         if (stockErr) throw stockErr;
@@ -605,7 +611,7 @@ const POS = () => {
   };
 
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
-  const calculateProfit = () => cart.reduce((sum, item) => sum + (item.selling_price - item.buying_price) * item.quantity, 0) - calculateDiscount();
+  const calculateProfit = () => cart.reduce((sum, item) => sum + (item.selling_price - costOf(item)) * item.quantity, 0) - calculateDiscount();
 
   const validatePromoCode = async () => {
     const code = promoCode.trim().toUpperCase();
@@ -764,18 +770,19 @@ const POS = () => {
         const itemDiscountRatio = subtotal > 0 ? itemSubtotal / subtotal : 0;
         const itemDiscount = discountAmount * itemDiscountRatio;
         const totalAmount = itemSubtotal - itemDiscount;
-        const itemProfit = (item.selling_price - item.buying_price) * item.quantity - itemDiscount;
+        const itemProfit = (item.selling_price - costOf(item)) * item.quantity - itemDiscount;
 
         const { error: transactionError } = await supabase.from("transactions").insert({
           tenant_id: tenantId, product_id: item.id, product_name: item.name,
           quantity: item.quantity, unit_price: item.selling_price,
           total_amount: totalAmount, profit: itemProfit, payment_method: paymentMethod,
           created_by: user.id,
+          average_cost_at_sale: costOf(item),
           discount_type: discountAmount > 0 ? discountType : null,
           discount_value: discountAmount > 0 ? (discountType === "promo" ? validatedPromo?.discount_value : parseFloat(discountValue)) : 0,
           promo_code: discountType === "promo" ? promoCode.toUpperCase() : null,
           discount_amount: itemDiscount
-        });
+        } as any);
         if (transactionError) throw transactionError;
 
         const { error: stockError } = await supabase.from("products").update({ stock: item.stock - item.quantity }).eq("id", item.id);
@@ -1077,11 +1084,11 @@ const POS = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-muted-foreground">@</span>
-                            <Input type="number" value={item.selling_price} onChange={(e) => updateCartPrice(item.id, parseFloat(e.target.value) || 0)} className={`w-24 h-7 text-sm ${item.selling_price < item.buying_price ? "border-destructive text-destructive" : ""}`} min="0" step="1" />
+                            <Input type="number" value={item.selling_price} onChange={(e) => updateCartPrice(item.id, parseFloat(e.target.value) || 0)} className={`w-24 h-7 text-sm ${item.selling_price < costOf(item) ? "border-destructive text-destructive" : ""}`} min="0" step="1" />
                           </div>
                           <span className="ml-auto font-semibold text-sm">{formatCurrency(item.selling_price * item.quantity)}</span>
                         </div>
-                        {item.selling_price < item.buying_price && <p className="text-xs text-destructive mt-0.5">Below cost ({formatCurrency(item.buying_price)})</p>}
+                        {item.selling_price < costOf(item) && <p className="text-xs text-destructive mt-0.5">Below cost ({formatCurrency(costOf(item))})</p>}
                       </div>
                     </div>
                   ))
