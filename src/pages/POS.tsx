@@ -28,6 +28,7 @@ interface Product {
   name: string;
   selling_price: number;
   buying_price: number;
+  average_cost?: number | null;
   stock: number;
   image_url: string | null;
   barcode: string | null;
@@ -35,6 +36,10 @@ interface Product {
   category: string;
   low_stock_threshold: number;
 }
+
+// Effective unit cost for profit + below-cost checks (prefer weighted average cost).
+const costOf = (p: { average_cost?: number | null; buying_price?: number | null }) =>
+  Number(p.average_cost ?? 0) > 0 ? Number(p.average_cost) : Number(p.buying_price || 0);
 
 interface CartItem extends Product {
   quantity: number;
