@@ -22,6 +22,8 @@ import {
   Plus, PackageCheck, FileText, ClipboardCheck, AlertTriangle,
   RotateCcw, Printer, Search, Filter,
 } from "lucide-react";
+import SellingPriceAdvisorDialog from "@/components/SellingPriceAdvisorDialog";
+import { weightedAverageCost, evaluatePricing, DEFAULT_PRICING, type PricingReview, type PricingSettings } from "@/lib/pricing";
 
 type Supplier = { id: string; name: string };
 type PO = {
@@ -85,6 +87,19 @@ const GoodsReceivedNotes = () => {
   const [viewItems, setViewItems] = useState<any[]>([]);
   const [reverseOpen, setReverseOpen] = useState<GRN | null>(null);
   const [reverseReason, setReverseReason] = useState("");
+
+  // Selling Price Advisor
+  const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [advisorReviews, setAdvisorReviews] = useState<PricingReview[]>([]);
+
+  const loadPricingSettings = async (tenantId: string): Promise<PricingSettings> => {
+    const { data } = await (supabase as any).from("tenants")
+      .select("min_profit_margin, price_rounding").eq("id", tenantId).maybeSingle();
+    return {
+      min_profit_margin: Number(data?.min_profit_margin ?? DEFAULT_PRICING.min_profit_margin),
+      price_rounding: Number(data?.price_rounding ?? DEFAULT_PRICING.price_rounding),
+    };
+  };
 
   const load = async () => {
     setLoading(true);
