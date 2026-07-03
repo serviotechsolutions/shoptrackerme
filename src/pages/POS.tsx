@@ -514,11 +514,12 @@ const POS = () => {
           quantity: item.quantity, unit_price: item.selling_price,
           total_amount: itemSubtotal - itemDiscount,
           profit: (item.selling_price - costOf(item)) * item.quantity - itemDiscount,
+          average_cost_at_sale: costOf(item),
           payment_method: payMethod, created_by: user.id,
           discount_type: appliedDiscount?.kind || null,
           discount_value: appliedDiscount?.value || 0,
           discount_amount: itemDiscount,
-        });
+        } as any);
         if (txErr) throw txErr;
         const { error: stockErr } = await supabase.from("products").update({ stock: item.stock - item.quantity }).eq("id", item.id);
         if (stockErr) throw stockErr;
