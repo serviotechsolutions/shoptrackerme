@@ -258,6 +258,53 @@ const Settings = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              Pricing Settings
+            </CardTitle>
+            <CardDescription>
+              Set your desired minimum profit margin. The Selling Price Advisor uses this to suggest prices after inventory cost changes. Your prices are never changed automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="min_margin">Minimum Profit Margin (%)</Label>
+                <Input
+                  id="min_margin"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={settings.min_profit_margin ?? 20}
+                  onChange={(e) => setSettings({ ...settings, min_profit_margin: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Common: 10, 15, 20, 25, 30</p>
+              </div>
+              <div>
+                <Label htmlFor="rounding">Price Rounding (nearest)</Label>
+                <Input
+                  id="rounding"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={settings.price_rounding ?? 100}
+                  onChange={(e) => setSettings({ ...settings, price_rounding: Number(e.target.value) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Suggested prices are rounded to this step (e.g. 100 UGX).</p>
+              </div>
+            </div>
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Pricing Settings'}
+            </Button>
+          </CardContent>
+        </Card>
+
+
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               Legal & Privacy
             </CardTitle>
