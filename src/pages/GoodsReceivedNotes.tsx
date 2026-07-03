@@ -411,7 +411,7 @@ const GoodsReceivedNotes = () => {
       .from("grn_items").select("*").eq("grn_id", g.id);
     if (!rows?.length) { toast.error("No items"); return; }
     const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
-    const created = await applyStockMovement(rows, +1, profile?.tenant_id, g.supplier_id, g.id);
+    const { created, reviews } = await applyStockMovement(rows, +1, profile?.tenant_id, g.supplier_id, g.id, g.purchase_order_id);
     await (supabase as any).from("goods_received_notes").update({
       status: "approved", approved_by: user!.id, approved_at: new Date().toISOString(),
     }).eq("id", g.id);
@@ -422,6 +422,10 @@ const GoodsReceivedNotes = () => {
     });
     if (created > 0) toast.success(`${created} new product${created > 1 ? "s" : ""} added to inventory`);
     toast.success("GRN approved");
+    if (reviews.length) {
+      setAdvisorReviews(reviews);
+      setAdvisorOpen(true);
+    }
     load();
   };
 
