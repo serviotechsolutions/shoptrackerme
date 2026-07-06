@@ -1251,7 +1251,7 @@ const POS = () => {
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleDownloadReceipt} className="gap-2"><Download className="h-4 w-4" /> Download</Button>
                 <Button variant="outline" onClick={handlePrintReceipt} className="gap-2"><Printer className="h-4 w-4" /> Print</Button>
-                <Button variant="outline" onClick={() => completedSale && handleShareWhatsApp(completedSale, customers.find(c => c.name === completedSale.customerName)?.phone)} className="gap-2"><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
+                <Button variant="outline" onClick={() => setWaDialogOpen(true)} className="gap-2 text-green-700 border-green-300"><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
                 <Button variant="outline" onClick={() => completedSale && handleShareEmail(completedSale, customers.find(c => c.name === completedSale.customerName)?.email)} className="gap-2"><Mail className="h-4 w-4" /> Email</Button>
               </div>
               <Button className="w-full" onClick={() => setReceiptDialogOpen(false)}>New Sale</Button>
