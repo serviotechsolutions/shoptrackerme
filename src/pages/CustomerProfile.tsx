@@ -155,6 +155,7 @@ const CustomerProfile = () => {
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="ledger">Ledger</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           </TabsList>
 
           <TabsContent value="purchases">
