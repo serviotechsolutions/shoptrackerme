@@ -119,6 +119,7 @@ const POS = () => {
   const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [waDialogOpen, setWaDialogOpen] = useState(false);
   const [heldSalesOpen, setHeldSalesOpen] = useState(false);
   const [tappedProductId, setTappedProductId] = useState<string | null>(null);
 
