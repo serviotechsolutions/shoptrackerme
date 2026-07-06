@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
-import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, Download, AlertTriangle, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
 
 const CustomerProfile = () => {
   const { id } = useParams<{ id: string }>();
