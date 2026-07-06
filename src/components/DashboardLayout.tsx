@@ -100,6 +100,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     { path: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingBag, show: canManageProducts },
     { path: '/grn', label: 'Goods Received (GRN)', icon: PackageCheck, show: true },
     { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
+    { path: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, show: true },
     { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
     { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
   ];
