@@ -30,6 +30,7 @@ import PurchaseOrders from "./pages/PurchaseOrders";
 import GoodsReceivedNotes from "./pages/GoodsReceivedNotes";
 import Customers from "./pages/Customers";
 import CustomerProfile from "./pages/CustomerProfile";
+import WhatsApp from "./pages/WhatsApp";
 
 const queryClient = new QueryClient();
 
