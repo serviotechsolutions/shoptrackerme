@@ -1277,7 +1277,7 @@ const POS = () => {
             invoiceNumber: completedSale.invoiceId,
             date: format(completedSale.date, "dd MMM yyyy HH:mm"),
             customerName: completedSale.customerName || undefined,
-            items: completedSale.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.price, total: i.price * i.quantity })),
+            items: completedSale.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.selling_price, total: i.selling_price * i.quantity })),
             subtotal: completedSale.subtotal,
             discount: completedSale.discount,
             total: completedSale.total,
