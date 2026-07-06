@@ -27,8 +27,9 @@ import {
   Truck,
   ShoppingBag,
   UserCircle2,
-  PackageCheck
-} from 'lucide-react';
+  PackageCheck,
+  MessageCircle
+
 import {
   DropdownMenu,
   DropdownMenuContent,
