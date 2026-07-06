@@ -29,6 +29,8 @@ import {
   UserCircle2,
   PackageCheck,
   MessageCircle
+} from 'lucide-react';
+
 
 import {
   DropdownMenu,
