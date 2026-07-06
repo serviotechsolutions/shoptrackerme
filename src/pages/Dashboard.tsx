@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { InventoryIntelligenceWidget } from '@/components/InventoryIntelligenceWidget';
 import PricingAlertsWidget from '@/components/PricingAlertsWidget';
+import WhatsAppActivityWidget from '@/components/WhatsAppActivityWidget';
 
 interface DashboardStats {
   totalProducts: number;
