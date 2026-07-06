@@ -295,6 +295,7 @@ const Dashboard = () => {
         <div className="grid gap-4 md:grid-cols-2">
           <InventoryIntelligenceWidget />
           <PricingAlertsWidget />
+          <WhatsAppActivityWidget />
         </div>
 
         {/* Quick Actions */}
