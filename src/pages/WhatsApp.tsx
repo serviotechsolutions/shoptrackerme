@@ -122,7 +122,7 @@ export default function WhatsApp() {
   };
 
   const previewBulk = async () => {
-    let q = supabase.from("customers").select("id", { count: "exact", head: true });
+    let q: any = supabase.from("customers").select("id", { count: "exact", head: true });
     if (bulkTargets === "all_active") q = q.eq("status", "active");
     else if (bulkTargets === "inactive") q = q.eq("status", "inactive");
     else if (bulkTargets === "vip") q = q.eq("is_vip", true);
