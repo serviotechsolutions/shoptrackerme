@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
+import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
+import type { ReceiptData } from "@/lib/whatsapp";
 
 interface Product {
   id: string;
