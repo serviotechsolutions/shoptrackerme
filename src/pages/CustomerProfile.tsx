@@ -99,7 +99,10 @@ const CustomerProfile = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <Link to="/customers"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button></Link>
-          <Button onClick={() => setEditOpen(true)}><Edit className="h-4 w-4 mr-1" /> Edit</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setWaOpen(true)} disabled={!customer?.phone} className="text-green-700 border-green-300"><MessageCircle className="h-4 w-4 mr-1" /> WhatsApp</Button>
+            <Button onClick={() => setEditOpen(true)}><Edit className="h-4 w-4 mr-1" /> Edit</Button>
+          </div>
         </div>
 
         <Card>
