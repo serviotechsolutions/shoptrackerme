@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
+import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
+import type { ReceiptData } from "@/lib/whatsapp";
 
 interface Product {
   id: string;
@@ -119,6 +121,7 @@ const POS = () => {
   const [heldSales, setHeldSales] = useState<HeldSale[]>([]);
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [waDialogOpen, setWaDialogOpen] = useState(false);
   const [heldSalesOpen, setHeldSalesOpen] = useState(false);
   const [tappedProductId, setTappedProductId] = useState<string | null>(null);
 
@@ -1248,7 +1251,7 @@ const POS = () => {
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={handleDownloadReceipt} className="gap-2"><Download className="h-4 w-4" /> Download</Button>
                 <Button variant="outline" onClick={handlePrintReceipt} className="gap-2"><Printer className="h-4 w-4" /> Print</Button>
-                <Button variant="outline" onClick={() => completedSale && handleShareWhatsApp(completedSale, customers.find(c => c.name === completedSale.customerName)?.phone)} className="gap-2"><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
+                <Button variant="outline" onClick={() => setWaDialogOpen(true)} className="gap-2 text-green-700 border-green-300"><MessageCircle className="h-4 w-4" /> WhatsApp</Button>
                 <Button variant="outline" onClick={() => completedSale && handleShareEmail(completedSale, customers.find(c => c.name === completedSale.customerName)?.email)} className="gap-2"><Mail className="h-4 w-4" /> Email</Button>
               </div>
               <Button className="w-full" onClick={() => setReceiptDialogOpen(false)}>New Sale</Button>
@@ -1256,6 +1259,36 @@ const POS = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {completedSale && (
+        <WhatsAppSendDialog
+          open={waDialogOpen}
+          onOpenChange={setWaDialogOpen}
+          defaultPhone={customers.find(c => c.name === completedSale.customerName)?.phone || ""}
+          customerId={customers.find(c => c.name === completedSale.customerName)?.id || null}
+          customerName={completedSale.customerName || undefined}
+          messageType="receipt"
+          relatedPaymentId={completedSale.paymentId}
+          title="Send receipt via WhatsApp"
+          receipt={{
+            shopName: shopInfo?.name || "Shop",
+            shopPhone: shopInfo?.phone || undefined,
+            shopAddress: shopInfo?.address || undefined,
+            invoiceNumber: completedSale.invoiceId,
+            date: format(completedSale.date, "dd MMM yyyy HH:mm"),
+            customerName: completedSale.customerName || undefined,
+            items: completedSale.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.selling_price, total: i.selling_price * i.quantity })),
+            subtotal: completedSale.subtotal,
+            discount: completedSale.discount,
+            total: completedSale.total,
+            paid: completedSale.amountReceived ?? completedSale.total,
+            change: completedSale.change ?? 0,
+            paymentMethod: completedSale.paymentMethod,
+            currency: "UGX",
+          } as ReceiptData}
+        />
+      )}
+
 
       {/* Held Sales Dialog */}
       <Dialog open={heldSalesOpen} onOpenChange={setHeldSalesOpen}>

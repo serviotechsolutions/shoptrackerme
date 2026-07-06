@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CustomerFormDialog } from "@/components/CustomerFormDialog";
-import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Edit, Phone, Mail, MapPin, Calendar, Download, AlertTriangle, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
 
 const CustomerProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +21,8 @@ const CustomerProfile = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [waOpen, setWaOpen] = useState(false);
+  const [waMessages, setWaMessages] = useState<any[]>([]);
 
   const load = async () => {
     if (!id) return;
@@ -38,6 +41,8 @@ const CustomerProfile = () => {
       const { data: t } = await supabase.from("transactions").select("*").in("sale_id", saleIds);
       setTransactions(t || []);
     } else setTransactions([]);
+    const { data: wa } = await supabase.from("whatsapp_messages").select("*").eq("customer_id", id).order("created_at", { ascending: false }).limit(50);
+    setWaMessages(wa || []);
     setLoading(false);
   };
 
@@ -94,7 +99,10 @@ const CustomerProfile = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <Link to="/customers"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Back</Button></Link>
-          <Button onClick={() => setEditOpen(true)}><Edit className="h-4 w-4 mr-1" /> Edit</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setWaOpen(true)} disabled={!customer?.phone} className="text-green-700 border-green-300"><MessageCircle className="h-4 w-4 mr-1" /> WhatsApp</Button>
+            <Button onClick={() => setEditOpen(true)}><Edit className="h-4 w-4 mr-1" /> Edit</Button>
+          </div>
         </div>
 
         <Card>
@@ -147,6 +155,7 @@ const CustomerProfile = () => {
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="ledger">Ledger</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           </TabsList>
 
           <TabsContent value="purchases">
@@ -260,10 +269,45 @@ const CustomerProfile = () => {
               <div><div className="text-xs text-muted-foreground">Lifetime Value</div><div>UGX {Number(customer.lifetime_value || stats.total).toLocaleString()}</div></div>
             </CardContent></Card>
           </TabsContent>
+
+          <TabsContent value="whatsapp">
+            <Card><CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm">
+                  <div className="text-xs text-muted-foreground">Total messages</div>
+                  <div className="font-bold">{waMessages.length}</div>
+                </div>
+                <div className="text-sm">
+                  <div className="text-xs text-muted-foreground">Last status</div>
+                  <div className="font-medium capitalize">{waMessages[0]?.status || "—"}</div>
+                </div>
+                <Button size="sm" onClick={() => setWaOpen(true)} disabled={!customer?.phone} className="bg-green-600 hover:bg-green-700 text-white"><MessageCircle className="h-4 w-4 mr-1" /> Send</Button>
+              </div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {waMessages.length === 0 && <div className="text-sm text-muted-foreground text-center py-6">No WhatsApp messages yet.</div>}
+                {waMessages.map(m => (
+                  <div key={m.id} className="border rounded p-2 text-xs">
+                    <div className="flex justify-between"><span className="capitalize font-medium">{m.message_type}</span><span className="text-muted-foreground">{new Date(m.created_at).toLocaleString()}</span></div>
+                    <div className="mt-1 line-clamp-2 whitespace-pre-wrap">{m.body || m.media_url}</div>
+                    <div className="mt-1 flex justify-between"><Badge variant="outline" className="capitalize">{m.status}</Badge>{m.error_message && <span className="text-destructive">{m.error_message}</span>}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent></Card>
+          </TabsContent>
         </Tabs>
       </div>
 
       <CustomerFormDialog open={editOpen} onOpenChange={setEditOpen} tenantId={customer.tenant_id} customer={customer} onSaved={load} />
+      <WhatsAppSendDialog
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        defaultPhone={customer.phone || ""}
+        customerId={customer.id}
+        customerName={customer.name}
+        messageType="custom"
+        onSent={load}
+      />
     </DashboardLayout>
   );
 };

@@ -1418,6 +1418,187 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages: {
+        Row: {
+          body: string | null
+          created_at: string
+          customer_id: string | null
+          delivered_at: string | null
+          error_code: string | null
+          error_message: string | null
+          failed_at: string | null
+          id: string
+          media_kind: string | null
+          media_url: string | null
+          message_type: string
+          provider: string
+          provider_message_id: string | null
+          read_at: string | null
+          recipient_phone: string
+          related_payment_id: string | null
+          related_promotion_id: string | null
+          related_sale_id: string | null
+          retries: number
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          customer_id?: string | null
+          delivered_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          media_kind?: string | null
+          media_url?: string | null
+          message_type?: string
+          provider?: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          recipient_phone: string
+          related_payment_id?: string | null
+          related_promotion_id?: string | null
+          related_sale_id?: string | null
+          retries?: number
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          customer_id?: string | null
+          delivered_at?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          id?: string
+          media_kind?: string | null
+          media_url?: string | null
+          message_type?: string
+          provider?: string
+          provider_message_id?: string | null
+          read_at?: string | null
+          recipient_phone?: string
+          related_payment_id?: string | null
+          related_promotion_id?: string | null
+          related_sale_id?: string | null
+          retries?: number
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_related_payment_id_fkey"
+            columns: ["related_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_related_sale_id_fkey"
+            columns: ["related_sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_settings: {
+        Row: {
+          account_sid: string | null
+          auth_token: string | null
+          business_name: string | null
+          created_at: string
+          default_format: string
+          from_number: string | null
+          id: string
+          is_enabled: boolean
+          last_test_at: string | null
+          last_test_error: string | null
+          last_test_status: string | null
+          max_bulk: number
+          max_per_day: number
+          max_per_minute: number
+          provider: string
+          tenant_id: string
+          updated_at: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          account_sid?: string | null
+          auth_token?: string | null
+          business_name?: string | null
+          created_at?: string
+          default_format?: string
+          from_number?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_test_at?: string | null
+          last_test_error?: string | null
+          last_test_status?: string | null
+          max_bulk?: number
+          max_per_day?: number
+          max_per_minute?: number
+          provider?: string
+          tenant_id: string
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          account_sid?: string | null
+          auth_token?: string | null
+          business_name?: string | null
+          created_at?: string
+          default_format?: string
+          from_number?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_test_at?: string | null
+          last_test_error?: string | null
+          last_test_status?: string | null
+          max_bulk?: number
+          max_per_day?: number
+          max_per_minute?: number
+          provider?: string
+          tenant_id?: string
+          updated_at?: string
+          webhook_secret?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

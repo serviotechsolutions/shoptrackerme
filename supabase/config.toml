@@ -41,3 +41,7 @@ verify_jwt = true
 
 [functions.voice-sale-parser]
 verify_jwt = true
+
+[functions.whatsapp-status]
+verify_jwt = false
+
