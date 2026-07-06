@@ -269,6 +269,32 @@ const CustomerProfile = () => {
               <div><div className="text-xs text-muted-foreground">Lifetime Value</div><div>UGX {Number(customer.lifetime_value || stats.total).toLocaleString()}</div></div>
             </CardContent></Card>
           </TabsContent>
+
+          <TabsContent value="whatsapp">
+            <Card><CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm">
+                  <div className="text-xs text-muted-foreground">Total messages</div>
+                  <div className="font-bold">{waMessages.length}</div>
+                </div>
+                <div className="text-sm">
+                  <div className="text-xs text-muted-foreground">Last status</div>
+                  <div className="font-medium capitalize">{waMessages[0]?.status || "—"}</div>
+                </div>
+                <Button size="sm" onClick={() => setWaOpen(true)} disabled={!customer?.phone} className="bg-green-600 hover:bg-green-700 text-white"><MessageCircle className="h-4 w-4 mr-1" /> Send</Button>
+              </div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {waMessages.length === 0 && <div className="text-sm text-muted-foreground text-center py-6">No WhatsApp messages yet.</div>}
+                {waMessages.map(m => (
+                  <div key={m.id} className="border rounded p-2 text-xs">
+                    <div className="flex justify-between"><span className="capitalize font-medium">{m.message_type}</span><span className="text-muted-foreground">{new Date(m.created_at).toLocaleString()}</span></div>
+                    <div className="mt-1 line-clamp-2 whitespace-pre-wrap">{m.body || m.media_url}</div>
+                    <div className="mt-1 flex justify-between"><Badge variant="outline" className="capitalize">{m.status}</Badge>{m.error_message && <span className="text-destructive">{m.error_message}</span>}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent></Card>
+          </TabsContent>
         </Tabs>
       </div>
 
