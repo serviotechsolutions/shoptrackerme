@@ -272,6 +272,15 @@ const CustomerProfile = () => {
       </div>
 
       <CustomerFormDialog open={editOpen} onOpenChange={setEditOpen} tenantId={customer.tenant_id} customer={customer} onSaved={load} />
+      <WhatsAppSendDialog
+        open={waOpen}
+        onOpenChange={setWaOpen}
+        defaultPhone={customer.phone || ""}
+        customerId={customer.id}
+        customerName={customer.name}
+        messageType="custom"
+        onSent={load}
+      />
     </DashboardLayout>
   );
 };
