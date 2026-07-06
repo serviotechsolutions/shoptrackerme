@@ -21,6 +21,8 @@ const CustomerProfile = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
+  const [waOpen, setWaOpen] = useState(false);
+  const [waMessages, setWaMessages] = useState<any[]>([]);
 
   const load = async () => {
     if (!id) return;
