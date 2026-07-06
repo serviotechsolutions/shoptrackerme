@@ -41,6 +41,8 @@ const CustomerProfile = () => {
       const { data: t } = await supabase.from("transactions").select("*").in("sale_id", saleIds);
       setTransactions(t || []);
     } else setTransactions([]);
+    const { data: wa } = await supabase.from("whatsapp_messages").select("*").eq("customer_id", id).order("created_at", { ascending: false }).limit(50);
+    setWaMessages(wa || []);
     setLoading(false);
   };
 
