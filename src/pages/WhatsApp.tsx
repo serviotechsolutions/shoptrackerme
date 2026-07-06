@@ -136,7 +136,7 @@ export default function WhatsApp() {
     if (!confirm(`Send WhatsApp to ~${bulkPreview} customers?`)) return;
     setBulkSending(true);
     try {
-      let q = supabase.from("customers").select("id, name, phone").not("phone", "is", null);
+      let q: any = supabase.from("customers").select("id, name, phone").not("phone", "is", null);
       if (bulkTargets === "all_active") q = q.eq("status", "active");
       else if (bulkTargets === "inactive") q = q.eq("status", "inactive");
       else if (bulkTargets === "vip") q = q.eq("is_vip", true);
