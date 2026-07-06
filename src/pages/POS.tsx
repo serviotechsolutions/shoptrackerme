@@ -1260,6 +1260,36 @@ const POS = () => {
         </DialogContent>
       </Dialog>
 
+      {completedSale && (
+        <WhatsAppSendDialog
+          open={waDialogOpen}
+          onOpenChange={setWaDialogOpen}
+          defaultPhone={customers.find(c => c.name === completedSale.customerName)?.phone || ""}
+          customerId={customers.find(c => c.name === completedSale.customerName)?.id || null}
+          customerName={completedSale.customerName || undefined}
+          messageType="receipt"
+          relatedPaymentId={completedSale.paymentId}
+          title="Send receipt via WhatsApp"
+          receipt={{
+            shopName: shopInfo?.name || "Shop",
+            shopPhone: shopInfo?.phone || undefined,
+            shopAddress: shopInfo?.address || undefined,
+            invoiceNumber: completedSale.invoiceId,
+            date: format(completedSale.date, "dd MMM yyyy HH:mm"),
+            customerName: completedSale.customerName || undefined,
+            items: completedSale.items.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.price, total: i.price * i.quantity })),
+            subtotal: completedSale.subtotal,
+            discount: completedSale.discount,
+            total: completedSale.total,
+            paid: completedSale.amountReceived ?? completedSale.total,
+            change: completedSale.change ?? 0,
+            paymentMethod: completedSale.paymentMethod,
+            currency: "UGX",
+          } as ReceiptData}
+        />
+      )}
+
+
       {/* Held Sales Dialog */}
       <Dialog open={heldSalesOpen} onOpenChange={setHeldSalesOpen}>
         <DialogContent className="sm:max-w-md">
