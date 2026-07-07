@@ -230,11 +230,17 @@ export default function WhatsApp() {
     URL.revokeObjectURL(url);
   };
 
-  const connectionStatus = settings.is_enabled && settings.account_sid && settings.from_number
+  const isMetaConfigured = !!(settings.access_token && settings.phone_number_id);
+  const isTwilioConfigured = !!(settings.account_sid && settings.auth_token && settings.from_number);
+  const providerConfigured = settings.provider === "twilio" ? isTwilioConfigured : isMetaConfigured;
+  const anyCreds = isMetaConfigured || isTwilioConfigured || !!settings.verify_token;
+  const connectionStatus = settings.is_enabled && providerConfigured
     ? { label: "🟢 Connected", tone: "text-green-600" }
-    : settings.account_sid || settings.from_number
+    : anyCreds
       ? { label: "🟡 Pending Configuration", tone: "text-amber-600" }
       : { label: "🔴 Disconnected", tone: "text-red-600" };
+
+  const webhookUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/whatsapp-status`;
 
   return (
     <DashboardLayout>
