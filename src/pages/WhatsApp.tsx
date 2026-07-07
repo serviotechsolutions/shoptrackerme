@@ -19,6 +19,13 @@ interface Settings {
   id?: string;
   tenant_id?: string;
   provider: string;
+  // Meta Cloud API (default)
+  access_token: string | null;
+  phone_number_id: string | null;
+  business_account_id: string | null;
+  verify_token: string | null;
+  api_version: string;
+  // Legacy Twilio (kept for future providers)
   account_sid: string | null;
   auth_token: string | null;
   from_number: string | null;
@@ -34,7 +41,9 @@ interface Settings {
 }
 
 const DEFAULT: Settings = {
-  provider: "twilio", account_sid: "", auth_token: "", from_number: "", business_name: "",
+  provider: "meta",
+  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", api_version: "v20.0",
+  account_sid: "", auth_token: "", from_number: "", business_name: "",
   default_format: "pdf", max_per_minute: 20, max_per_day: 1000, max_bulk: 200, is_enabled: false,
   last_test_at: null, last_test_status: null, last_test_error: null,
 };
