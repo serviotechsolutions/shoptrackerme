@@ -43,9 +43,12 @@ export default function WhatsAppSendDialog({
     setAttachPdf(!!receipt);
     (async () => {
       const { data } = await supabase.from("whatsapp_settings")
-        .select("is_enabled, default_format, account_sid, from_number").maybeSingle();
+        .select("is_enabled, default_format, provider, access_token, phone_number_id, account_sid, from_number").maybeSingle();
       if (data) {
-        setIsConfigured(!!(data.is_enabled && data.account_sid && data.from_number));
+        const providerReady = (data as any).provider === "twilio"
+          ? !!((data as any).account_sid && (data as any).from_number)
+          : !!((data as any).access_token && (data as any).phone_number_id);
+        setIsConfigured(!!(data.is_enabled && providerReady));
         if (data.default_format) setDefaultFormat(data.default_format);
         if (data.default_format === "text") setAttachPdf(false);
       } else {

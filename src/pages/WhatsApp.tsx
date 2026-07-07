@@ -19,6 +19,13 @@ interface Settings {
   id?: string;
   tenant_id?: string;
   provider: string;
+  // Meta Cloud API (default)
+  access_token: string | null;
+  phone_number_id: string | null;
+  business_account_id: string | null;
+  verify_token: string | null;
+  api_version: string;
+  // Legacy Twilio (kept for future providers)
   account_sid: string | null;
   auth_token: string | null;
   from_number: string | null;
@@ -34,7 +41,9 @@ interface Settings {
 }
 
 const DEFAULT: Settings = {
-  provider: "twilio", account_sid: "", auth_token: "", from_number: "", business_name: "",
+  provider: "meta",
+  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", api_version: "v20.0",
+  account_sid: "", auth_token: "", from_number: "", business_name: "",
   default_format: "pdf", max_per_minute: 20, max_per_day: 1000, max_bulk: 200, is_enabled: false,
   last_test_at: null, last_test_status: null, last_test_error: null,
 };
@@ -221,11 +230,17 @@ export default function WhatsApp() {
     URL.revokeObjectURL(url);
   };
 
-  const connectionStatus = settings.is_enabled && settings.account_sid && settings.from_number
+  const isMetaConfigured = !!(settings.access_token && settings.phone_number_id);
+  const isTwilioConfigured = !!(settings.account_sid && settings.auth_token && settings.from_number);
+  const providerConfigured = settings.provider === "twilio" ? isTwilioConfigured : isMetaConfigured;
+  const anyCreds = isMetaConfigured || isTwilioConfigured || !!settings.verify_token;
+  const connectionStatus = settings.is_enabled && providerConfigured
     ? { label: "🟢 Connected", tone: "text-green-600" }
-    : settings.account_sid || settings.from_number
+    : anyCreds
       ? { label: "🟡 Pending Configuration", tone: "text-amber-600" }
       : { label: "🔴 Disconnected", tone: "text-red-600" };
+
+  const webhookUrl = `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/whatsapp-status`;
 
   return (
     <DashboardLayout>
@@ -271,8 +286,8 @@ export default function WhatsApp() {
                         <Select value={settings.provider} onValueChange={(v) => setSettings({ ...settings, provider: v })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="twilio">Twilio WhatsApp</SelectItem>
-                            <SelectItem value="meta" disabled>Meta Cloud API (coming)</SelectItem>
+                            <SelectItem value="meta">Meta WhatsApp Cloud API</SelectItem>
+                            <SelectItem value="twilio" disabled>Twilio WhatsApp (coming soon)</SelectItem>
                             <SelectItem value="bsp" disabled>WhatsApp Business (BSP)</SelectItem>
                           </SelectContent>
                         </Select>
@@ -281,19 +296,34 @@ export default function WhatsApp() {
                         <Label>Business name (shown in messages)</Label>
                         <Input value={settings.business_name || ""} onChange={(e) => setSettings({ ...settings, business_name: e.target.value })} />
                       </div>
-                      <div>
-                        <Label>Twilio Account SID</Label>
-                        <Input value={settings.account_sid || ""} onChange={(e) => setSettings({ ...settings, account_sid: e.target.value })} placeholder="ACxxxxxxxx..." />
-                      </div>
-                      <div>
-                        <Label>Twilio Auth Token</Label>
-                        <Input type="password" value={settings.auth_token || ""} onChange={(e) => setSettings({ ...settings, auth_token: e.target.value })} placeholder="•••••••••••" />
-                      </div>
-                      <div>
-                        <Label>WhatsApp sender number (E.164)</Label>
-                        <Input value={settings.from_number || ""} onChange={(e) => setSettings({ ...settings, from_number: e.target.value })} placeholder="+14155238886" />
-                        <p className="text-xs text-muted-foreground mt-1">Your Twilio-approved WhatsApp number. The 'whatsapp:' prefix is added automatically.</p>
-                      </div>
+
+                      {settings.provider === "meta" && (
+                        <>
+                          <div className="sm:col-span-2">
+                            <Label>Permanent Access Token</Label>
+                            <Input type="password" value={settings.access_token || ""} onChange={(e) => setSettings({ ...settings, access_token: e.target.value })} placeholder="EAAG..." />
+                            <p className="text-xs text-muted-foreground mt-1">System-user permanent token from Meta Business Manager. Stored server-side and never exposed to the browser.</p>
+                          </div>
+                          <div>
+                            <Label>Phone Number ID</Label>
+                            <Input value={settings.phone_number_id || ""} onChange={(e) => setSettings({ ...settings, phone_number_id: e.target.value })} placeholder="1234567890" />
+                          </div>
+                          <div>
+                            <Label>WhatsApp Business Account ID</Label>
+                            <Input value={settings.business_account_id || ""} onChange={(e) => setSettings({ ...settings, business_account_id: e.target.value })} placeholder="1234567890" />
+                          </div>
+                          <div>
+                            <Label>Verify Token</Label>
+                            <Input value={settings.verify_token || ""} onChange={(e) => setSettings({ ...settings, verify_token: e.target.value })} placeholder="Any strong secret" />
+                            <p className="text-xs text-muted-foreground mt-1">Paste the same value in Meta → Webhooks → Verify Token.</p>
+                          </div>
+                          <div>
+                            <Label>Graph API version</Label>
+                            <Input value={settings.api_version || "v20.0"} onChange={(e) => setSettings({ ...settings, api_version: e.target.value })} placeholder="v20.0" />
+                          </div>
+                        </>
+                      )}
+
                       <div>
                         <Label>Default receipt format</Label>
                         <Select value={settings.default_format} onValueChange={(v) => setSettings({ ...settings, default_format: v })}>
@@ -324,15 +354,20 @@ export default function WhatsApp() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border p-3 bg-muted/40 text-xs space-y-1">
-                      <div><b>Delivery status webhook:</b></div>
-                      <code className="break-all">https://{import.meta.env.VITE_SUPABASE_PROJECT_ID}.functions.supabase.co/whatsapp-status</code>
-                      <div className="text-muted-foreground">Configure this URL in Twilio Console → Messaging → WhatsApp sender → Status Callback URL.</div>
+                    <div className="rounded-md border p-3 bg-muted/40 text-xs space-y-2">
+                      <div><b>Webhook (Callback URL):</b></div>
+                      <code className="break-all block">{webhookUrl}</code>
+                      <div className="text-muted-foreground">
+                        In Meta App → WhatsApp → Configuration → Webhooks, paste the URL above as the <b>Callback URL</b>, paste your <b>Verify Token</b>,
+                        then subscribe to the <code>messages</code> field on your WhatsApp Business Account. Meta will hit this endpoint to verify (GET) and
+                        to deliver status updates (POST).
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save</Button>
                     </div>
+
 
                     <div className="border-t pt-4">
                       <Label>Send test message</Label>

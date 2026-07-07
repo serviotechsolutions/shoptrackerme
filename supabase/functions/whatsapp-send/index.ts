@@ -1,5 +1,6 @@
-// Send WhatsApp message via the tenant's Twilio credentials.
-// Logs every attempt to public.whatsapp_messages and enforces rate limits.
+// Send WhatsApp message via the tenant's configured provider.
+// Business logic (validation, logging, rate limits) is provider-agnostic.
+// Providers implement a small interface — Meta Cloud API is the default.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
@@ -8,7 +9,7 @@ interface SendPayload {
   body?: string;
   media_url?: string;
   media_kind?: "pdf" | "image" | null;
-  message_type?: string; // receipt | payment | promotion | reminder | custom
+  message_type?: string;
   customer_id?: string | null;
   related_sale_id?: string | null;
   related_payment_id?: string | null;
@@ -18,50 +19,134 @@ interface SendPayload {
 
 function normalizePhone(input: string): string | null {
   if (!input) return null;
-  let s = String(input).trim().replace(/[\s\-()]/g, "");
+  const s = String(input).trim().replace(/[\s\-()]/g, "");
   if (s.startsWith("+")) {
     const digits = s.slice(1).replace(/\D/g, "");
     if (digits.length < 8 || digits.length > 15) return null;
     return "+" + digits;
   }
   const digits = s.replace(/\D/g, "");
-  if (digits.length === 10 && digits.startsWith("0")) {
-    // Uganda / East Africa default
-    return "+256" + digits.slice(1);
-  }
+  if (digits.length === 10 && digits.startsWith("0")) return "+256" + digits.slice(1);
   if (digits.length >= 11 && digits.length <= 15) return "+" + digits;
   return null;
 }
 
-async function twilioSend(sid: string, token: string, from: string, to: string, body?: string, mediaUrl?: string) {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
-  const params = new URLSearchParams();
-  params.set("From", from.startsWith("whatsapp:") ? from : `whatsapp:${from}`);
-  params.set("To", `whatsapp:${to}`);
-  if (body) params.set("Body", body);
-  if (mediaUrl) params.set("MediaUrl", mediaUrl);
-  // Delivery status callback (project webhook)
-  const projectRef = Deno.env.get("SUPABASE_URL")?.match(/https?:\/\/([^.]+)/)?.[1];
-  if (projectRef) {
-    params.set(
-      "StatusCallback",
-      `https://${projectRef}.functions.supabase.co/whatsapp-status`,
-    );
-  }
-  const auth = btoa(`${sid}:${token}`);
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  });
-  const text = await res.text();
-  let json: any = null;
-  try { json = JSON.parse(text); } catch { /* ignore */ }
-  return { ok: res.ok, status: res.status, json, text };
+// ---------- Provider abstraction ----------
+interface ProviderSendArgs {
+  to: string;              // E.164 with '+'
+  body?: string;
+  mediaUrl?: string;
+  mediaKind?: "pdf" | "image" | null;
 }
+interface ProviderSendResult {
+  ok: boolean;
+  providerMessageId?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}
+interface WhatsAppProvider {
+  name: string;
+  isConfigured(s: any): boolean;
+  send(s: any, args: ProviderSendArgs): Promise<ProviderSendResult>;
+}
+
+const metaProvider: WhatsAppProvider = {
+  name: "meta",
+  isConfigured: (s) => !!(s?.access_token && s?.phone_number_id),
+  async send(s, { to, body, mediaUrl, mediaKind }) {
+    const version = s.api_version || "v20.0";
+    const url = `https://graph.facebook.com/${version}/${s.phone_number_id}/messages`;
+    const toDigits = to.replace(/^\+/, "");
+    let payload: Record<string, unknown>;
+    if (mediaUrl && mediaKind === "pdf") {
+      payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: toDigits,
+        type: "document",
+        document: { link: mediaUrl, filename: "receipt.pdf", caption: body || undefined },
+      };
+    } else if (mediaUrl && mediaKind === "image") {
+      payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: toDigits,
+        type: "image",
+        image: { link: mediaUrl, caption: body || undefined },
+      };
+    } else {
+      payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: toDigits,
+        type: "text",
+        text: { body: body || "", preview_url: false },
+      };
+    }
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${s.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { /* ignore */ }
+    if (!res.ok || !json?.messages?.[0]?.id) {
+      const err = json?.error;
+      return {
+        ok: false,
+        errorCode: err?.code ? String(err.code) : String(res.status),
+        errorMessage: err?.message || err?.error_user_msg || text || "Meta API error",
+      };
+    }
+    return { ok: true, providerMessageId: json.messages[0].id };
+  },
+};
+
+const twilioProvider: WhatsAppProvider = {
+  name: "twilio",
+  isConfigured: (s) => !!(s?.account_sid && s?.auth_token && s?.from_number),
+  async send(s, { to, body, mediaUrl }) {
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${s.account_sid}/Messages.json`;
+    const params = new URLSearchParams();
+    params.set("From", s.from_number.startsWith("whatsapp:") ? s.from_number : `whatsapp:${s.from_number}`);
+    params.set("To", `whatsapp:${to}`);
+    if (body) params.set("Body", body);
+    if (mediaUrl) params.set("MediaUrl", mediaUrl);
+    const projectRef = Deno.env.get("SUPABASE_URL")?.match(/https?:\/\/([^.]+)/)?.[1];
+    if (projectRef) params.set("StatusCallback", `https://${projectRef}.functions.supabase.co/whatsapp-status`);
+    const auth = btoa(`${s.account_sid}:${s.auth_token}`);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const text = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(text); } catch { /* ignore */ }
+    if (!res.ok || !json?.sid) {
+      return {
+        ok: false,
+        errorCode: json?.code ? String(json.code) : String(res.status),
+        errorMessage: json?.message || text || "Twilio error",
+      };
+    }
+    return { ok: true, providerMessageId: json.sid };
+  },
+};
+
+const providers: Record<string, WhatsAppProvider> = {
+  meta: metaProvider,
+  twilio: twilioProvider,
+};
+
+function getProvider(name?: string | null): WhatsAppProvider {
+  return providers[(name || "meta").toLowerCase()] || metaProvider;
+}
+// ---------- End provider abstraction ----------
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -104,7 +189,8 @@ Deno.serve(async (req) => {
     const { data: settings } = await admin
       .from("whatsapp_settings").select("*").eq("tenant_id", tenantId).maybeSingle();
 
-    if (!settings || !settings.is_enabled || !settings.account_sid || !settings.auth_token || !settings.from_number) {
+    const provider = getProvider(settings?.provider);
+    if (!settings || !settings.is_enabled || !provider.isConfigured(settings)) {
       return new Response(JSON.stringify({ error: "WhatsApp is not configured. Ask an admin to set it up in Settings → WhatsApp." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -137,37 +223,44 @@ Deno.serve(async (req) => {
       media_url: payload.media_url ?? null,
       media_kind: payload.media_kind ?? null,
       status: "pending",
+      provider: provider.name,
       related_sale_id: payload.related_sale_id ?? null,
       related_payment_id: payload.related_payment_id ?? null,
       related_promotion_id: payload.related_promotion_id ?? null,
       sent_by: userId,
     }).select("id").single();
 
-    const result = await twilioSend(
-      settings.account_sid, settings.auth_token, settings.from_number,
-      to, payload.body, payload.media_url,
-    );
+    const result = await provider.send(settings, {
+      to, body: payload.body, mediaUrl: payload.media_url, mediaKind: payload.media_kind ?? null,
+    });
 
-    if (!result.ok || !result.json?.sid) {
-      const errMsg = result.json?.message || result.text || "Twilio error";
-      const errCode = result.json?.code ? String(result.json.code) : String(result.status);
+    if (!result.ok) {
       if (log?.id) {
         await admin.from("whatsapp_messages").update({
-          status: "failed", error_code: errCode, error_message: errMsg, failed_at: new Date().toISOString(),
+          status: "failed",
+          error_code: result.errorCode ?? null,
+          error_message: result.errorMessage ?? "Send failed",
+          failed_at: new Date().toISOString(),
         }).eq("id", log.id);
       }
-      return new Response(JSON.stringify({ error: errMsg, code: errCode, message_id: log?.id }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (payload.test) {
+        await admin.from("whatsapp_settings").update({
+          last_test_at: new Date().toISOString(),
+          last_test_status: "failed",
+          last_test_error: result.errorMessage ?? "Send failed",
+        }).eq("tenant_id", tenantId);
+      }
+      return new Response(JSON.stringify({ error: result.errorMessage, code: result.errorCode, message_id: log?.id }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (log?.id) {
       await admin.from("whatsapp_messages").update({
         status: "sent",
-        provider_message_id: result.json.sid,
+        provider_message_id: result.providerMessageId,
         sent_at: new Date().toISOString(),
       }).eq("id", log.id);
     }
 
-    // If this was a "test" ping, record test status
     if (payload.test) {
       await admin.from("whatsapp_settings").update({
         last_test_at: new Date().toISOString(),
@@ -176,7 +269,7 @@ Deno.serve(async (req) => {
       }).eq("tenant_id", tenantId);
     }
 
-    return new Response(JSON.stringify({ ok: true, message_id: log?.id, provider_sid: result.json.sid }), {
+    return new Response(JSON.stringify({ ok: true, message_id: log?.id, provider_sid: result.providerMessageId, provider: provider.name }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

@@ -1530,8 +1530,11 @@ export type Database = {
       }
       whatsapp_settings: {
         Row: {
+          access_token: string | null
           account_sid: string | null
+          api_version: string
           auth_token: string | null
+          business_account_id: string | null
           business_name: string | null
           created_at: string
           default_format: string
@@ -1544,14 +1547,19 @@ export type Database = {
           max_bulk: number
           max_per_day: number
           max_per_minute: number
+          phone_number_id: string | null
           provider: string
           tenant_id: string
           updated_at: string
+          verify_token: string | null
           webhook_secret: string | null
         }
         Insert: {
+          access_token?: string | null
           account_sid?: string | null
+          api_version?: string
           auth_token?: string | null
+          business_account_id?: string | null
           business_name?: string | null
           created_at?: string
           default_format?: string
@@ -1564,14 +1572,19 @@ export type Database = {
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
+          phone_number_id?: string | null
           provider?: string
           tenant_id: string
           updated_at?: string
+          verify_token?: string | null
           webhook_secret?: string | null
         }
         Update: {
+          access_token?: string | null
           account_sid?: string | null
+          api_version?: string
           auth_token?: string | null
+          business_account_id?: string | null
           business_name?: string | null
           created_at?: string
           default_format?: string
@@ -1584,9 +1597,11 @@ export type Database = {
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
+          phone_number_id?: string | null
           provider?: string
           tenant_id?: string
           updated_at?: string
+          verify_token?: string | null
           webhook_secret?: string | null
         }
         Relationships: [
