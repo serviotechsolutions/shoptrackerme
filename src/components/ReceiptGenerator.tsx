@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FileText, Printer, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { jsPDF } from 'jspdf';
+
 
 interface PaymentItem {
   id: string;
