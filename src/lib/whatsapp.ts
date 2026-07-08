@@ -1,5 +1,5 @@
-import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import { generateReceiptBlob, type ReceiptDocData } from "@/lib/receiptPdf";
 
 export function normalizePhone(input: string | null | undefined): string | null {
   if (!input) return null;
