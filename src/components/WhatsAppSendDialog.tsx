@@ -69,7 +69,7 @@ export default function WhatsAppSendDialog({
       if (attachPdf && receipt) {
         const { data: profile } = await supabase.from("profiles").select("tenant_id").maybeSingle();
         if (!profile?.tenant_id) throw new Error("Missing tenant");
-        const blob = generateReceiptPdf(receipt);
+        const blob = await generateReceiptPdf(receipt);
         mediaUrl = await uploadReceiptPdf(profile.tenant_id, receipt.invoiceNumber, blob);
       }
       await sendWhatsapp({

@@ -1,5 +1,5 @@
-import jsPDF from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import { generateReceiptBlob, type ReceiptDocData } from "@/lib/receiptPdf";
 
 export function normalizePhone(input: string | null | undefined): string | null {
   if (!input) return null;
@@ -38,71 +38,33 @@ export interface ReceiptData {
   currency?: string;
 }
 
-export function generateReceiptPdf(data: ReceiptData): Blob {
-  const doc = new jsPDF({ unit: "mm", format: [80, 200] });
-  const currency = data.currency || "UGX";
-  let y = 8;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(data.shopName, 40, y, { align: "center" });
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  if (data.shopAddress) { doc.text(data.shopAddress, 40, y, { align: "center" }); y += 4; }
-  if (data.shopPhone) { doc.text(data.shopPhone, 40, y, { align: "center" }); y += 4; }
-  y += 2;
-  doc.setLineWidth(0.2);
-  doc.line(4, y, 76, y);
-  y += 4;
-  doc.setFontSize(8);
-  doc.text(`Receipt: ${data.invoiceNumber}`, 4, y); y += 4;
-  doc.text(`Date: ${data.date}`, 4, y); y += 4;
-  if (data.customerName) { doc.text(`Customer: ${data.customerName}`, 4, y); y += 4; }
-  if (data.servedBy) { doc.text(`Served by: ${data.servedBy}`, 4, y); y += 4; }
-  doc.line(4, y, 76, y); y += 4;
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Item", 4, y);
-  doc.text("Qty", 46, y);
-  doc.text("Total", 76, y, { align: "right" });
-  y += 3;
-  doc.setFont("helvetica", "normal");
-  doc.line(4, y, 76, y); y += 3;
-
-  const fmt = (n: number) => `${currency} ${Number(n).toLocaleString()}`;
-  data.items.forEach((it) => {
-    const nameLines = doc.splitTextToSize(it.name, 40);
-    doc.text(nameLines, 4, y);
-    doc.text(String(it.quantity), 46, y);
-    doc.text(fmt(it.total), 76, y, { align: "right" });
-    y += Math.max(4, nameLines.length * 3.5);
-    doc.setTextColor(120);
-    doc.text(`@ ${fmt(it.unitPrice)}`, 4, y);
-    doc.setTextColor(0);
-    y += 4;
-  });
-
-  doc.line(4, y, 76, y); y += 4;
-  doc.text("Subtotal", 4, y); doc.text(fmt(data.subtotal), 76, y, { align: "right" }); y += 4;
-  if (data.discount && data.discount > 0) {
-    doc.text("Discount", 4, y); doc.text(`- ${fmt(data.discount)}`, 76, y, { align: "right" }); y += 4;
-  }
-  doc.setFont("helvetica", "bold");
-  doc.text("TOTAL", 4, y); doc.text(fmt(data.total), 76, y, { align: "right" }); y += 4;
-  doc.setFont("helvetica", "normal");
-  doc.text("Paid", 4, y); doc.text(fmt(data.paid), 76, y, { align: "right" }); y += 4;
-  if (typeof data.change === "number" && data.change > 0) {
-    doc.text("Change", 4, y); doc.text(fmt(data.change), 76, y, { align: "right" }); y += 4;
-  }
-  if (data.paymentMethod) {
-    doc.text(`Method: ${data.paymentMethod}`, 4, y); y += 4;
-  }
-  y += 3;
-  doc.line(4, y, 76, y); y += 4;
-  doc.setFontSize(8);
-  doc.text("Thank you for your business.", 40, y, { align: "center" });
-
-  return doc.output("blob");
+export async function generateReceiptPdf(data: ReceiptData): Promise<Blob> {
+  const doc: ReceiptDocData = {
+    shop: {
+      name: data.shopName,
+      address: data.shopAddress,
+      phone: data.shopPhone,
+      logo_url: data.logoUrl,
+    },
+    invoiceNumber: data.invoiceNumber,
+    date: data.date,
+    paymentMethod: data.paymentMethod || "cash",
+    customerName: data.customerName,
+    servedBy: data.servedBy,
+    items: data.items.map(i => ({
+      name: i.name,
+      quantity: i.quantity,
+      unit_price: i.unitPrice,
+      total: i.total,
+    })),
+    subtotal: data.subtotal,
+    discount: data.discount,
+    total: data.total,
+    amountReceived: data.paid,
+    change: data.change,
+    currency: data.currency,
+  };
+  return generateReceiptBlob(doc);
 }
 
 export async function uploadReceiptPdf(tenantId: string, invoiceNumber: string, blob: Blob): Promise<string> {

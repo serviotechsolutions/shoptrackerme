@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FileText, Printer, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { jsPDF } from 'jspdf';
+
 
 interface PaymentItem {
   id: string;
@@ -53,168 +53,32 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
     setTimeout(() => window.print(), 250);
   };
 
-  const handleDownloadPDF = () => {
-    // 80mm thermal width. Compute exact height from measured content, then draw a rounded border around it.
-    const W = 80;
-    const M = 4;           // outer margin from page edge to border
-    const PAD = 3;         // padding inside the border
-    const innerLeft = M + PAD;
-    const innerRight = W - M - PAD;
-    const innerWidth = innerRight - innerLeft;
-
-    // Font sizes
-    const FS_SHOP = 12;
-    const FS_META = 8;
-    const FS_HEAD = 8.5;
-    const FS_ITEM = 8;
-    const FS_TOTAL = 11;
-    const FS_FOOT = 8;
-
-    // Line-height helpers
-    const LH = (fs: number) => fs * 0.42; // mm per line at ~1.2 leading
-
-    // Prepare a scratch doc just for text measuring
-    const scratch = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, 400] });
-    const wrap = (text: string, fs: number, width = innerWidth) => {
-      scratch.setFontSize(fs);
-      return scratch.splitTextToSize(text, width) as string[];
-    };
-
-    // Pre-wrap dynamic content
-    const shopNameLines = wrap(data.shop.name || 'Shop', FS_SHOP);
-    const addrLines = data.shop.address ? wrap(data.shop.address, FS_META) : [];
-    const phoneLines = data.shop.phone ? wrap(`Tel: ${data.shop.phone}`, FS_META) : [];
-    const emailLines = data.shop.email ? wrap(data.shop.email, FS_META) : [];
-
-    const nameColW = innerWidth - 30; // Qty(6) + Price(10) + Total(14) approx
-    const wrappedItems = data.items.map((it) => ({
-      it,
-      lines: wrap(it.product_name, FS_ITEM, nameColW).slice(0, 3),
-    }));
-
-    // Measure total height precisely
-    let h = M + PAD; // top border+pad
-    h += shopNameLines.length * LH(FS_SHOP) + 1.5;
-    h += addrLines.length * LH(FS_META);
-    h += phoneLines.length * LH(FS_META);
-    h += emailLines.length * LH(FS_META);
-    h += 2.5 + 1;                       // divider
-    h += LH(FS_HEAD) + 1;               // RECEIPT label
-    h += LH(FS_META) + 0.5;             // Date
-    if (data.reference_number) h += LH(FS_META) + 0.5;
-    h += LH(FS_META) + 0.5;             // Payment
-    if (data.customer_name) h += LH(FS_META) + 0.5;
-    h += 2.5 + 1;                       // divider
-    h += LH(FS_HEAD) + 1;               // table header
-    h += 1.2;                           // header rule
-    wrappedItems.forEach(({ lines }) => {
-      h += Math.max(LH(FS_ITEM) + 0.8, lines.length * LH(FS_ITEM) + 0.8);
+  const handleDownloadPDF = async () => {
+    const { generateReceiptDoc } = await import('@/lib/receiptPdf');
+    const doc = await generateReceiptDoc({
+      shop: {
+        name: data.shop.name,
+        address: data.shop.address,
+        phone: data.shop.phone,
+        email: data.shop.email,
+        logo_url: data.shop.logo_url,
+      },
+      invoiceNumber: data.reference_number || data.payment_id,
+      date: data.payment_date,
+      paymentMethod: data.payment_method,
+      customerName: data.customer_name,
+      servedBy: data.served_by,
+      items: data.items.map(i => ({
+        name: i.product_name,
+        quantity: i.quantity,
+        unit_price: i.price,
+        total: i.total_price,
+      })),
+      subtotal,
+      discount,
+      total: data.total_amount,
     });
-    h += 2.5 + 1;                       // divider
-    h += LH(FS_META) + 0.8;             // Subtotal
-    if (discount > 0) h += LH(FS_META) + 0.8;
-    h += LH(FS_TOTAL) + 1.5;            // TOTAL
-    h += 2.5 + 1;                       // divider
-    if (data.served_by) h += LH(FS_META) + 0.8;
-    h += LH(FS_FOOT) + 0.5 + LH(FS_FOOT); // footer 2 lines
-    h += PAD + M;                       // bottom pad+border
-
-    const totalHeight = Math.max(70, Math.round(h * 10) / 10);
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [W, totalHeight] });
-
-    // Outer rounded border
-    pdf.setDrawColor(0);
-    pdf.setLineWidth(0.35);
-    pdf.roundedRect(M, M, W - 2 * M, totalHeight - 2 * M, 2, 2, 'S');
-
-    const center = W / 2;
-    let y = M + PAD + LH(FS_SHOP) * 0.8;
-
-    // Shop name
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(FS_SHOP);
-    shopNameLines.forEach((ln) => { pdf.text(ln, center, y, { align: 'center' }); y += LH(FS_SHOP); });
-    y += 0.5;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(FS_META);
-    addrLines.forEach((ln) => { pdf.text(ln, center, y, { align: 'center' }); y += LH(FS_META); });
-    phoneLines.forEach((ln) => { pdf.text(ln, center, y, { align: 'center' }); y += LH(FS_META); });
-    emailLines.forEach((ln) => { pdf.text(ln, center, y, { align: 'center' }); y += LH(FS_META); });
-
-    const divider = () => {
-      y += 1.5;
-      pdf.setLineDashPattern([0.6, 0.6], 0);
-      pdf.setLineWidth(0.2);
-      pdf.line(innerLeft, y, innerRight, y);
-      pdf.setLineDashPattern([], 0);
-      y += 2;
-    };
-    divider();
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(FS_HEAD);
-    pdf.text('RECEIPT', center, y, { align: 'center' }); y += LH(FS_HEAD) + 1;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(FS_META);
-    pdf.text(`Date: ${format(new Date(data.payment_date), 'MMM dd, yyyy HH:mm')}`, innerLeft, y); y += LH(FS_META) + 0.5;
-    if (data.reference_number) { pdf.text(`Ref: ${data.reference_number}`, innerLeft, y); y += LH(FS_META) + 0.5; }
-    pdf.text(`Payment: ${data.payment_method.replace('_', ' ')}`, innerLeft, y); y += LH(FS_META) + 0.5;
-    if (data.customer_name) { pdf.text(`Customer: ${data.customer_name}`, innerLeft, y); y += LH(FS_META) + 0.5; }
-
-    divider();
-
-    // Table header
-    const qtyX = innerLeft + nameColW + 2;
-    const priceX = qtyX + 8;
-    const totalX = innerRight;
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(FS_HEAD);
-    pdf.text('Item', innerLeft, y);
-    pdf.text('Qty', qtyX, y);
-    pdf.text('Price', priceX, y);
-    pdf.text('Total', totalX, y, { align: 'right' });
-    y += LH(FS_HEAD) + 0.6;
-    pdf.setLineWidth(0.15);
-    pdf.line(innerLeft, y, innerRight, y); y += 1.6;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(FS_ITEM);
-    wrappedItems.forEach(({ it, lines }) => {
-      const rowH = Math.max(LH(FS_ITEM) + 0.8, lines.length * LH(FS_ITEM) + 0.8);
-      lines.forEach((ln, i) => pdf.text(ln, innerLeft, y + i * LH(FS_ITEM)));
-      pdf.text(String(it.quantity), qtyX, y);
-      pdf.text(fmtMoney(it.price), priceX, y);
-      pdf.text(fmtMoney(it.total_price), totalX, y, { align: 'right' });
-      y += rowH;
-    });
-
-    divider();
-
-    pdf.setFontSize(FS_META);
-    pdf.text('Subtotal:', innerLeft, y);
-    pdf.text(`UGX ${fmtMoney(subtotal)}`, totalX, y, { align: 'right' }); y += LH(FS_META) + 0.8;
-    if (discount > 0) {
-      pdf.text('Discount:', innerLeft, y);
-      pdf.text(`- UGX ${fmtMoney(discount)}`, totalX, y, { align: 'right' }); y += LH(FS_META) + 0.8;
-    }
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(FS_TOTAL);
-    pdf.text('TOTAL:', innerLeft, y);
-    pdf.text(`UGX ${fmtMoney(data.total_amount)}`, totalX, y, { align: 'right' });
-    y += LH(FS_TOTAL) + 1.2;
-
-    divider();
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(FS_META);
-    if (data.served_by) { pdf.text(`Served by: ${data.served_by}`, innerLeft, y); y += LH(FS_META) + 0.6; }
-    pdf.setFontSize(FS_FOOT);
-    pdf.text('Thank you for your business!', center, y, { align: 'center' }); y += LH(FS_FOOT) + 0.4;
-    pdf.text('Please come again', center, y, { align: 'center' });
-
-    pdf.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
+    doc.save(`receipt-${data.reference_number || data.payment_id}.pdf`);
   };
 
   return (

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { jsPDF } from "jspdf";
+
 import { format } from "date-fns";
 import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
 import type { ReceiptData } from "@/lib/whatsapp";
@@ -696,54 +696,32 @@ const POS = () => {
   const deleteHeldSale = (id: string) => setHeldSales(heldSales.filter(s => s.id !== id));
 
   const generateReceiptPDF = async (sale: CompletedSale) => {
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [80, 200] });
-    const pw = 80; let y = 10;
-    if (shopInfo?.logo_url) {
-      try {
-        const res = await fetch(shopInfo.logo_url); const blob = await res.blob();
-        const b64 = await new Promise<string>(r => { const fr = new FileReader(); fr.onloadend = () => r(fr.result as string); fr.readAsDataURL(blob); });
-        doc.addImage(b64, "PNG", (pw - 20) / 2, y, 20, 20); y += 24;
-      } catch { /* skip */ }
-    }
-    doc.setFontSize(14); doc.setFont("helvetica", "bold");
-    doc.text(shopInfo?.name || "Shop", pw / 2, y, { align: "center" }); y += 6;
-    if (shopInfo?.address) { doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.text(shopInfo.address, pw / 2, y, { align: "center" }); y += 4; }
-    if (shopInfo?.phone) { doc.setFontSize(8); doc.text(`Tel: ${shopInfo.phone}`, pw / 2, y, { align: "center" }); y += 4; }
-    y += 2; doc.line(5, y, pw - 5, y); y += 6;
-    doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text("RECEIPT", pw / 2, y, { align: "center" }); y += 6;
-    doc.setFontSize(8); doc.setFont("helvetica", "normal");
-    doc.text(`Invoice: ${sale.invoiceId}`, 5, y); y += 4;
-    doc.text(`Date: ${format(sale.date, "MMM dd, yyyy HH:mm")}`, 5, y); y += 4;
-    doc.text(`Payment: ${paymentMethodLabel(sale.paymentMethod)}`, 5, y); y += 4;
-    if (sale.customerName) { doc.text(`Customer: ${sale.customerName}`, 5, y); y += 4; }
-    y += 2; doc.line(5, y, pw - 5, y); y += 4;
-    doc.setFont("helvetica", "bold");
-    doc.text("Item", 5, y); doc.text("Qty", 40, y); doc.text("Price", 50, y); doc.text("Total", 65, y); y += 4;
-    doc.line(5, y, pw - 5, y); y += 4;
-    doc.setFont("helvetica", "normal");
-    sale.items.forEach(item => {
-      const name = item.name.length > 15 ? item.name.substring(0, 15) + "..." : item.name;
-      doc.text(name, 5, y); doc.text(String(item.quantity), 42, y);
-      doc.text(String(Math.round(item.selling_price)), 50, y);
-      doc.text(String(Math.round(item.selling_price * item.quantity)), 65, y); y += 4;
+    const { generateReceiptDoc } = await import("@/lib/receiptPdf");
+    return generateReceiptDoc({
+      shop: {
+        name: shopInfo?.name || "Shop",
+        address: shopInfo?.address,
+        phone: shopInfo?.phone,
+        email: shopInfo?.email,
+        logo_url: shopInfo?.logo_url,
+      },
+      invoiceNumber: sale.invoiceId,
+      date: sale.date,
+      paymentMethod: sale.paymentMethod,
+      customerName: sale.customerName,
+      servedBy: userName,
+      items: sale.items.map(i => ({
+        name: i.name,
+        quantity: i.quantity,
+        unit_price: i.selling_price,
+        total: i.selling_price * i.quantity,
+      })),
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      amountReceived: sale.amountReceived,
+      change: sale.change,
     });
-    y += 2; doc.line(5, y, pw - 5, y); y += 4;
-    if (sale.discount > 0) {
-      doc.text("Subtotal:", 5, y); doc.text(formatCurrency(sale.subtotal), pw - 5, y, { align: "right" }); y += 4;
-      doc.text("Discount:", 5, y); doc.text(`-${formatCurrency(sale.discount)}`, pw - 5, y, { align: "right" }); y += 4;
-    }
-    doc.setFontSize(10); doc.setFont("helvetica", "bold");
-    doc.text("TOTAL:", 5, y); doc.text(formatCurrency(sale.total), pw - 5, y, { align: "right" }); y += 5;
-    doc.setFontSize(8); doc.setFont("helvetica", "normal");
-    if (sale.amountReceived != null) {
-      doc.text("Paid:", 5, y); doc.text(formatCurrency(sale.amountReceived), pw - 5, y, { align: "right" }); y += 4;
-      doc.text("Change:", 5, y); doc.text(formatCurrency(sale.change || 0), pw - 5, y, { align: "right" }); y += 4;
-    }
-    y += 2;
-    doc.text(`Served by: ${userName}`, 5, y); y += 5;
-    doc.text("Thank you for your business!", pw / 2, y, { align: "center" }); y += 4;
-    doc.text("Please come again", pw / 2, y, { align: "center" });
-    return doc;
   };
 
   const handleDownloadReceipt = async () => { if (!completedSale) return; const doc = await generateReceiptPDF(completedSale); doc.save(`receipt-${completedSale.invoiceId}.pdf`); };
