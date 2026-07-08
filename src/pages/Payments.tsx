@@ -368,107 +368,27 @@ const Payments = () => {
   const generateQuickReceipt = async (payment: Payment) => {
     const { data: items } = await supabase.from('payment_items').select('*').eq('payment_id', payment.id);
     if (!shopInfo) return;
-    
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [80, 200] });
-    
-    const pageWidth = 80;
-    let yPos = 10;
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(shopInfo.name || 'Shop Name', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    if (shopInfo.address) {
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      const addressLines = doc.splitTextToSize(shopInfo.address, pageWidth - 10);
-      addressLines.forEach((line: string) => {
-        doc.text(line, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 4;
-      });
-    }
-
-    if (shopInfo.phone) {
-      doc.setFontSize(8);
-      doc.text(`Tel: ${shopInfo.phone}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
-
-    if (shopInfo.email) {
-      doc.setFontSize(8);
-      doc.text(`Email: ${shopInfo.email}`, pageWidth / 2, yPos, { align: 'center' });
-      yPos += 4;
-    }
-
-    yPos += 2;
-    doc.setLineWidth(0.5);
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RECEIPT', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${format(new Date(payment.payment_date), 'MMM dd, yyyy HH:mm')}`, 5, yPos);
-    yPos += 4;
-
-    if (payment.reference_number) {
-      doc.text(`Ref: ${payment.reference_number}`, 5, yPos);
-      yPos += 4;
-    }
-
-    doc.text(`Payment: ${payment.payment_method.replace('_', ' ')}`, 5, yPos);
-    yPos += 4;
-
-    if (payment.customer_name) {
-      doc.text(`Customer: ${payment.customer_name}`, 5, yPos);
-      yPos += 4;
-    }
-
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Item', 5, yPos);
-    doc.text('Qty', 40, yPos);
-    doc.text('Price', 50, yPos);
-    doc.text('Total', 65, yPos);
-    yPos += 4;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 4;
-
-    doc.setFont('helvetica', 'normal');
-    (items || []).forEach((item: PaymentItem) => {
-      const itemName = item.product_name.length > 15 ? item.product_name.substring(0, 15) + '...' : item.product_name;
-      doc.text(itemName, 5, yPos);
-      doc.text(item.quantity.toString(), 42, yPos);
-      doc.text(item.price.toFixed(0), 50, yPos);
-      doc.text(item.total_price.toFixed(0), 65, yPos);
-      yPos += 4;
+    const { generateReceiptDoc } = await import('@/lib/receiptPdf');
+    const doc = await generateReceiptDoc({
+      shop: {
+        name: shopInfo.name || 'Shop',
+        address: shopInfo.address,
+        phone: shopInfo.phone,
+        email: shopInfo.email,
+        logo_url: shopInfo.logo_url,
+      },
+      invoiceNumber: payment.reference_number || payment.id,
+      date: payment.payment_date,
+      paymentMethod: payment.payment_method,
+      customerName: payment.customer_name,
+      items: (items || []).map((it: PaymentItem) => ({
+        name: it.product_name,
+        quantity: it.quantity,
+        unit_price: it.price,
+        total: it.total_price,
+      })),
+      total: payment.amount,
     });
-
-    yPos += 2;
-    doc.line(5, yPos, pageWidth - 5, yPos);
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL:', 5, yPos);
-    doc.text(`UGX ${payment.amount.toLocaleString()}`, pageWidth - 5, yPos, { align: 'right' });
-    yPos += 8;
-
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Thank you for your business!', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 4;
-    doc.text('Please come again', pageWidth / 2, yPos, { align: 'center' });
-
     doc.save(`receipt-${payment.reference_number || payment.id}.pdf`);
   };
 
