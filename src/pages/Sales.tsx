@@ -13,7 +13,7 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { jsPDF } from 'jspdf';
+
 import { DateRange } from 'react-day-picker';
 
 interface Transaction {
