@@ -1427,10 +1427,15 @@ export type Database = {
           error_code: string | null
           error_message: string | null
           failed_at: string | null
+          graph_http_status: number | null
+          graph_response_json: Json | null
           id: string
           media_kind: string | null
           media_url: string | null
           message_type: string
+          meta_error_code: string | null
+          meta_error_message: string | null
+          meta_message_id: string | null
           provider: string
           provider_message_id: string | null
           read_at: string | null
@@ -1453,10 +1458,15 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
+          graph_http_status?: number | null
+          graph_response_json?: Json | null
           id?: string
           media_kind?: string | null
           media_url?: string | null
           message_type?: string
+          meta_error_code?: string | null
+          meta_error_message?: string | null
+          meta_message_id?: string | null
           provider?: string
           provider_message_id?: string | null
           read_at?: string | null
@@ -1479,10 +1489,15 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
+          graph_http_status?: number | null
+          graph_response_json?: Json | null
           id?: string
           media_kind?: string | null
           media_url?: string | null
           message_type?: string
+          meta_error_code?: string | null
+          meta_error_message?: string | null
+          meta_message_id?: string | null
           provider?: string
           provider_message_id?: string | null
           read_at?: string | null
