@@ -109,7 +109,17 @@ const metaProvider: WhatsAppProvider = {
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { /* ignore */ }
-    console.log("[whatsapp-send] Meta response", { status: res.status, body: text });
+    console.log("[whatsapp-send] Meta response", {
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      rawBody: text,
+      parsed: json,
+      messaging_product: json?.messaging_product,
+      contacts: json?.contacts,
+      messages: json?.messages,
+      error: json?.error,
+    });
     const messageId = json?.messages?.[0]?.id;
     if (res.status !== 200 || !messageId) {
       const err = json?.error;
@@ -118,9 +128,9 @@ const metaProvider: WhatsAppProvider = {
         || err?.message
         || (json ? JSON.stringify(json) : text)
         || `Meta API returned HTTP ${res.status} with no message id`;
-      return { ok: false, errorCode: String(code), errorMessage: msg };
+      return { ok: false, errorCode: String(code), errorMessage: msg, providerResponse: json ?? text, providerStatus: res.status } as ProviderSendResult;
     }
-    return { ok: true, providerMessageId: messageId };
+    return { ok: true, providerMessageId: messageId, providerResponse: json, providerStatus: res.status } as ProviderSendResult;
   },
 };
 
