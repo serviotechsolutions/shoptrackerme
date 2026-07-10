@@ -280,7 +280,14 @@ Deno.serve(async (req) => {
           last_test_error: result.errorMessage ?? "Send failed",
         }).eq("tenant_id", tenantId);
       }
-      return new Response(JSON.stringify({ error: result.errorMessage, code: result.errorCode, message_id: log?.id }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({
+        error: result.errorMessage,
+        code: result.errorCode,
+        message_id: log?.id,
+        provider: provider.name,
+        provider_status: result.providerStatus,
+        provider_response: result.providerResponse,
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (log?.id) {
