@@ -55,8 +55,11 @@ const metaProvider: WhatsAppProvider = {
   isConfigured: (s) => !!(s?.access_token && s?.phone_number_id),
   async send(s, { to, body, mediaUrl, mediaKind }) {
     const version = s.api_version || "v20.0";
-    const url = `https://graph.facebook.com/${version}/${s.phone_number_id}/messages`;
-    const toDigits = to.replace(/^\+/, "");
+    // NOTE: Meta Cloud API requires the Phone Number ID (not the WABA ID) in the URL.
+    const phoneNumberId = String(s.phone_number_id).trim();
+    const url = `https://graph.facebook.com/${version}/${phoneNumberId}/messages`;
+    // E.164 digits only — no leading '+'.
+    const toDigits = to.replace(/\D/g, "");
     let payload: Record<string, unknown>;
     if (mediaUrl && mediaKind === "pdf") {
       payload = {
@@ -83,26 +86,41 @@ const metaProvider: WhatsAppProvider = {
         text: { body: body || "", preview_url: false },
       };
     }
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${s.access_token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    console.log("[whatsapp-send] Meta request", {
+      url,
+      to: toDigits,
+      type: payload.type,
+      hasMedia: !!mediaUrl,
     });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${String(s.access_token).trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) {
+      console.error("[whatsapp-send] Network error calling Meta", e);
+      return { ok: false, errorCode: "network_error", errorMessage: (e as Error).message };
+    }
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { /* ignore */ }
-    if (!res.ok || !json?.messages?.[0]?.id) {
+    console.log("[whatsapp-send] Meta response", { status: res.status, body: text });
+    const messageId = json?.messages?.[0]?.id;
+    if (res.status !== 200 || !messageId) {
       const err = json?.error;
-      return {
-        ok: false,
-        errorCode: err?.code ? String(err.code) : String(res.status),
-        errorMessage: err?.message || err?.error_user_msg || text || "Meta API error",
-      };
+      const code = err?.code ?? err?.error_subcode ?? res.status;
+      const msg = err?.error_user_msg
+        || err?.message
+        || (json ? JSON.stringify(json) : text)
+        || `Meta API returned HTTP ${res.status} with no message id`;
+      return { ok: false, errorCode: String(code), errorMessage: msg };
     }
-    return { ok: true, providerMessageId: json.messages[0].id };
+    return { ok: true, providerMessageId: messageId };
   },
 };
 
