@@ -516,6 +516,37 @@ export default function WhatsApp() {
           </TabsContent>
           )}
         </Tabs>
+
+        <Dialog open={!!inspectMsg} onOpenChange={(v) => !v && setInspectMsg(null)}>
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Meta Graph API response</DialogTitle>
+              <DialogDescription>
+                Raw payload returned by Meta when this message was sent. Use this to diagnose delivery issues without reproducing the send.
+              </DialogDescription>
+            </DialogHeader>
+            {inspectMsg && (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><b>Date:</b> {new Date(inspectMsg.created_at).toLocaleString()}</div>
+                  <div><b>Status:</b> {inspectMsg.status}</div>
+                  <div><b>Recipient:</b> {inspectMsg.recipient_phone}</div>
+                  <div><b>Provider:</b> {inspectMsg.provider || "-"}</div>
+                  <div><b>HTTP status:</b> {inspectMsg.graph_http_status ?? "-"}</div>
+                  <div className="truncate"><b>Meta message ID:</b> <span className="font-mono">{inspectMsg.meta_message_id || "-"}</span></div>
+                  <div><b>Meta error code:</b> {inspectMsg.meta_error_code || "-"}</div>
+                  <div className="truncate"><b>Meta error message:</b> {inspectMsg.meta_error_message || "-"}</div>
+                </div>
+                <div>
+                  <div className="mb-1 font-medium">Raw graph_response_json</div>
+                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+{inspectMsg.graph_response_json ? JSON.stringify(inspectMsg.graph_response_json, null, 2) : "(no response saved)"}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
