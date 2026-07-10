@@ -71,6 +71,7 @@ export default function WhatsApp() {
   const [messages, setMessages] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [inspectMsg, setInspectMsg] = useState<any | null>(null);
 
   // Bulk
   const [bulkTargets, setBulkTargets] = useState<string>("all_active");
