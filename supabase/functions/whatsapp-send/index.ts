@@ -43,6 +43,8 @@ interface ProviderSendResult {
   providerMessageId?: string;
   errorCode?: string;
   errorMessage?: string;
+  providerResponse?: unknown;
+  providerStatus?: number;
 }
 interface WhatsAppProvider {
   name: string;
