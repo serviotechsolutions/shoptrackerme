@@ -264,6 +264,16 @@ Deno.serve(async (req) => {
       to, body: payload.body, mediaUrl: payload.media_url, mediaKind: payload.media_kind ?? null,
     });
 
+    const graphResponseJson = (result.providerResponse && typeof result.providerResponse === "object")
+      ? result.providerResponse
+      : (result.providerResponse != null ? { raw: String(result.providerResponse) } : null);
+    const metaErrorCode = (result.providerResponse as any)?.error?.code
+      ? String((result.providerResponse as any).error.code)
+      : (result.errorCode ?? null);
+    const metaErrorMessage = (result.providerResponse as any)?.error?.message
+      ?? (result.providerResponse as any)?.error?.error_user_msg
+      ?? (result.ok ? null : (result.errorMessage ?? null));
+
     if (!result.ok) {
       if (log?.id) {
         await admin.from("whatsapp_messages").update({
@@ -271,6 +281,11 @@ Deno.serve(async (req) => {
           error_code: result.errorCode ?? null,
           error_message: result.errorMessage ?? "Send failed",
           failed_at: new Date().toISOString(),
+          graph_http_status: result.providerStatus ?? null,
+          graph_response_json: graphResponseJson,
+          meta_message_id: null,
+          meta_error_code: metaErrorCode,
+          meta_error_message: metaErrorMessage,
         }).eq("id", log.id);
       }
       if (payload.test) {
@@ -295,6 +310,11 @@ Deno.serve(async (req) => {
         status: "sent",
         provider_message_id: result.providerMessageId,
         sent_at: new Date().toISOString(),
+        graph_http_status: result.providerStatus ?? null,
+        graph_response_json: graphResponseJson,
+        meta_message_id: result.providerMessageId ?? null,
+        meta_error_code: null,
+        meta_error_message: null,
       }).eq("id", log.id);
     }
 
