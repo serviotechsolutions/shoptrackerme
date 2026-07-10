@@ -429,21 +429,39 @@ export default function WhatsApp() {
                         <TableHead>Recipient</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Error</TableHead>
+                        <TableHead>HTTP</TableHead>
+                        <TableHead>Meta Message ID</TableHead>
+                        <TableHead>Meta Error</TableHead>
                         <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No messages</TableCell></TableRow>}
+                      {filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">No messages</TableCell></TableRow>}
                       {filtered.map(m => (
                         <TableRow key={m.id}>
                           <TableCell className="text-xs">{new Date(m.created_at).toLocaleString()}</TableCell>
                           <TableCell className="capitalize">{m.message_type}</TableCell>
                           <TableCell>{m.recipient_phone}</TableCell>
                           <TableCell>{m.customers?.name || "-"}</TableCell>
-                          <TableCell><StatusBadge status={m.status} /></TableCell>
-                          <TableCell className="text-xs text-red-600 max-w-[200px] truncate">{m.error_message}</TableCell>
-                          <TableCell>{m.status === "failed" && <Button size="sm" variant="outline" onClick={() => retry(m)}>Retry</Button>}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={m.status} />
+                            {m.error_message && <div className="text-[10px] text-red-600 max-w-[180px] truncate mt-1" title={m.error_message}>{m.error_message}</div>}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {m.graph_http_status ? (
+                              <span className={m.graph_http_status === 200 ? "text-green-600" : "text-red-600"}>{m.graph_http_status}</span>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono max-w-[200px] truncate" title={m.meta_message_id || ""}>{m.meta_message_id || "-"}</TableCell>
+                          <TableCell className="text-xs text-red-600 max-w-[200px]">
+                            {m.meta_error_code && <div className="font-mono">#{m.meta_error_code}</div>}
+                            {m.meta_error_message && <div className="truncate" title={m.meta_error_message}>{m.meta_error_message}</div>}
+                            {!m.meta_error_code && !m.meta_error_message && "-"}
+                          </TableCell>
+                          <TableCell className="space-x-1 whitespace-nowrap">
+                            <Button size="sm" variant="outline" onClick={() => setInspectMsg(m)}>Inspect</Button>
+                            {m.status === "failed" && <Button size="sm" variant="outline" onClick={() => retry(m)}>Retry</Button>}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
