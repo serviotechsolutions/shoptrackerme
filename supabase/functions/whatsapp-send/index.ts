@@ -306,7 +306,19 @@ Deno.serve(async (req) => {
       }).eq("tenant_id", tenantId);
     }
 
-    return new Response(JSON.stringify({ ok: true, message_id: log?.id, provider_sid: result.providerMessageId, provider: provider.name }), {
+    const responseBody = {
+      ok: true,
+      message_id: log?.id,
+      provider_sid: result.providerMessageId,
+      provider: provider.name,
+      provider_status: result.providerStatus,
+      provider_response: result.providerResponse,
+      messaging_product: (result.providerResponse as any)?.messaging_product,
+      contacts: (result.providerResponse as any)?.contacts,
+      messages: (result.providerResponse as any)?.messages,
+    };
+    console.log("[whatsapp-send] Returning to client", responseBody);
+    return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
