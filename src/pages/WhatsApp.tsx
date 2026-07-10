@@ -218,11 +218,14 @@ export default function WhatsApp() {
 
   const exportCsv = () => {
     const rows = [
-      ["Date","Type","Recipient","Customer","Status","Error","Sid"],
+      ["Date","Type","Recipient","Customer","Status","Error","Provider Sid","Graph HTTP Status","Meta Message ID","Meta Error Code","Meta Error Message","Graph Response JSON"],
       ...filtered.map(m => [
         new Date(m.created_at).toISOString(),
         m.message_type, m.recipient_phone, m.customers?.name || "", m.status,
-        m.error_message || "", m.provider_message_id || ""
+        m.error_message || "", m.provider_message_id || "",
+        m.graph_http_status ?? "", m.meta_message_id || "", m.meta_error_code || "",
+        m.meta_error_message || "",
+        m.graph_response_json ? JSON.stringify(m.graph_response_json) : "",
       ]),
     ];
     const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
