@@ -43,6 +43,8 @@ interface ProviderSendResult {
   providerMessageId?: string;
   errorCode?: string;
   errorMessage?: string;
+  providerResponse?: unknown;
+  providerStatus?: number;
 }
 interface WhatsAppProvider {
   name: string;
@@ -109,7 +111,17 @@ const metaProvider: WhatsAppProvider = {
     const text = await res.text();
     let json: any = null;
     try { json = JSON.parse(text); } catch { /* ignore */ }
-    console.log("[whatsapp-send] Meta response", { status: res.status, body: text });
+    console.log("[whatsapp-send] Meta response", {
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      rawBody: text,
+      parsed: json,
+      messaging_product: json?.messaging_product,
+      contacts: json?.contacts,
+      messages: json?.messages,
+      error: json?.error,
+    });
     const messageId = json?.messages?.[0]?.id;
     if (res.status !== 200 || !messageId) {
       const err = json?.error;
@@ -118,9 +130,9 @@ const metaProvider: WhatsAppProvider = {
         || err?.message
         || (json ? JSON.stringify(json) : text)
         || `Meta API returned HTTP ${res.status} with no message id`;
-      return { ok: false, errorCode: String(code), errorMessage: msg };
+      return { ok: false, errorCode: String(code), errorMessage: msg, providerResponse: json ?? text, providerStatus: res.status } as ProviderSendResult;
     }
-    return { ok: true, providerMessageId: messageId };
+    return { ok: true, providerMessageId: messageId, providerResponse: json, providerStatus: res.status } as ProviderSendResult;
   },
 };
 
@@ -268,7 +280,14 @@ Deno.serve(async (req) => {
           last_test_error: result.errorMessage ?? "Send failed",
         }).eq("tenant_id", tenantId);
       }
-      return new Response(JSON.stringify({ error: result.errorMessage, code: result.errorCode, message_id: log?.id }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({
+        error: result.errorMessage,
+        code: result.errorCode,
+        message_id: log?.id,
+        provider: provider.name,
+        provider_status: result.providerStatus,
+        provider_response: result.providerResponse,
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (log?.id) {
@@ -287,7 +306,19 @@ Deno.serve(async (req) => {
       }).eq("tenant_id", tenantId);
     }
 
-    return new Response(JSON.stringify({ ok: true, message_id: log?.id, provider_sid: result.providerMessageId, provider: provider.name }), {
+    const responseBody = {
+      ok: true,
+      message_id: log?.id,
+      provider_sid: result.providerMessageId,
+      provider: provider.name,
+      provider_status: result.providerStatus,
+      provider_response: result.providerResponse,
+      messaging_product: (result.providerResponse as any)?.messaging_product,
+      contacts: (result.providerResponse as any)?.contacts,
+      messages: (result.providerResponse as any)?.messages,
+    };
+    console.log("[whatsapp-send] Returning to client", responseBody);
+    return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
