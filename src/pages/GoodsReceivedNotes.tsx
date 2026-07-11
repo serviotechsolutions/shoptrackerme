@@ -258,6 +258,7 @@ const GoodsReceivedNotes = () => {
           setAdvisorReviews(reviews);
           setAdvisorOpen(true);
         }
+        await offerCatalogueForNewItems(selSupplier || null, rows);
       }
 
       await (supabase as any).from("grn_audit_log").insert({
