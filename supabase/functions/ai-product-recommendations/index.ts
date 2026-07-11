@@ -48,7 +48,8 @@ serve(async (req) => {
       .from('products')
       .select('*')
       .eq('id', productId)
-      .single();
+      .eq('tenant_id', profile.tenant_id)
+      .maybeSingle();
 
     if (!currentProduct) {
       return new Response(JSON.stringify({ error: 'Product not found' }), {
