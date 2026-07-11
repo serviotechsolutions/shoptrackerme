@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -18,23 +18,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Sparkles } from "lucide-react";
+import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Package, AlertTriangle } from "lucide-react";
 
-type SuppliedItem = { name: string; unit: string; price: number };
-type Supplier = { id: string; name: string; products_supplied: string | null; supplied_items: SuppliedItem[] | null };
+type Supplier = { id: string; name: string };
+type CatalogueItem = {
+  id: string; supplier_id: string; product_id: string | null;
+  name: string; unit: string; unit_cost: number;
+  min_order_qty: number | null; available_qty: number | null;
+  status: string;
+};
 type Product = { id: string; name: string; buying_price: number | null; last_purchase_price: number | null };
-type Item = { product_id: string | null; product_name: string; unit: string; quantity: number; unit_cost: number };
+
+type Line = {
+  is_custom_item: boolean;
+  supplier_product_id: string | null;
+  product_id: string | null;
+  product_name: string;
+  unit: string;
+  quantity: number;
+  unit_cost: number;
+  min_order_qty: number | null;
+  available_qty: number | null;
+};
+
 type PO = { id: string; po_number: string; supplier_id: string | null; status: string; total_amount: number; amount_paid: number; ordered_at: string; received_at: string | null };
 
-const parseSuppliedItems = (s: Supplier | null | undefined): SuppliedItem[] => {
-  if (!s) return [];
-  if (Array.isArray(s.supplied_items) && s.supplied_items.length) return s.supplied_items;
-  // Fallback: legacy comma/newline string with no price
-  if (!s.products_supplied) return [];
-  return s.products_supplied
-    .split(/[\n,;|]+/).map(x => x.trim()).filter(Boolean)
-    .map(name => ({ name, unit: "piece", price: 0 }));
-};
+const UNITS = ["piece", "box", "carton", "bottle", "kg", "litre", "packet", "bag", "pair", "set"];
 
 const PurchaseOrders = () => {
   const [params] = useSearchParams();
@@ -49,19 +58,21 @@ const PurchaseOrders = () => {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<(PO & { supplier_name?: string })[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [catalogueLoading, setCatalogueLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<{ supplier_id: string; notes: string; items: Item[] }>({
-    supplier_id: "", notes: "", items: [],
-  });
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const [{ data: ords }, { data: sups }, { data: prods }] = await Promise.all([
       (supabase as any).from("purchase_orders").select("*, suppliers(name)").order("created_at", { ascending: false }),
-      (supabase as any).from("suppliers").select("id,name,products_supplied").eq("status", "active").order("name"),
+      (supabase as any).from("suppliers").select("id,name").eq("status", "active").order("name"),
       supabase.from("products").select("id,name,buying_price,last_purchase_price").order("name"),
     ]);
     setOrders((ords || []).map((o: any) => ({ ...o, supplier_name: o.suppliers?.name })));
@@ -72,114 +83,124 @@ const PurchaseOrders = () => {
 
   useEffect(() => { load(); }, []);
 
-  // Auto-open create with prefill from Stock Forecast
+  const loadCatalogue = async (sid: string) => {
+    if (!sid) { setCatalogue([]); return; }
+    setCatalogueLoading(true);
+    const { data } = await (supabase as any)
+      .from("supplier_products")
+      .select("*")
+      .eq("supplier_id", sid)
+      .eq("status", "active")
+      .order("name");
+    setCatalogue((data || []) as CatalogueItem[]);
+    setCatalogueLoading(false);
+  };
+
+  const onSupplierChange = (sid: string) => {
+    setSupplierId(sid);
+    setLines([]);
+    loadCatalogue(sid);
+  };
+
+  // Auto-open from Stock Forecast presets
   useEffect(() => {
-    if (!loading && (presetSupplier || presetProduct) && products.length && !open) {
-      const items: Item[] = [];
+    if (!loading && (presetSupplier || presetProduct) && !open) {
+      setOpen(true);
+      if (presetSupplier) onSupplierChange(presetSupplier);
       if (presetProduct) {
         const prod = products.find(p => p.id === presetProduct);
         if (prod) {
-          items.push({
+          setLines([{
+            is_custom_item: true,
+            supplier_product_id: null,
             product_id: prod.id,
             product_name: prod.name,
             unit: "piece",
             quantity: presetQty ? Math.max(1, Number(presetQty)) : 1,
             unit_cost: Number(prod.last_purchase_price || prod.buying_price || 0),
-          });
+            min_order_qty: null,
+            available_qty: null,
+          }]);
         }
       }
-      setForm({ supplier_id: presetSupplier || "", notes: "", items });
-      setOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, products.length]);
 
-  const selectedSupplier = useMemo(
-    () => suppliers.find(s => s.id === form.supplier_id) || null,
-    [suppliers, form.supplier_id]
-  );
-  const supplierItems = useMemo(
-    () => parseSuppliedItems(selectedSupplier),
-    [selectedSupplier]
-  );
-
   const totalAmount = useMemo(
-    () => form.items.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_cost) || 0), 0),
-    [form.items]
+    () => lines.reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unit_cost) || 0), 0),
+    [lines]
   );
 
-  const buildItemFromSupplied = (si: SuppliedItem): Item => {
-    const match = products.find(p => p.name.trim().toLowerCase() === si.name.trim().toLowerCase());
-    return {
-      product_id: match?.id || null,
-      product_name: si.name,
-      unit: si.unit || "piece",
+  const addCatalogueLine = () => {
+    setLines(ls => [...ls, {
+      is_custom_item: false,
+      supplier_product_id: null,
+      product_id: null,
+      product_name: "",
+      unit: "",
       quantity: 1,
-      // Use supplier's default price; fall back to inventory cost only when supplier has 0
-      unit_cost: Number(si.price) > 0
-        ? Number(si.price)
-        : Number(match?.last_purchase_price || match?.buying_price || 0),
-    };
+      unit_cost: 0,
+      min_order_qty: null,
+      available_qty: null,
+    }]);
   };
 
-  const addItem = (preset?: SuppliedItem | string) => {
-    if (preset && typeof preset !== "string") {
-      setForm(f => ({ ...f, items: [...f.items, buildItemFromSupplied(preset)] }));
-      return;
-    }
-    const presetName = typeof preset === "string" ? preset : "";
-    const match = presetName
-      ? products.find(p => p.name.trim().toLowerCase() === presetName.trim().toLowerCase())
-      : null;
-    setForm(f => ({
-      ...f,
-      items: [...f.items, {
-        product_id: match?.id || null,
-        product_name: presetName,
-        unit: "piece",
-        quantity: 1,
-        unit_cost: Number(match?.last_purchase_price || match?.buying_price || 0),
-      }],
-    }));
+  const addCustomLine = () => {
+    setLines(ls => [...ls, {
+      is_custom_item: true,
+      supplier_product_id: null,
+      product_id: null,
+      product_name: "",
+      unit: "piece",
+      quantity: 1,
+      unit_cost: 0,
+      min_order_qty: null,
+      available_qty: null,
+    }]);
   };
-  const removeItem = (i: number) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
-  const updateItem = (i: number, patch: Partial<Item>) => setForm(f => ({
-    ...f,
-    items: f.items.map((it, idx) => {
-      if (idx !== i) return it;
-      const next = { ...it, ...patch };
-      if (patch.product_name !== undefined) {
-        const match = products.find(p => p.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
-        next.product_id = match?.id || null;
-        // Try supplier default price first when name matches a supplier entry
-        const supplied = supplierItems.find(s => s.name.trim().toLowerCase() === next.product_name.trim().toLowerCase());
-        if (supplied) {
-          if (!it.unit_cost && Number(supplied.price) > 0) next.unit_cost = Number(supplied.price);
-          if (!it.unit || it.unit === "piece") next.unit = supplied.unit || next.unit;
-        } else if (match && !it.unit_cost) {
-          next.unit_cost = Number(match.last_purchase_price || match.buying_price || 0);
-        }
-      }
-      return next;
-    }),
-  }));
 
-  const addAllSupplierProducts = () => {
-    if (!supplierItems.length) return;
-    const existingNames = new Set(form.items.map(i => i.product_name.trim().toLowerCase()));
-    const toAdd = supplierItems.filter(si => !existingNames.has(si.name.toLowerCase()));
-    setForm(f => ({
-      ...f,
-      items: [...f.items, ...toAdd.map(buildItemFromSupplied)],
-    }));
+  const removeLine = (i: number) => setLines(ls => ls.filter((_, idx) => idx !== i));
+
+  const pickCatalogueItem = (i: number, spId: string) => {
+    const item = catalogue.find(c => c.id === spId);
+    if (!item) return;
+    setLines(ls => ls.map((l, idx) => idx === i ? {
+      ...l,
+      supplier_product_id: item.id,
+      product_id: item.product_id,
+      product_name: item.name,
+      unit: item.unit,
+      unit_cost: Number(item.unit_cost),
+      min_order_qty: item.min_order_qty,
+      available_qty: item.available_qty,
+    } : l));
   };
+
+  const updateLine = (i: number, patch: Partial<Line>) =>
+    setLines(ls => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
 
   const save = async (status: "draft" | "approved") => {
-    if (!form.supplier_id) { toast.error("Select a supplier"); return; }
-    if (form.items.length === 0) { toast.error("Add at least one item"); return; }
-    if (form.items.some(i => !i.product_name.trim() || !i.quantity || i.quantity <= 0)) {
-      toast.error("Every item needs a name and quantity"); return;
+    if (!supplierId) { toast.error("Select a supplier"); return; }
+    if (lines.length === 0) { toast.error("Add at least one item"); return; }
+
+    for (const l of lines) {
+      if (!l.product_name.trim()) { toast.error("Every item needs a product name"); return; }
+      if (!l.quantity || l.quantity <= 0) { toast.error(`Quantity for "${l.product_name}" must be greater than 0`); return; }
+      if (!l.unit_cost || l.unit_cost <= 0) { toast.error(`Unit cost for "${l.product_name}" must be greater than 0`); return; }
+      if (!l.is_custom_item && !l.supplier_product_id) {
+        toast.error(`Choose a catalogue product for line "${l.product_name || "(empty)"}", or use Custom Item`);
+        return;
+      }
     }
+
+    // Warn about below-min-order quantities (non-blocking)
+    const belowMin = lines.filter(l => l.min_order_qty && l.quantity < Number(l.min_order_qty));
+    if (belowMin.length) {
+      const list = belowMin.map(l => `${l.product_name} (min ${l.min_order_qty})`).join(", ");
+      if (!confirm(`Some items are below the supplier's minimum order qty:\n\n${list}\n\nContinue anyway?`)) return;
+    }
+
     setSaving(true);
     try {
       const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
@@ -191,31 +212,33 @@ const PurchaseOrders = () => {
         .from("purchase_orders")
         .insert({
           tenant_id,
-          supplier_id: form.supplier_id,
+          supplier_id: supplierId,
           po_number,
           status,
           total_amount: totalAmount,
-          notes: form.notes || null,
+          notes: notes || null,
           created_by: user!.id,
         })
-        .select()
-        .single();
+        .select().single();
       if (error) throw error;
 
-      const itemsRows = form.items.map(i => ({
+      const itemsRows = lines.map(l => ({
         purchase_order_id: po.id,
-        product_id: i.product_id,
-        product_name: i.product_name.trim(),
-        quantity: Number(i.quantity),
-        unit_cost: Number(i.unit_cost),
-        total_cost: Number(i.quantity) * Number(i.unit_cost),
+        product_id: l.product_id,
+        product_name: l.product_name.trim(),
+        unit: l.unit || "piece",
+        quantity: Number(l.quantity),
+        unit_cost: Number(l.unit_cost),
+        total_cost: Number(l.quantity) * Number(l.unit_cost),
+        supplier_product_id: l.supplier_product_id,
+        is_custom_item: l.is_custom_item,
       }));
       const { error: itErr } = await (supabase as any).from("purchase_order_items").insert(itemsRows);
       if (itErr) throw itErr;
 
       toast.success(`Purchase order ${status === "draft" ? "saved as draft" : "approved"}`);
       setOpen(false);
-      setForm({ supplier_id: "", notes: "", items: [] });
+      setSupplierId(""); setNotes(""); setLines([]); setCatalogue([]);
       load();
     } catch (e: any) {
       toast.error(e.message || "Failed to save");
@@ -223,6 +246,13 @@ const PurchaseOrders = () => {
       setSaving(false);
     }
   };
+
+  const openCreate = () => {
+    setSupplierId(""); setNotes(""); setLines([]); setCatalogue([]);
+    setOpen(true);
+  };
+
+  const selectedSupplierName = suppliers.find(s => s.id === supplierId)?.name || "";
 
   return (
     <DashboardLayout>
@@ -234,7 +264,7 @@ const PurchaseOrders = () => {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Create and manage orders sent to your suppliers.</p>
           </div>
-          {canEdit && <Button onClick={() => { setForm({ supplier_id: "", notes: "", items: [] }); setOpen(true); }}><Plus className="h-4 w-4 mr-1" />New PO</Button>}
+          {canEdit && <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" />New PO</Button>}
         </div>
 
         {loading ? (
@@ -278,15 +308,18 @@ const PurchaseOrders = () => {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Create Purchase Order</DialogTitle></DialogHeader>
-          <div className="grid gap-3">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Purchase Order</DialogTitle>
+            <DialogDescription>
+              Prices come from the supplier's catalogue. Snapshot is saved with the order — future price changes never touch existing orders.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
             <div>
               <Label className="text-xs">Supplier *</Label>
-              <Select
-                value={form.supplier_id}
-                onValueChange={v => setForm({ ...form, supplier_id: v, items: [] })}
-              >
+              <Select value={supplierId} onValueChange={onSupplierChange}>
                 <SelectTrigger><SelectValue placeholder="Choose supplier" /></SelectTrigger>
                 <SelectContent>
                   {suppliers.length === 0 ? (
@@ -298,110 +331,141 @@ const PurchaseOrders = () => {
               </Select>
             </div>
 
-            {form.supplier_id && (
-              <div className="rounded border bg-muted/40 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                    Products supplied by {selectedSupplier?.name}
-                  </p>
-                  {supplierItems.length > 0 && (
-                    <Button size="sm" variant="outline" onClick={addAllSupplierProducts}>
-                      Add all
-                    </Button>
-                  )}
-                </div>
-                {supplierItems.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    This supplier has no products listed. Edit the supplier and add the
-                    products they supply (with unit & price), or add a custom item below.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {supplierItems.map(si => {
-                      const already = form.items.some(i => i.product_name.trim().toLowerCase() === si.name.toLowerCase());
-                      const inInventory = products.some(p => p.name.trim().toLowerCase() === si.name.toLowerCase());
-                      return (
-                        <button
-                          key={si.name}
-                          type="button"
-                          disabled={already}
-                          onClick={() => addItem(si)}
-                          className={`text-xs px-2 py-1 rounded border transition ${
-                            already
-                              ? "opacity-50 cursor-not-allowed bg-background"
-                              : "bg-background hover:bg-primary hover:text-primary-foreground"
-                          }`}
-                          title={`${si.price > 0 ? si.price.toLocaleString() + " / " + si.unit : "no default price"}${inInventory ? " · in inventory" : " · new product"}`}
-                        >
-                          + {si.name}
-                          {si.price > 0 && <span className="opacity-70"> · {si.price.toLocaleString()}/{si.unit}</span>}
-                          {!inInventory && " ✨"}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                <p className="text-[10px] text-muted-foreground">
-                  Prices come from this supplier's profile. ✨ = not yet in your inventory; it will be created when goods are received.
-                </p>
+            {supplierId && (
+              <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Package className="h-3 w-3 text-primary" />
+                  {catalogueLoading
+                    ? "Loading catalogue…"
+                    : `${catalogue.length} catalogue product${catalogue.length === 1 ? "" : "s"} for ${selectedSupplierName}`}
+                </span>
+                <Link to="/suppliers" className="text-primary hover:underline">Manage catalogue</Link>
               </div>
             )}
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs">Items</Label>
-                <Button size="sm" variant="outline" onClick={() => addItem("")}>
-                  <Plus className="h-3 w-3 mr-1" />Custom item
-                </Button>
+                <Label className="text-xs">Order Lines</Label>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={addCatalogueLine} disabled={!supplierId}>
+                    <Plus className="h-3 w-3 mr-1" /> Catalogue item
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={addCustomLine} disabled={!supplierId}>
+                    <Plus className="h-3 w-3 mr-1" /> Custom item
+                  </Button>
+                </div>
               </div>
-              {form.items.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3 border rounded">
-                  {form.supplier_id ? "Pick from supplier products above or add a custom item." : "Select a supplier to begin."}
+
+              {lines.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4 border rounded">
+                  {supplierId ? "Add a catalogue item or a custom item." : "Select a supplier first."}
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {form.items.map((it, i) => {
-                    const isNew = !it.product_id && it.product_name.trim().length > 0;
+                  {lines.map((l, i) => {
+                    const belowMin = l.min_order_qty != null && l.quantity < Number(l.min_order_qty);
                     return (
-                      <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                        <div className="col-span-12 sm:col-span-4">
-                          <Label className="text-[10px] flex items-center gap-1">
-                            Product
-                            {isNew && <Badge variant="outline" className="text-[9px] py-0">new</Badge>}
-                            {it.product_id && <Badge variant="secondary" className="text-[9px] py-0">in stock</Badge>}
-                          </Label>
-                          <Input
-                            list={`supplier-products-${form.supplier_id}`}
-                            placeholder="Product name"
-                            value={it.product_name}
-                            onChange={e => updateItem(i, { product_name: e.target.value })}
-                          />
+                      <div key={i} className={`p-3 border rounded space-y-2 ${l.is_custom_item ? "bg-amber-50/40 dark:bg-amber-950/10" : ""}`}>
+                        <div className="flex items-center justify-between">
+                          <Badge variant={l.is_custom_item ? "secondary" : "outline"} className="text-[10px]">
+                            {l.is_custom_item ? "Custom Item" : "Catalogue"}
+                          </Badge>
+                          <Button size="icon" variant="ghost" onClick={() => removeLine(i)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
-                        <div className="col-span-4 sm:col-span-2">
-                          <Label className="text-[10px]">Unit</Label>
-                          <Input value={it.unit} onChange={e => updateItem(i, { unit: e.target.value })} placeholder="piece" />
-                        </div>
-                        <div className="col-span-4 sm:col-span-2">
-                          <Label className="text-[10px]">Qty</Label>
-                          <Input type="number" min={1} value={it.quantity} onChange={e => updateItem(i, { quantity: Number(e.target.value) })} />
-                        </div>
-                        <div className="col-span-4 sm:col-span-2">
-                          <Label className="text-[10px]">Unit Cost</Label>
-                          <Input type="number" min={0} value={it.unit_cost} readOnly className="bg-muted/40 cursor-not-allowed" title="Set from the supplier's profile" />
-                        </div>
-                        <div className="col-span-10 sm:col-span-1 text-right text-sm font-semibold">
-                          {(it.quantity * it.unit_cost).toLocaleString()}
-                        </div>
-                        <div className="col-span-2 sm:col-span-1">
-                          <Button size="icon" variant="ghost" onClick={() => removeItem(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
+
+                        {l.is_custom_item ? (
+                          <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-12 sm:col-span-5">
+                              <Label className="text-[10px]">Product name *</Label>
+                              <Input value={l.product_name} onChange={e => updateLine(i, { product_name: e.target.value })} />
+                            </div>
+                            <div className="col-span-6 sm:col-span-2">
+                              <Label className="text-[10px]">Unit *</Label>
+                              <Select value={l.unit || "piece"} onValueChange={v => updateLine(i, { unit: v })}>
+                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-6 sm:col-span-2">
+                              <Label className="text-[10px]">Qty *</Label>
+                              <Input type="number" min={1} value={l.quantity}
+                                onChange={e => updateLine(i, { quantity: Math.max(0, Number(e.target.value)) })} />
+                            </div>
+                            <div className="col-span-8 sm:col-span-2">
+                              <Label className="text-[10px]">Unit cost *</Label>
+                              <Input type="number" min={0.01} step="0.01" value={l.unit_cost}
+                                onChange={e => updateLine(i, { unit_cost: Math.max(0, Number(e.target.value)) })} />
+                            </div>
+                            <div className="col-span-4 sm:col-span-1 text-right font-semibold text-sm self-end">
+                              {(l.quantity * l.unit_cost).toLocaleString()}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-12 sm:col-span-5">
+                              <Label className="text-[10px]">Product *</Label>
+                              <Select value={l.supplier_product_id || ""} onValueChange={v => pickCatalogueItem(i, v)}>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder={catalogue.length ? "Choose product" : "No catalogue items"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {catalogue.length === 0 ? (
+                                    <div className="p-2 text-xs text-muted-foreground">
+                                      This supplier has no catalogue yet.{" "}
+                                      <Link to="/suppliers" className="text-primary">Add products</Link>
+                                    </div>
+                                  ) : catalogue.filter(c => !lines.some((ll, idx) => idx !== i && ll.supplier_product_id === c.id)).map(c => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                      {c.name} — {Number(c.unit_cost).toLocaleString()}/{c.unit}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="col-span-4 sm:col-span-1">
+                              <Label className="text-[10px]">Unit</Label>
+                              <Input value={l.unit} readOnly className="bg-muted/50 cursor-not-allowed h-9" />
+                            </div>
+                            <div className="col-span-8 sm:col-span-2">
+                              <Label className="text-[10px]">Supplier cost</Label>
+                              <Input value={l.unit_cost ? l.unit_cost.toLocaleString() : ""} readOnly className="bg-muted/50 cursor-not-allowed h-9" />
+                            </div>
+                            <div className="col-span-6 sm:col-span-2">
+                              <Label className="text-[10px]">
+                                Order qty *
+                                {l.min_order_qty != null && (
+                                  <span className="text-muted-foreground"> (min {l.min_order_qty})</span>
+                                )}
+                              </Label>
+                              <Input
+                                type="number" min={1} value={l.quantity}
+                                onChange={e => updateLine(i, { quantity: Math.max(0, Number(e.target.value)) })}
+                                className={belowMin ? "border-orange-500" : ""}
+                              />
+                            </div>
+                            <div className="col-span-6 sm:col-span-2 text-right self-end">
+                              <p className="text-[10px] text-muted-foreground">Line total</p>
+                              <p className="font-semibold">{(l.quantity * l.unit_cost).toLocaleString()}</p>
+                            </div>
+                            {l.supplier_product_id && (
+                              <div className="col-span-12 flex gap-4 text-[10px] text-muted-foreground">
+                                {l.available_qty != null && <span>Available from supplier: {l.available_qty} {l.unit}</span>}
+                                {belowMin && (
+                                  <span className="text-orange-600 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Below supplier minimum
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-                  <datalist id={`supplier-products-${form.supplier_id}`}>
-                    {supplierItems.map(si => <option key={si.name} value={si.name} />)}
-                  </datalist>
                 </div>
               )}
             </div>
@@ -413,9 +477,10 @@ const PurchaseOrders = () => {
 
             <div>
               <Label className="text-xs">Notes</Label>
-              <Textarea rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+              <Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
             </div>
           </div>
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button variant="secondary" onClick={() => save("draft")} disabled={saving}>Save draft</Button>
