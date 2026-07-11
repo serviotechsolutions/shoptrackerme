@@ -18,7 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2 } from "lucide-react";
+import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2, Package } from "lucide-react";
+import SupplierCatalogueDialog from "@/components/SupplierCatalogueDialog";
 
 type SuppliedItem = { name: string; unit: string; price: number };
 
@@ -61,6 +62,7 @@ const Suppliers = () => {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState<Partial<Supplier>>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [catalogueFor, setCatalogueFor] = useState<Supplier | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -123,23 +125,9 @@ const Suppliers = () => {
   };
   const startEdit = (s: Supplier) => {
     setEditing(s);
-    // Migrate legacy comma-separated string into structured rows if needed
-    let items: SuppliedItem[] = Array.isArray(s.supplied_items) ? s.supplied_items : [];
-    if ((!items || items.length === 0) && s.products_supplied) {
-      items = s.products_supplied
-        .split(/[\n,;|]+/).map(x => x.trim()).filter(Boolean)
-        .map(name => ({ name, unit: "piece", price: 0 }));
-    }
-    setForm({ ...s, supplied_items: items });
+    setForm({ ...s });
     setOpen(true);
   };
-
-  const addSupplied = () => setForm(f => ({ ...f, supplied_items: [...(f.supplied_items || []), { name: "", unit: "piece", price: 0 }] }));
-  const updateSupplied = (i: number, patch: Partial<SuppliedItem>) => setForm(f => ({
-    ...f,
-    supplied_items: (f.supplied_items || []).map((it, idx) => idx === i ? { ...it, ...patch } : it),
-  }));
-  const removeSupplied = (i: number) => setForm(f => ({ ...f, supplied_items: (f.supplied_items || []).filter((_, idx) => idx !== i) }));
 
   const save = async () => {
     if (!form.name?.trim()) {
@@ -166,11 +154,6 @@ const Suppliers = () => {
         tax_number: form.tax_number || null,
         business_reg_number: form.business_reg_number || null,
         products_supplied: form.products_supplied || null,
-        supplied_items: (form.supplied_items || []).filter(it => it.name?.trim()).map(it => ({
-          name: it.name.trim(),
-          unit: (it.unit || "piece").trim(),
-          price: Number(it.price) || 0,
-        })),
         notes: form.notes || null,
         status: form.status || "active",
       };
@@ -285,11 +268,16 @@ const Suppliers = () => {
                           </p>
                         </div>
                       </div>
-                      {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
-                          <Pencil className="h-4 w-4" />
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <Button variant="outline" size="sm" onClick={() => setCatalogueFor(s)}>
+                          <Package className="h-3 w-3 mr-1" /> Catalogue
                         </Button>
-                      )}
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -327,45 +315,24 @@ const Suppliers = () => {
               <Label className="text-xs">Address</Label>
               <Textarea rows={2} value={form.address || ""} onChange={e => setForm({ ...form, address: e.target.value })} />
             </div>
-            <div className="sm:col-span-2">
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs">Products Supplied</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addSupplied}>
-                  <Plus className="h-3 w-3 mr-1" /> Add product
-                </Button>
+            <div className="sm:col-span-2 rounded border bg-muted/30 p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-primary" />
+                <p className="font-medium">Product Catalogue</p>
               </div>
-              {(form.supplied_items || []).length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-3 border rounded">
-                  No products yet. Add the items this supplier sells, with their unit and your agreed price.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {(form.supplied_items || []).map((it, i) => (
-                    <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
-                      <div className="col-span-12 sm:col-span-5">
-                        <Label className="text-[10px]">Product name</Label>
-                        <Input value={it.name} onChange={e => updateSupplied(i, { name: e.target.value })} placeholder="e.g. Rice 25kg" />
-                      </div>
-                      <div className="col-span-5 sm:col-span-3">
-                        <Label className="text-[10px]">Unit</Label>
-                        <Input value={it.unit} onChange={e => updateSupplied(i, { unit: e.target.value })} placeholder="piece, box, kg" />
-                      </div>
-                      <div className="col-span-6 sm:col-span-3">
-                        <Label className="text-[10px]">Default price / unit</Label>
-                        <Input type="number" min={0} value={it.price} onChange={e => updateSupplied(i, { price: Number(e.target.value) })} />
-                      </div>
-                      <div className="col-span-1">
-                        <Button type="button" size="icon" variant="ghost" onClick={() => removeSupplied(i)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="text-[10px] text-muted-foreground mt-1">
-                These prices and units pre-fill every Purchase Order line for this supplier.
+              <p className="text-xs text-muted-foreground mt-1">
+                {editing
+                  ? "Save the supplier first if needed, then click \"Manage Catalogue\" on the supplier row to add products, units and prices."
+                  : "After creating this supplier, click \"Manage Catalogue\" on the supplier row to add the products they sell you."}
               </p>
+              {editing && (
+                <Button
+                  type="button" size="sm" variant="outline" className="mt-2"
+                  onClick={() => { setOpen(false); setCatalogueFor(editing); }}
+                >
+                  <Package className="h-3 w-3 mr-1" /> Manage catalogue
+                </Button>
+              )}
             </div>
             <div className="sm:col-span-2">
               <Label className="text-xs">Notes</Label>
@@ -388,6 +355,16 @@ const Suppliers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {catalogueFor && (
+        <SupplierCatalogueDialog
+          open={!!catalogueFor}
+          onOpenChange={(v) => { if (!v) setCatalogueFor(null); }}
+          supplierId={catalogueFor.id}
+          supplierName={catalogueFor.name}
+          canEdit={canEdit}
+        />
+      )}
     </DashboardLayout>
   );
 };

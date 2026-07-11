@@ -92,6 +92,14 @@ const GoodsReceivedNotes = () => {
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [advisorReviews, setAdvisorReviews] = useState<PricingReview[]>([]);
 
+  // Post-approval "add to supplier catalogue" prompt
+  const [catalogueOfferOpen, setCatalogueOfferOpen] = useState(false);
+  const [catalogueOfferSupplierId, setCatalogueOfferSupplierId] = useState<string>("");
+  const [catalogueOfferItems, setCatalogueOfferItems] = useState<Array<{
+    product_id: string | null; name: string; unit: string; unit_cost: number;
+    min_order_qty: string; selected: boolean;
+  }>>([]);
+
   const loadPricingSettings = async (tenantId: string): Promise<PricingSettings> => {
     const { data } = await (supabase as any).from("tenants")
       .select("min_profit_margin, price_rounding").eq("id", tenantId).maybeSingle();
@@ -250,6 +258,7 @@ const GoodsReceivedNotes = () => {
           setAdvisorReviews(reviews);
           setAdvisorOpen(true);
         }
+        await offerCatalogueForNewItems(selSupplier || null, rows);
       }
 
       await (supabase as any).from("grn_audit_log").insert({
@@ -406,6 +415,58 @@ const GoodsReceivedNotes = () => {
     }
   };
 
+  // After approval, offer to add received items that aren't yet in the supplier's catalogue.
+  const offerCatalogueForNewItems = async (supplierId: string | null, grnRows: any[]) => {
+    if (!supplierId || !grnRows?.length) return;
+    const { data: existing } = await (supabase as any)
+      .from("supplier_products")
+      .select("name")
+      .eq("supplier_id", supplierId);
+    const known = new Set((existing || []).map((r: any) => r.name.trim().toLowerCase()));
+    const candidates = grnRows
+      .filter(r => Number(r.received_quantity) > 0 && Number(r.unit_cost) > 0 && (r.product_name || "").trim())
+      .filter(r => !known.has(r.product_name.trim().toLowerCase()))
+      // de-dupe on name
+      .reduce((acc: any[], r: any) => {
+        const key = r.product_name.trim().toLowerCase();
+        if (!acc.some(x => x.__k === key)) acc.push({ ...r, __k: key });
+        return acc;
+      }, []);
+    if (!candidates.length) return;
+    setCatalogueOfferSupplierId(supplierId);
+    setCatalogueOfferItems(candidates.map((r: any) => ({
+      product_id: r.product_id || null,
+      name: r.product_name.trim(),
+      unit: r.unit || "piece",
+      unit_cost: Number(r.unit_cost),
+      min_order_qty: "",
+      selected: true,
+    })));
+    setCatalogueOfferOpen(true);
+  };
+
+  const saveCatalogueOffer = async () => {
+    const chosen = catalogueOfferItems.filter(i => i.selected && i.unit_cost > 0 && i.name);
+    if (!chosen.length) { setCatalogueOfferOpen(false); return; }
+    const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+    if (!profile?.tenant_id) return;
+    const rows = chosen.map(i => ({
+      tenant_id: profile.tenant_id,
+      supplier_id: catalogueOfferSupplierId,
+      product_id: i.product_id,
+      name: i.name,
+      unit: i.unit || "piece",
+      unit_cost: i.unit_cost,
+      min_order_qty: i.min_order_qty === "" ? null : Number(i.min_order_qty),
+      status: "active",
+    }));
+    const { error } = await (supabase as any).from("supplier_products").insert(rows);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${rows.length} item${rows.length > 1 ? "s" : ""} added to supplier catalogue`);
+    setCatalogueOfferOpen(false);
+    setCatalogueOfferItems([]);
+  };
+
   const approveDraft = async (g: GRN) => {
     const { data: rows } = await (supabase as any)
       .from("grn_items").select("*").eq("grn_id", g.id);
@@ -426,6 +487,7 @@ const GoodsReceivedNotes = () => {
       setAdvisorReviews(reviews);
       setAdvisorOpen(true);
     }
+    await offerCatalogueForNewItems(g.supplier_id, rows);
     load();
   };
 
@@ -820,6 +882,52 @@ const GoodsReceivedNotes = () => {
         onClose={() => setAdvisorOpen(false)}
         onUpdated={() => load()}
       />
+
+      {/* Add-to-catalogue prompt after approval */}
+      <Dialog open={catalogueOfferOpen} onOpenChange={setCatalogueOfferOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add items to supplier catalogue?</DialogTitle>
+            <DialogDescription>
+              These received items aren't in this supplier's catalogue yet. Add them so future Purchase Orders auto-fill unit and price.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {catalogueOfferItems.map((it, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                <div className="col-span-1 flex items-center h-9">
+                  <input
+                    type="checkbox" checked={it.selected}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, selected: e.target.checked } : x))}
+                  />
+                </div>
+                <div className="col-span-11 sm:col-span-4">
+                  <Label className="text-[10px]">Product</Label>
+                  <Input value={it.name} readOnly className="bg-muted/40 h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-2">
+                  <Label className="text-[10px]">Unit</Label>
+                  <Input value={it.unit} onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit: e.target.value } : x))} className="h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-2">
+                  <Label className="text-[10px]">Unit cost</Label>
+                  <Input type="number" min={0.01} step="0.01" value={it.unit_cost}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit_cost: Number(e.target.value) } : x))} className="h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-3">
+                  <Label className="text-[10px]">Min order (optional)</Label>
+                  <Input type="number" min={0} value={it.min_order_qty}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, min_order_qty: e.target.value } : x))} className="h-9" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatalogueOfferOpen(false)}>Skip</Button>
+            <Button onClick={saveCatalogueOffer}>Add selected to catalogue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

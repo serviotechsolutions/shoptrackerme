@@ -840,31 +840,40 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_custom_item: boolean
           product_id: string | null
           product_name: string
           purchase_order_id: string
           quantity: number
+          supplier_product_id: string | null
           total_cost: number
+          unit: string | null
           unit_cost: number
         }
         Insert: {
           created_at?: string
           id?: string
+          is_custom_item?: boolean
           product_id?: string | null
           product_name: string
           purchase_order_id: string
           quantity?: number
+          supplier_product_id?: string | null
           total_cost?: number
+          unit?: string | null
           unit_cost?: number
         }
         Update: {
           created_at?: string
           id?: string
+          is_custom_item?: boolean
           product_id?: string | null
           product_name?: string
           purchase_order_id?: string
           quantity?: number
+          supplier_product_id?: string | null
           total_cost?: number
+          unit?: string | null
           unit_cost?: number
         }
         Relationships: [
@@ -880,6 +889,13 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_supplier_product_id_fkey"
+            columns: ["supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_products"
             referencedColumns: ["id"]
           },
         ]
@@ -1100,6 +1116,75 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_products: {
+        Row: {
+          available_qty: number | null
+          brand: string | null
+          created_at: string
+          description: string | null
+          id: string
+          min_order_qty: number | null
+          name: string
+          product_id: string | null
+          sku: string | null
+          status: string
+          supplier_id: string
+          tenant_id: string
+          unit: string
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          available_qty?: number | null
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          min_order_qty?: number | null
+          name: string
+          product_id?: string | null
+          sku?: string | null
+          status?: string
+          supplier_id: string
+          tenant_id: string
+          unit?: string
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          available_qty?: number | null
+          brand?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          min_order_qty?: number | null
+          name?: string
+          product_id?: string | null
+          sku?: string | null
+          status?: string
+          supplier_id?: string
+          tenant_id?: string
+          unit?: string
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
