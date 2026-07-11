@@ -414,6 +414,58 @@ const GoodsReceivedNotes = () => {
     }
   };
 
+  // After approval, offer to add received items that aren't yet in the supplier's catalogue.
+  const offerCatalogueForNewItems = async (supplierId: string | null, grnRows: any[]) => {
+    if (!supplierId || !grnRows?.length) return;
+    const { data: existing } = await (supabase as any)
+      .from("supplier_products")
+      .select("name")
+      .eq("supplier_id", supplierId);
+    const known = new Set((existing || []).map((r: any) => r.name.trim().toLowerCase()));
+    const candidates = grnRows
+      .filter(r => Number(r.received_quantity) > 0 && Number(r.unit_cost) > 0 && (r.product_name || "").trim())
+      .filter(r => !known.has(r.product_name.trim().toLowerCase()))
+      // de-dupe on name
+      .reduce((acc: any[], r: any) => {
+        const key = r.product_name.trim().toLowerCase();
+        if (!acc.some(x => x.__k === key)) acc.push({ ...r, __k: key });
+        return acc;
+      }, []);
+    if (!candidates.length) return;
+    setCatalogueOfferSupplierId(supplierId);
+    setCatalogueOfferItems(candidates.map((r: any) => ({
+      product_id: r.product_id || null,
+      name: r.product_name.trim(),
+      unit: r.unit || "piece",
+      unit_cost: Number(r.unit_cost),
+      min_order_qty: "",
+      selected: true,
+    })));
+    setCatalogueOfferOpen(true);
+  };
+
+  const saveCatalogueOffer = async () => {
+    const chosen = catalogueOfferItems.filter(i => i.selected && i.unit_cost > 0 && i.name);
+    if (!chosen.length) { setCatalogueOfferOpen(false); return; }
+    const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+    if (!profile?.tenant_id) return;
+    const rows = chosen.map(i => ({
+      tenant_id: profile.tenant_id,
+      supplier_id: catalogueOfferSupplierId,
+      product_id: i.product_id,
+      name: i.name,
+      unit: i.unit || "piece",
+      unit_cost: i.unit_cost,
+      min_order_qty: i.min_order_qty === "" ? null : Number(i.min_order_qty),
+      status: "active",
+    }));
+    const { error } = await (supabase as any).from("supplier_products").insert(rows);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${rows.length} item${rows.length > 1 ? "s" : ""} added to supplier catalogue`);
+    setCatalogueOfferOpen(false);
+    setCatalogueOfferItems([]);
+  };
+
   const approveDraft = async (g: GRN) => {
     const { data: rows } = await (supabase as any)
       .from("grn_items").select("*").eq("grn_id", g.id);
