@@ -92,6 +92,14 @@ const GoodsReceivedNotes = () => {
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [advisorReviews, setAdvisorReviews] = useState<PricingReview[]>([]);
 
+  // Post-approval "add to supplier catalogue" prompt
+  const [catalogueOfferOpen, setCatalogueOfferOpen] = useState(false);
+  const [catalogueOfferSupplierId, setCatalogueOfferSupplierId] = useState<string>("");
+  const [catalogueOfferItems, setCatalogueOfferItems] = useState<Array<{
+    product_id: string | null; name: string; unit: string; unit_cost: number;
+    min_order_qty: string; selected: boolean;
+  }>>([]);
+
   const loadPricingSettings = async (tenantId: string): Promise<PricingSettings> => {
     const { data } = await (supabase as any).from("tenants")
       .select("min_profit_margin, price_rounding").eq("id", tenantId).maybeSingle();
