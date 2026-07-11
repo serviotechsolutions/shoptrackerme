@@ -355,6 +355,16 @@ const Suppliers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {catalogueFor && (
+        <SupplierCatalogueDialog
+          open={!!catalogueFor}
+          onOpenChange={(v) => { if (!v) setCatalogueFor(null); }}
+          supplierId={catalogueFor.id}
+          supplierName={catalogueFor.name}
+          canEdit={canEdit}
+        />
+      )}
     </DashboardLayout>
   );
 };
