@@ -487,6 +487,7 @@ const GoodsReceivedNotes = () => {
       setAdvisorReviews(reviews);
       setAdvisorOpen(true);
     }
+    await offerCatalogueForNewItems(g.supplier_id, rows);
     load();
   };
 
