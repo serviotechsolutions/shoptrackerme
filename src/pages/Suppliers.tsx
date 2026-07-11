@@ -62,6 +62,7 @@ const Suppliers = () => {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState<Partial<Supplier>>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [catalogueFor, setCatalogueFor] = useState<Supplier | null>(null);
 
   const load = async () => {
     setLoading(true);
