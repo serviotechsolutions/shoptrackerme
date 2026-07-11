@@ -882,6 +882,52 @@ const GoodsReceivedNotes = () => {
         onClose={() => setAdvisorOpen(false)}
         onUpdated={() => load()}
       />
+
+      {/* Add-to-catalogue prompt after approval */}
+      <Dialog open={catalogueOfferOpen} onOpenChange={setCatalogueOfferOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add items to supplier catalogue?</DialogTitle>
+            <DialogDescription>
+              These received items aren't in this supplier's catalogue yet. Add them so future Purchase Orders auto-fill unit and price.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {catalogueOfferItems.map((it, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-end p-2 border rounded">
+                <div className="col-span-1 flex items-center h-9">
+                  <input
+                    type="checkbox" checked={it.selected}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, selected: e.target.checked } : x))}
+                  />
+                </div>
+                <div className="col-span-11 sm:col-span-4">
+                  <Label className="text-[10px]">Product</Label>
+                  <Input value={it.name} readOnly className="bg-muted/40 h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-2">
+                  <Label className="text-[10px]">Unit</Label>
+                  <Input value={it.unit} onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit: e.target.value } : x))} className="h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-2">
+                  <Label className="text-[10px]">Unit cost</Label>
+                  <Input type="number" min={0.01} step="0.01" value={it.unit_cost}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit_cost: Number(e.target.value) } : x))} className="h-9" />
+                </div>
+                <div className="col-span-4 sm:col-span-3">
+                  <Label className="text-[10px]">Min order (optional)</Label>
+                  <Input type="number" min={0} value={it.min_order_qty}
+                    onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, min_order_qty: e.target.value } : x))} className="h-9" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatalogueOfferOpen(false)}>Skip</Button>
+            <Button onClick={saveCatalogueOffer}>Add selected to catalogue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
