@@ -18,7 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2 } from "lucide-react";
+import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2, Package } from "lucide-react";
+import SupplierCatalogueDialog from "@/components/SupplierCatalogueDialog";
 
 type SuppliedItem = { name: string; unit: string; price: number };
 
