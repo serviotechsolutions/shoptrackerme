@@ -268,11 +268,16 @@ const Suppliers = () => {
                           </p>
                         </div>
                       </div>
-                      {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
-                          <Pencil className="h-4 w-4" />
+                      <div className="flex flex-col sm:flex-row gap-1">
+                        <Button variant="outline" size="sm" onClick={() => setCatalogueFor(s)}>
+                          <Package className="h-3 w-3 mr-1" /> Catalogue
                         </Button>
-                      )}
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
