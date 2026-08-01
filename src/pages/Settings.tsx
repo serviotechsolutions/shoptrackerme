@@ -91,6 +91,13 @@ const Settings = () => {
         logo_url: settings.logo_url,
         min_profit_margin: Number(settings.min_profit_margin ?? 20),
         price_rounding: Number(settings.price_rounding ?? 100),
+        default_pricing_strategy: settings.default_pricing_strategy ?? 'suggested',
+        default_markup_pct: Number(settings.default_markup_pct ?? 25),
+        default_fixed_profit: Number(settings.default_fixed_profit ?? 0),
+        enable_price_advisor: settings.enable_price_advisor ?? true,
+        enable_low_margin_alerts: settings.enable_low_margin_alerts ?? true,
+        enable_below_cost_warnings: settings.enable_below_cost_warnings ?? true,
+
       } as any).eq('id', settings.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Settings saved successfully' });
