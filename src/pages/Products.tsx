@@ -153,6 +153,8 @@ const Products = () => {
       if (uploadedUrl) imageUrl = uploadedUrl;
     }
 
+    const param = pricingParam === '' ? null : Number(pricingParam);
+    const strategy = pricingStrategy === '__inherit' ? null : pricingStrategy;
 const productData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string || null,
@@ -163,8 +165,13 @@ const productData = {
       tenant_id: tenantId,
       image_url: imageUrl,
       barcode: (formData.get('barcode') as string) || null,
-      category: selectedCategory
+      category: selectedCategory,
+      pricing_strategy: strategy,
+      target_profit_margin: strategy === 'suggested' ? param : null,
+      markup_pct: strategy === 'fixed_markup' ? param : null,
+      fixed_profit: strategy === 'fixed_profit' ? param : null,
     };
+
     
     try {
       if (editingProduct) {
