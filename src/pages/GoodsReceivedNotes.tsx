@@ -288,7 +288,11 @@ const GoodsReceivedNotes = () => {
   ): Promise<{ created: number; reviews: PricingReview[] }> => {
     let created = 0;
     const reviews: PricingReview[] = [];
-    const settings = tenantId ? await loadPricingSettings(tenantId) : DEFAULT_PRICING;
+    const ctx: PricingContext = tenantId
+      ? await loadPricingSettings(tenantId)
+      : { tenant: DEFAULT_TENANT_PRICING, categoryRules: {} };
+    const settings: PricingSettings = ctx.tenant;
+
 
     for (const r of rows) {
       if (!r.received_quantity) continue;
