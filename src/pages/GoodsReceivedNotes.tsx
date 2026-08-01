@@ -381,17 +381,33 @@ const GoodsReceivedNotes = () => {
           new_average_cost: newAvg,
         });
 
-        reviews.push(
-          evaluatePricing({
-            productId,
-            productName: prod.name,
-            previousAverageCost: prevAvg,
-            newAverageCost: newAvg,
-            currentSellingPrice: Number(prod.selling_price || 0),
-            settings,
-          }),
-        );
+        const resolved = resolvePricing(ctx, prod as any);
+        const review = evaluatePricing({
+          productId,
+          productName: prod.name,
+          previousAverageCost: prevAvg,
+          newAverageCost: newAvg,
+          currentSellingPrice: Number(prod.selling_price || 0),
+          settings,
+          resolved,
+        });
+
+        // Persist the recommendation so it can be shown later on the product page.
+        if (resolved.suggests && review.suggestedSellingPrice > 0) {
+          await (supabase as any).from("products").update({
+            suggested_selling_price: review.suggestedSellingPrice,
+          }).eq("id", productId);
+        }
+
+        const t = ctx.tenant;
+        const keep =
+          t.enable_price_advisor &&
+          resolved.suggests &&
+          !(review.case === "low_margin" && !t.enable_low_margin_alerts) &&
+          !(review.case === "below_cost" && !t.enable_below_cost_warnings);
+        if (keep) reviews.push(review);
       }
+
     }
     return { created, reviews };
   };
