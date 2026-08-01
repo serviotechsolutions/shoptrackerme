@@ -104,14 +104,9 @@ const GoodsReceivedNotes = () => {
     min_order_qty: string; selected: boolean;
   }>>([]);
 
-  const loadPricingSettings = async (tenantId: string): Promise<PricingSettings> => {
-    const { data } = await (supabase as any).from("tenants")
-      .select("min_profit_margin, price_rounding").eq("id", tenantId).maybeSingle();
-    return {
-      min_profit_margin: Number(data?.min_profit_margin ?? DEFAULT_PRICING.min_profit_margin),
-      price_rounding: Number(data?.price_rounding ?? DEFAULT_PRICING.price_rounding),
-    };
-  };
+  const loadPricingSettings = async (tenantId: string): Promise<PricingContext> =>
+    loadPricingContext(tenantId);
+
 
   const load = async () => {
     setLoading(true);
