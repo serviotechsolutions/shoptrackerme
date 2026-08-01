@@ -9,6 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Store, Save, FileText, Trash2, Upload, X, Loader2, Percent } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PRICING_STRATEGIES, strategySuggests, type PricingStrategy } from '@/lib/pricing';
+import CategoryPricingSettings from '@/components/CategoryPricingSettings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 interface TenantSettings {
   id: string;
   name: string;
@@ -18,6 +22,12 @@ interface TenantSettings {
   logo_url: string;
   min_profit_margin?: number;
   price_rounding?: number;
+  default_pricing_strategy?: PricingStrategy;
+  default_markup_pct?: number;
+  default_fixed_profit?: number;
+  enable_price_advisor?: boolean;
+  enable_low_margin_alerts?: boolean;
+  enable_below_cost_warnings?: boolean;
 }
 const Settings = () => {
   const { toast } = useToast();
@@ -35,7 +45,14 @@ const Settings = () => {
     logo_url: '',
     min_profit_margin: 20,
     price_rounding: 100,
+    default_pricing_strategy: 'suggested',
+    default_markup_pct: 25,
+    default_fixed_profit: 0,
+    enable_price_advisor: true,
+    enable_low_margin_alerts: true,
+    enable_below_cost_warnings: true,
   });
+
   useEffect(() => {
     fetchSettings();
   }, []);
