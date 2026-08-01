@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      category_pricing_rules: {
+        Row: {
+          category: string
+          created_at: string
+          fixed_profit: number | null
+          id: string
+          markup_pct: number | null
+          min_profit_margin: number | null
+          pricing_strategy: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          fixed_profit?: number | null
+          id?: string
+          markup_pct?: number | null
+          min_profit_margin?: number | null
+          pricing_strategy?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          fixed_profit?: number | null
+          id?: string
+          markup_pct?: number | null
+          min_profit_margin?: number | null
+          pricing_strategy?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_pricing_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -541,17 +585,24 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          fixed_profit: number | null
           id: string
           image_url: string | null
+          last_price_review_at: string | null
           last_purchase_date: string | null
           last_purchase_price: number | null
+          last_suggested_price: number | null
           low_stock_threshold: number
+          markup_pct: number | null
           name: string
           preferred_supplier_id: string | null
+          pricing_strategy: string | null
           product_code: string | null
           selling_price: number
           stock: number
+          suggested_selling_price: number | null
           supplier_product_code: string | null
+          target_profit_margin: number | null
           tenant_id: string
           updated_at: string
         }
@@ -562,17 +613,24 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          fixed_profit?: number | null
           id?: string
           image_url?: string | null
+          last_price_review_at?: string | null
           last_purchase_date?: string | null
           last_purchase_price?: number | null
+          last_suggested_price?: number | null
           low_stock_threshold?: number
+          markup_pct?: number | null
           name: string
           preferred_supplier_id?: string | null
+          pricing_strategy?: string | null
           product_code?: string | null
           selling_price?: number
           stock?: number
+          suggested_selling_price?: number | null
           supplier_product_code?: string | null
+          target_profit_margin?: number | null
           tenant_id: string
           updated_at?: string
         }
@@ -583,17 +641,24 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          fixed_profit?: number | null
           id?: string
           image_url?: string | null
+          last_price_review_at?: string | null
           last_purchase_date?: string | null
           last_purchase_price?: number | null
+          last_suggested_price?: number | null
           low_stock_threshold?: number
+          markup_pct?: number | null
           name?: string
           preferred_supplier_id?: string | null
+          pricing_strategy?: string | null
           product_code?: string | null
           selling_price?: number
           stock?: number
+          suggested_selling_price?: number | null
           supplier_product_code?: string | null
+          target_profit_margin?: number | null
           tenant_id?: string
           updated_at?: string
         }
@@ -1314,7 +1379,13 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          default_fixed_profit: number
+          default_markup_pct: number
+          default_pricing_strategy: string
           email: string | null
+          enable_below_cost_warnings: boolean
+          enable_low_margin_alerts: boolean
+          enable_price_advisor: boolean
           id: string
           logo_url: string | null
           min_profit_margin: number
@@ -1326,7 +1397,13 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          default_fixed_profit?: number
+          default_markup_pct?: number
+          default_pricing_strategy?: string
           email?: string | null
+          enable_below_cost_warnings?: boolean
+          enable_low_margin_alerts?: boolean
+          enable_price_advisor?: boolean
           id?: string
           logo_url?: string | null
           min_profit_margin?: number
@@ -1338,7 +1415,13 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          default_fixed_profit?: number
+          default_markup_pct?: number
+          default_pricing_strategy?: string
           email?: string | null
+          enable_below_cost_warnings?: boolean
+          enable_low_margin_alerts?: boolean
+          enable_price_advisor?: boolean
           id?: string
           logo_url?: string | null
           min_profit_margin?: number
