@@ -66,7 +66,7 @@ const Settings = () => {
           data: tenant
         } = await supabase.from('tenants').select('*').eq('id', profile.tenant_id).single();
         if (tenant) {
-          setSettings(tenant);
+          setSettings(tenant as unknown as TenantSettings);
         }
       }
     } catch (error) {
