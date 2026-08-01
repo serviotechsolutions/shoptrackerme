@@ -323,11 +323,21 @@ const productData = {
               if (open) {
                 setSelectedCategory(editingProduct?.category || "Others");
                 setBarcodeValue(editingProduct?.barcode || "");
+                const s = editingProduct?.pricing_strategy || '__inherit';
+                setPricingStrategy(s);
+                setPricingParam(
+                  s === 'fixed_markup' ? String(editingProduct?.markup_pct ?? '')
+                  : s === 'fixed_profit' ? String(editingProduct?.fixed_profit ?? '')
+                  : s === 'suggested' ? String(editingProduct?.target_profit_margin ?? '')
+                  : ''
+                );
               } else {
                 setEditingProduct(null);
                 setImageFile(null);
                 setSelectedCategory("Others");
                 setBarcodeValue("");
+                setPricingStrategy('__inherit');
+                setPricingParam('');
               }
             }}>
               <DialogTrigger asChild>
@@ -335,7 +345,10 @@ const productData = {
                   setEditingProduct(null);
                   setSelectedCategory("Others");
                   setBarcodeValue("");
+                  setPricingStrategy('__inherit');
+                  setPricingParam('');
                 }}>
+
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
