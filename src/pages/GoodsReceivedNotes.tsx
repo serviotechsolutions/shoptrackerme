@@ -336,12 +336,13 @@ const GoodsReceivedNotes = () => {
 
       if (!productId) continue;
 
-      const { data: prod } = await supabase
+      const { data: prod } = await (supabase as any)
         .from("products")
-        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price")
+        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price,category,pricing_strategy,target_profit_margin,markup_pct,fixed_profit")
         .eq("id", productId)
         .maybeSingle();
       if (!prod) continue;
+
 
       const prevStock = Number(prod.stock || 0);
       const prevAvg = Number((prod as any).average_cost || prod.last_purchase_price || prod.buying_price || 0);
