@@ -451,6 +451,70 @@ const productData = {
                     <Input id="low_stock_threshold" name="low_stock_threshold" type="number" defaultValue={editingProduct?.low_stock_threshold || 10} required />
                   </div>
                 </div>
+
+                <div className="space-y-2 rounded-lg border p-3">
+                  <Label>Pricing strategy for this product</Label>
+                  <Select value={pricingStrategy} onValueChange={(v) => { setPricingStrategy(v); setPricingParam(''); }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__inherit">
+                        Use {selectedCategory} / shop default
+                        {pricingCtx ? ` (${strategyLabel(resolvePricing(pricingCtx, { category: selectedCategory }).strategy)})` : ''}
+                      </SelectItem>
+                      {PRICING_STRATEGIES.filter((s) => s.available).map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {pricingStrategy === 'suggested' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target profit margin (%)</Label>
+                      <Input type="number" min={0} max={99} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+                  {pricingStrategy === 'fixed_markup' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Markup (%)</Label>
+                      <Input type="number" min={0} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+                  {pricingStrategy === 'fixed_profit' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Profit per unit (UGX)</Label>
+                      <Input type="number" min={0} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+
+                  {pricingCtx && editingProduct && (() => {
+                    const resolved = resolvePricing(pricingCtx, {
+                      category: selectedCategory,
+                      pricing_strategy: pricingStrategy === '__inherit' ? null : pricingStrategy,
+                      target_profit_margin: pricingStrategy === 'suggested' && pricingParam !== '' ? Number(pricingParam) : null,
+                      markup_pct: pricingStrategy === 'fixed_markup' && pricingParam !== '' ? Number(pricingParam) : null,
+                      fixed_profit: pricingStrategy === 'fixed_profit' && pricingParam !== '' ? Number(pricingParam) : null,
+                    });
+                    const cost = Number(editingProduct.average_cost || editingProduct.last_purchase_price || editingProduct.buying_price || 0);
+                    const suggestion = computeSuggestedPrice(cost, resolved);
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Average cost {formatUGX(cost)} ·{' '}
+                        {resolved.suggests
+                          ? `Recommended price ${formatUGX(suggestion)} (you decide — nothing changes automatically)`
+                          : 'Manual pricing — no suggestions or margin warnings'}
+                      </p>
+                    );
+                  })()}
+                </div>
+
                 <DialogFooter className="pt-4">
                   <Button type="submit" disabled={uploading}>
                     {uploading ? 'Uploading...' : editingProduct ? 'Update' : 'Add'} Product
