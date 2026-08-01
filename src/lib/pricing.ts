@@ -311,11 +311,10 @@ export function evaluatePricing(input: {
     c = "low_margin";
   } else if (newAverageCost < previousAverageCost && previousAverageCost > 0) {
     c = "cost_decreased";
-  } else if (currentSellingPrice > 0 && newAverageCost > previousAverageCost && suggested > currentSellingPrice) {
-    c = "cost_decreased" === c! ? "healthy" : "healthy";
   } else {
     c = "healthy";
   }
+
 
   return {
     productId: input.productId,
