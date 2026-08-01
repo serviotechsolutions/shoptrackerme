@@ -11,6 +11,10 @@ import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIc
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+import {
+  PRICING_STRATEGIES, computeSuggestedPrice, formatUGX, loadPricingContext, resolvePricing,
+  strategyLabel, type PricingContext,
+} from '@/lib/pricing';
 interface Product {
   id: string;
   name: string;
@@ -26,7 +30,13 @@ interface Product {
   average_cost?: number | null;
   last_purchase_price?: number | null;
   last_purchase_date?: string | null;
+  pricing_strategy?: string | null;
+  target_profit_margin?: number | null;
+  markup_pct?: number | null;
+  fixed_profit?: number | null;
+  suggested_selling_price?: number | null;
 }
+
 
 const CATEGORIES = [
   "Groceries",
