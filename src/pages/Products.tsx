@@ -60,6 +60,9 @@ const Products = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Others");
   const [barcodeValue, setBarcodeValue] = useState<string>("");
+  const [pricingCtx, setPricingCtx] = useState<PricingContext | null>(null);
+  const [pricingStrategy, setPricingStrategy] = useState<string>('__inherit');
+  const [pricingParam, setPricingParam] = useState<string>('');
   const {
     toast
   } = useToast();
@@ -69,7 +72,9 @@ const Products = () => {
   useEffect(() => {
     if (tenantId) {
       fetchProducts();
+      loadPricingContext(tenantId).then(setPricingCtx);
     }
+
   }, [tenantId]);
   const fetchTenantId = async () => {
     const {
