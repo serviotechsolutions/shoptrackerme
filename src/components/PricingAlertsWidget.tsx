@@ -1,10 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingDown, TrendingUp, PackageSearch } from "lucide-react";
+import { AlertTriangle, TrendingDown, PackageSearch, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatUGX, DEFAULT_PRICING, evaluatePricing, type PricingSettings, type PricingReview } from "@/lib/pricing";
+import {
+  formatUGX, loadPricingContext, resolvePricing, evaluatePricing,
+  type PricingContext, type PricingReview,
+} from "@/lib/pricing";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import SellingPriceAdvisorDialog from "./SellingPriceAdvisorDialog";
@@ -12,6 +15,7 @@ import SellingPriceAdvisorDialog from "./SellingPriceAdvisorDialog";
 export default function PricingAlertsWidget() {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<PricingReview[]>([]);
+  const [ctx, setCtx] = useState<PricingContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [advisorOpen, setAdvisorOpen] = useState(false);
 
@@ -20,30 +24,32 @@ export default function PricingAlertsWidget() {
     setLoading(true);
     const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user.id).maybeSingle();
     if (!profile?.tenant_id) { setLoading(false); return; }
-    const [{ data: tenant }, { data: products }] = await Promise.all([
-      (supabase as any).from("tenants").select("min_profit_margin, price_rounding").eq("id", profile.tenant_id).maybeSingle(),
-      supabase.from("products").select("id,name,selling_price,buying_price,last_purchase_price,stock").eq("tenant_id", profile.tenant_id),
-    ]);
-    const settings: PricingSettings = {
-      min_profit_margin: Number(tenant?.min_profit_margin ?? DEFAULT_PRICING.min_profit_margin),
-      price_rounding: Number(tenant?.price_rounding ?? DEFAULT_PRICING.price_rounding),
-    };
-    // We need average_cost — reselect with it (may fail on older cached type)
-    const { data: withAvg } = await (supabase as any).from("products")
-      .select("id,name,selling_price,average_cost,buying_price,last_purchase_price,stock")
+
+    const context = await loadPricingContext(profile.tenant_id);
+    setCtx(context);
+
+    const { data: products } = await (supabase as any).from("products")
+      .select("id,name,selling_price,average_cost,buying_price,last_purchase_price,stock,category,pricing_strategy,target_profit_margin,markup_pct,fixed_profit")
       .eq("tenant_id", profile.tenant_id);
-    const src = withAvg || products || [];
-    const evaluated: PricingReview[] = src
+
+    const t = context.tenant;
+    const evaluated: PricingReview[] = (products || [])
       .filter((p: any) => Number(p.selling_price || 0) > 0)
-      .map((p: any) => evaluatePricing({
-        productId: p.id,
-        productName: p.name,
-        previousAverageCost: Number(p.average_cost || p.last_purchase_price || p.buying_price || 0),
-        newAverageCost: Number(p.average_cost || p.last_purchase_price || p.buying_price || 0),
-        currentSellingPrice: Number(p.selling_price || 0),
-        settings,
-      }))
-      .filter((r) => r.case !== "healthy" && r.case !== "cost_decreased");
+      .map((p: any) => {
+        const cost = Number(p.average_cost || p.last_purchase_price || p.buying_price || 0);
+        return evaluatePricing({
+          productId: p.id,
+          productName: p.name,
+          previousAverageCost: cost,
+          newAverageCost: cost,
+          currentSellingPrice: Number(p.selling_price || 0),
+          settings: t,
+          resolved: resolvePricing(context, p),
+        });
+      })
+      .filter((r) => r.showsSuggestion && (r.case === "below_cost" || r.case === "low_margin"))
+      .filter((r) => (r.case === "low_margin" ? t.enable_low_margin_alerts : t.enable_below_cost_warnings));
+
     setReviews(evaluated);
     setLoading(false);
   };
@@ -58,6 +64,7 @@ export default function PricingAlertsWidget() {
 
   const belowCost = useMemo(() => reviews.filter(r => r.case === "below_cost"), [reviews]);
   const lowMargin = useMemo(() => reviews.filter(r => r.case === "low_margin"), [reviews]);
+  const alertsOff = ctx ? !ctx.tenant.enable_low_margin_alerts && !ctx.tenant.enable_below_cost_warnings : false;
 
   return (
     <Card>
@@ -72,6 +79,10 @@ export default function PricingAlertsWidget() {
       <CardContent>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : alertsOff ? (
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            <Lock className="h-3 w-3" /> Pricing alerts are turned off in Settings.
+          </p>
         ) : reviews.length === 0 ? (
           <p className="text-sm text-muted-foreground">✅ All prices look healthy.</p>
         ) : (

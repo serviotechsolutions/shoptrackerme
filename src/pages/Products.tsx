@@ -11,6 +11,10 @@ import { Plus, Pencil, Trash2, AlertTriangle, Upload, Download, Image as ImageIc
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
+import {
+  PRICING_STRATEGIES, computeSuggestedPrice, formatUGX, loadPricingContext, resolvePricing,
+  strategyLabel, type PricingContext,
+} from '@/lib/pricing';
 interface Product {
   id: string;
   name: string;
@@ -26,7 +30,13 @@ interface Product {
   average_cost?: number | null;
   last_purchase_price?: number | null;
   last_purchase_date?: string | null;
+  pricing_strategy?: string | null;
+  target_profit_margin?: number | null;
+  markup_pct?: number | null;
+  fixed_profit?: number | null;
+  suggested_selling_price?: number | null;
 }
+
 
 const CATEGORIES = [
   "Groceries",
@@ -50,6 +60,9 @@ const Products = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("Others");
   const [barcodeValue, setBarcodeValue] = useState<string>("");
+  const [pricingCtx, setPricingCtx] = useState<PricingContext | null>(null);
+  const [pricingStrategy, setPricingStrategy] = useState<string>('__inherit');
+  const [pricingParam, setPricingParam] = useState<string>('');
   const {
     toast
   } = useToast();
@@ -59,7 +72,9 @@ const Products = () => {
   useEffect(() => {
     if (tenantId) {
       fetchProducts();
+      loadPricingContext(tenantId).then(setPricingCtx);
     }
+
   }, [tenantId]);
   const fetchTenantId = async () => {
     const {
@@ -138,6 +153,8 @@ const Products = () => {
       if (uploadedUrl) imageUrl = uploadedUrl;
     }
 
+    const param = pricingParam === '' ? null : Number(pricingParam);
+    const strategy = pricingStrategy === '__inherit' ? null : pricingStrategy;
 const productData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string || null,
@@ -148,8 +165,13 @@ const productData = {
       tenant_id: tenantId,
       image_url: imageUrl,
       barcode: (formData.get('barcode') as string) || null,
-      category: selectedCategory
+      category: selectedCategory,
+      pricing_strategy: strategy,
+      target_profit_margin: strategy === 'suggested' ? param : null,
+      markup_pct: strategy === 'fixed_markup' ? param : null,
+      fixed_profit: strategy === 'fixed_profit' ? param : null,
     };
+
     
     try {
       if (editingProduct) {
@@ -308,11 +330,21 @@ const productData = {
               if (open) {
                 setSelectedCategory(editingProduct?.category || "Others");
                 setBarcodeValue(editingProduct?.barcode || "");
+                const s = editingProduct?.pricing_strategy || '__inherit';
+                setPricingStrategy(s);
+                setPricingParam(
+                  s === 'fixed_markup' ? String(editingProduct?.markup_pct ?? '')
+                  : s === 'fixed_profit' ? String(editingProduct?.fixed_profit ?? '')
+                  : s === 'suggested' ? String(editingProduct?.target_profit_margin ?? '')
+                  : ''
+                );
               } else {
                 setEditingProduct(null);
                 setImageFile(null);
                 setSelectedCategory("Others");
                 setBarcodeValue("");
+                setPricingStrategy('__inherit');
+                setPricingParam('');
               }
             }}>
               <DialogTrigger asChild>
@@ -320,7 +352,10 @@ const productData = {
                   setEditingProduct(null);
                   setSelectedCategory("Others");
                   setBarcodeValue("");
+                  setPricingStrategy('__inherit');
+                  setPricingParam('');
                 }}>
+
                   <Plus className="mr-2 h-4 w-4" />
                   Add Product
                 </Button>
@@ -416,6 +451,70 @@ const productData = {
                     <Input id="low_stock_threshold" name="low_stock_threshold" type="number" defaultValue={editingProduct?.low_stock_threshold || 10} required />
                   </div>
                 </div>
+
+                <div className="space-y-2 rounded-lg border p-3">
+                  <Label>Pricing strategy for this product</Label>
+                  <Select value={pricingStrategy} onValueChange={(v) => { setPricingStrategy(v); setPricingParam(''); }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__inherit">
+                        Use {selectedCategory} / shop default
+                        {pricingCtx ? ` (${strategyLabel(resolvePricing(pricingCtx, { category: selectedCategory }).strategy)})` : ''}
+                      </SelectItem>
+                      {PRICING_STRATEGIES.filter((s) => s.available).map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {pricingStrategy === 'suggested' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Target profit margin (%)</Label>
+                      <Input type="number" min={0} max={99} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+                  {pricingStrategy === 'fixed_markup' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Markup (%)</Label>
+                      <Input type="number" min={0} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+                  {pricingStrategy === 'fixed_profit' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Profit per unit (UGX)</Label>
+                      <Input type="number" min={0} value={pricingParam}
+                        placeholder="leave blank for default"
+                        onChange={(e) => setPricingParam(e.target.value)} />
+                    </div>
+                  )}
+
+                  {pricingCtx && editingProduct && (() => {
+                    const resolved = resolvePricing(pricingCtx, {
+                      category: selectedCategory,
+                      pricing_strategy: pricingStrategy === '__inherit' ? null : pricingStrategy,
+                      target_profit_margin: pricingStrategy === 'suggested' && pricingParam !== '' ? Number(pricingParam) : null,
+                      markup_pct: pricingStrategy === 'fixed_markup' && pricingParam !== '' ? Number(pricingParam) : null,
+                      fixed_profit: pricingStrategy === 'fixed_profit' && pricingParam !== '' ? Number(pricingParam) : null,
+                    });
+                    const cost = Number(editingProduct.average_cost || editingProduct.last_purchase_price || editingProduct.buying_price || 0);
+                    const suggestion = computeSuggestedPrice(cost, resolved);
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Average cost {formatUGX(cost)} ·{' '}
+                        {resolved.suggests
+                          ? `Recommended price ${formatUGX(suggestion)} (you decide — nothing changes automatically)`
+                          : 'Manual pricing — no suggestions or margin warnings'}
+                      </p>
+                    );
+                  })()}
+                </div>
+
                 <DialogFooter className="pt-4">
                   <Button type="submit" disabled={uploading}>
                     {uploading ? 'Uploading...' : editingProduct ? 'Update' : 'Add'} Product

@@ -9,6 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Store, Save, FileText, Trash2, Upload, X, Loader2, Percent } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PRICING_STRATEGIES, strategySuggests, type PricingStrategy } from '@/lib/pricing';
+import CategoryPricingSettings from '@/components/CategoryPricingSettings';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 interface TenantSettings {
   id: string;
   name: string;
@@ -18,6 +22,12 @@ interface TenantSettings {
   logo_url: string;
   min_profit_margin?: number;
   price_rounding?: number;
+  default_pricing_strategy?: PricingStrategy;
+  default_markup_pct?: number;
+  default_fixed_profit?: number;
+  enable_price_advisor?: boolean;
+  enable_low_margin_alerts?: boolean;
+  enable_below_cost_warnings?: boolean;
 }
 const Settings = () => {
   const { toast } = useToast();
@@ -35,7 +45,14 @@ const Settings = () => {
     logo_url: '',
     min_profit_margin: 20,
     price_rounding: 100,
+    default_pricing_strategy: 'suggested',
+    default_markup_pct: 25,
+    default_fixed_profit: 0,
+    enable_price_advisor: true,
+    enable_low_margin_alerts: true,
+    enable_below_cost_warnings: true,
   });
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -49,7 +66,7 @@ const Settings = () => {
           data: tenant
         } = await supabase.from('tenants').select('*').eq('id', profile.tenant_id).single();
         if (tenant) {
-          setSettings(tenant);
+          setSettings(tenant as unknown as TenantSettings);
         }
       }
     } catch (error) {
@@ -74,6 +91,13 @@ const Settings = () => {
         logo_url: settings.logo_url,
         min_profit_margin: Number(settings.min_profit_margin ?? 20),
         price_rounding: Number(settings.price_rounding ?? 100),
+        default_pricing_strategy: settings.default_pricing_strategy ?? 'suggested',
+        default_markup_pct: Number(settings.default_markup_pct ?? 25),
+        default_fixed_profit: Number(settings.default_fixed_profit ?? 0),
+        enable_price_advisor: settings.enable_price_advisor ?? true,
+        enable_low_margin_alerts: settings.enable_low_margin_alerts ?? true,
+        enable_below_cost_warnings: settings.enable_below_cost_warnings ?? true,
+
       } as any).eq('id', settings.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Settings saved successfully' });
@@ -259,27 +283,77 @@ const Settings = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Percent className="h-5 w-5" />
-              Pricing Settings
+              Business Pricing Strategy
             </CardTitle>
             <CardDescription>
-              Set your desired minimum profit margin. The Selling Price Advisor uses this to suggest prices after inventory cost changes. Your prices are never changed automatically.
+              Choose how ShopTracker should handle selling prices for your business type. Inventory
+              cost (weighted average) is always tracked accurately — selling prices are never changed
+              automatically.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
+            <div>
+              <Label>Default pricing strategy</Label>
+              <Select
+                value={settings.default_pricing_strategy ?? 'suggested'}
+                onValueChange={(v) => setSettings({ ...settings, default_pricing_strategy: v as PricingStrategy })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRICING_STRATEGIES.map((s) => (
+                    <SelectItem key={s.value} value={s.value} disabled={!s.available}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {PRICING_STRATEGIES.find((s) => s.value === (settings.default_pricing_strategy ?? 'suggested'))?.description}
+              </p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="min_margin">Minimum Profit Margin (%)</Label>
-                <Input
-                  id="min_margin"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={settings.min_profit_margin ?? 20}
-                  onChange={(e) => setSettings({ ...settings, min_profit_margin: Number(e.target.value) })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">Common: 10, 15, 20, 25, 30</p>
-              </div>
+              {(settings.default_pricing_strategy ?? 'suggested') === 'suggested' && (
+                <div>
+                  <Label htmlFor="min_margin">Minimum Profit Margin (%)</Label>
+                  <Input
+                    id="min_margin"
+                    type="number"
+                    min={0}
+                    max={99}
+                    step={1}
+                    value={settings.min_profit_margin ?? 20}
+                    onChange={(e) => setSettings({ ...settings, min_profit_margin: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Common: 10, 15, 20, 25, 30</p>
+                </div>
+              )}
+              {settings.default_pricing_strategy === 'fixed_markup' && (
+                <div>
+                  <Label htmlFor="markup">Default Markup (%)</Label>
+                  <Input
+                    id="markup"
+                    type="number"
+                    min={0}
+                    value={settings.default_markup_pct ?? 25}
+                    onChange={(e) => setSettings({ ...settings, default_markup_pct: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Suggested price = average cost + markup.</p>
+                </div>
+              )}
+              {settings.default_pricing_strategy === 'fixed_profit' && (
+                <div>
+                  <Label htmlFor="fixedprofit">Default Profit per Unit (UGX)</Label>
+                  <Input
+                    id="fixedprofit"
+                    type="number"
+                    min={0}
+                    value={settings.default_fixed_profit ?? 0}
+                    onChange={(e) => setSettings({ ...settings, default_fixed_profit: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Suggested price = average cost + this amount.</p>
+                </div>
+              )}
               <div>
                 <Label htmlFor="rounding">Price Rounding (nearest)</Label>
                 <Input
@@ -293,12 +367,63 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground mt-1">Suggested prices are rounded to this step (e.g. 100 UGX).</p>
               </div>
             </div>
+
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-sm font-medium">Advisor & alerts</p>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label className="text-sm">Selling Price Advisor</Label>
+                  <p className="text-xs text-muted-foreground">Show the review dialog after goods are received.</p>
+                </div>
+                <Switch
+                  checked={settings.enable_price_advisor ?? true}
+                  onCheckedChange={(v) => setSettings({ ...settings, enable_price_advisor: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label className="text-sm">Low margin alerts</Label>
+                  <p className="text-xs text-muted-foreground">Warn when a product earns less than your target margin.</p>
+                </div>
+                <Switch
+                  checked={settings.enable_low_margin_alerts ?? true}
+                  onCheckedChange={(v) => setSettings({ ...settings, enable_low_margin_alerts: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label className="text-sm">Below-cost warnings</Label>
+                  <p className="text-xs text-muted-foreground">Warn when a selling price is below the average cost.</p>
+                </div>
+                <Switch
+                  checked={settings.enable_below_cost_warnings ?? true}
+                  onCheckedChange={(v) => setSettings({ ...settings, enable_below_cost_warnings: v })}
+                />
+              </div>
+              {!strategySuggests(settings.default_pricing_strategy) && (
+                <p className="text-xs text-muted-foreground">
+                  Manual pricing is active: costs update silently and no price suggestions are shown,
+                  unless a category or product uses a different strategy.
+                </p>
+              )}
+            </div>
+
             <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Pricing Settings'}
             </Button>
+
+            {settings.id && (
+              <div className="pt-2 border-t">
+                <CategoryPricingSettings
+                  tenantId={settings.id}
+                  shopStrategy={(settings.default_pricing_strategy ?? 'suggested') as PricingStrategy}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
+
 
 
 

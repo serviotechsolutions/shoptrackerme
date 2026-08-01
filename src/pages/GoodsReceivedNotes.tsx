@@ -23,7 +23,11 @@ import {
   RotateCcw, Printer, Search, Filter,
 } from "lucide-react";
 import SellingPriceAdvisorDialog from "@/components/SellingPriceAdvisorDialog";
-import { weightedAverageCost, evaluatePricing, DEFAULT_PRICING, type PricingReview, type PricingSettings } from "@/lib/pricing";
+import {
+  weightedAverageCost, evaluatePricing, DEFAULT_PRICING, loadPricingContext, resolvePricing,
+  DEFAULT_TENANT_PRICING, type PricingReview, type PricingSettings, type PricingContext,
+} from "@/lib/pricing";
+
 
 type Supplier = { id: string; name: string };
 type PO = {
@@ -100,14 +104,9 @@ const GoodsReceivedNotes = () => {
     min_order_qty: string; selected: boolean;
   }>>([]);
 
-  const loadPricingSettings = async (tenantId: string): Promise<PricingSettings> => {
-    const { data } = await (supabase as any).from("tenants")
-      .select("min_profit_margin, price_rounding").eq("id", tenantId).maybeSingle();
-    return {
-      min_profit_margin: Number(data?.min_profit_margin ?? DEFAULT_PRICING.min_profit_margin),
-      price_rounding: Number(data?.price_rounding ?? DEFAULT_PRICING.price_rounding),
-    };
-  };
+  const loadPricingSettings = async (tenantId: string): Promise<PricingContext> =>
+    loadPricingContext(tenantId);
+
 
   const load = async () => {
     setLoading(true);
@@ -289,7 +288,11 @@ const GoodsReceivedNotes = () => {
   ): Promise<{ created: number; reviews: PricingReview[] }> => {
     let created = 0;
     const reviews: PricingReview[] = [];
-    const settings = tenantId ? await loadPricingSettings(tenantId) : DEFAULT_PRICING;
+    const ctx: PricingContext = tenantId
+      ? await loadPricingSettings(tenantId)
+      : { tenant: DEFAULT_TENANT_PRICING, categoryRules: {} };
+    const settings: PricingSettings = ctx.tenant;
+
 
     for (const r of rows) {
       if (!r.received_quantity) continue;
@@ -333,12 +336,13 @@ const GoodsReceivedNotes = () => {
 
       if (!productId) continue;
 
-      const { data: prod } = await supabase
+      const { data: prod } = await (supabase as any)
         .from("products")
-        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price")
+        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price,category,pricing_strategy,target_profit_margin,markup_pct,fixed_profit")
         .eq("id", productId)
         .maybeSingle();
       if (!prod) continue;
+
 
       const prevStock = Number(prod.stock || 0);
       const prevAvg = Number((prod as any).average_cost || prod.last_purchase_price || prod.buying_price || 0);
@@ -377,17 +381,33 @@ const GoodsReceivedNotes = () => {
           new_average_cost: newAvg,
         });
 
-        reviews.push(
-          evaluatePricing({
-            productId,
-            productName: prod.name,
-            previousAverageCost: prevAvg,
-            newAverageCost: newAvg,
-            currentSellingPrice: Number(prod.selling_price || 0),
-            settings,
-          }),
-        );
+        const resolved = resolvePricing(ctx, prod as any);
+        const review = evaluatePricing({
+          productId,
+          productName: prod.name,
+          previousAverageCost: prevAvg,
+          newAverageCost: newAvg,
+          currentSellingPrice: Number(prod.selling_price || 0),
+          settings,
+          resolved,
+        });
+
+        // Persist the recommendation so it can be shown later on the product page.
+        if (resolved.suggests && review.suggestedSellingPrice > 0) {
+          await (supabase as any).from("products").update({
+            suggested_selling_price: review.suggestedSellingPrice,
+          }).eq("id", productId);
+        }
+
+        const t = ctx.tenant;
+        const keep =
+          t.enable_price_advisor &&
+          resolved.suggests &&
+          !(review.case === "low_margin" && !t.enable_low_margin_alerts) &&
+          !(review.case === "below_cost" && !t.enable_below_cost_warnings);
+        if (keep) reviews.push(review);
       }
+
     }
     return { created, reviews };
   };
