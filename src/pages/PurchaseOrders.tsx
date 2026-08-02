@@ -18,19 +18,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Package, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Package, AlertTriangle, MessageCircle, Mail, RefreshCw, History, Send } from "lucide-react";
+import UnitSelect from "@/components/UnitSelect";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { saveCustomUnit } from "@/lib/units";
+import { deliverPurchaseOrder, logPoEvent } from "@/lib/poDelivery";
 
-type Supplier = { id: string; name: string };
+type Supplier = {
+  id: string; name: string; email: string | null; phone: string | null;
+  whatsapp_number: string | null; contact_person: string | null; address: string | null;
+  status: string;
+};
 type CatalogueItem = {
   id: string; supplier_id: string; product_id: string | null;
   name: string; unit: string; unit_cost: number;
   min_order_qty: number | null; available_qty: number | null;
   status: string;
 };
-type Product = { id: string; name: string; buying_price: number | null; last_purchase_price: number | null };
+type Product = { id: string; name: string; category: string | null; buying_price: number | null; last_purchase_price: number | null };
 
 type Line = {
   is_custom_item: boolean;
+  category: string;
   supplier_product_id: string | null;
   product_id: string | null;
   product_name: string;
@@ -41,9 +50,33 @@ type Line = {
   available_qty: number | null;
 };
 
-type PO = { id: string; po_number: string; supplier_id: string | null; status: string; total_amount: number; amount_paid: number; ordered_at: string; received_at: string | null };
+type PO = {
+  id: string; po_number: string; supplier_id: string | null; status: string;
+  total_amount: number; amount_paid: number; ordered_at: string; received_at: string | null;
+  notes?: string | null;
+  whatsapp_status?: string | null; whatsapp_sent_at?: string | null; whatsapp_error?: string | null;
+  email_status?: string | null; email_sent_at?: string | null; email_error?: string | null;
+};
 
-const UNITS = ["piece", "box", "carton", "bottle", "kg", "litre", "packet", "bag", "pair", "set"];
+type POEvent = {
+  id: string; event_type: string; channel: string | null;
+  status: string | null; detail: string | null; created_at: string;
+};
+
+const DeliveryBadge = ({
+  icon: Icon, label, status, error,
+}: { icon: any; label: string; status?: string | null; error?: string | null }) => {
+  if (!status) return null;
+  const tone =
+    status === "sent" || status === "delivered" ? "text-green-600 border-green-300"
+      : status === "failed" ? "text-destructive border-destructive/40"
+        : "text-muted-foreground";
+  return (
+    <Badge variant="outline" className={`text-[10px] gap-1 ${tone}`} title={error || undefined}>
+      <Icon className="h-3 w-3" /> {label}: {status}
+    </Badge>
+  );
+};
 
 const PurchaseOrders = () => {
   const [params] = useSearchParams();
@@ -72,8 +105,10 @@ const PurchaseOrders = () => {
     setLoading(true);
     const [{ data: ords }, { data: sups }, { data: prods }] = await Promise.all([
       (supabase as any).from("purchase_orders").select("*, suppliers(name)").order("created_at", { ascending: false }),
-      (supabase as any).from("suppliers").select("id,name").eq("status", "active").order("name"),
-      supabase.from("products").select("id,name,buying_price,last_purchase_price").order("name"),
+      (supabase as any).from("suppliers")
+        .select("id,name,email,phone,whatsapp_number,contact_person,address,status")
+        .eq("status", "active").order("name"),
+      supabase.from("products").select("id,name,category,buying_price,last_purchase_price").order("name"),
     ]);
     setOrders((ords || []).map((o: any) => ({ ...o, supplier_name: o.suppliers?.name })));
     setSuppliers((sups || []) as Supplier[]);
@@ -112,6 +147,7 @@ const PurchaseOrders = () => {
         if (prod) {
           setLines([{
             is_custom_item: true,
+            category: prod.category || "",
             supplier_product_id: null,
             product_id: prod.id,
             product_name: prod.name,
@@ -135,6 +171,7 @@ const PurchaseOrders = () => {
   const addCatalogueLine = () => {
     setLines(ls => [...ls, {
       is_custom_item: false,
+      category: "",
       supplier_product_id: null,
       product_id: null,
       product_name: "",
@@ -149,6 +186,7 @@ const PurchaseOrders = () => {
   const addCustomLine = () => {
     setLines(ls => [...ls, {
       is_custom_item: true,
+      category: "",
       supplier_product_id: null,
       product_id: null,
       product_name: "",
@@ -165,8 +203,10 @@ const PurchaseOrders = () => {
   const pickCatalogueItem = (i: number, spId: string) => {
     const item = catalogue.find(c => c.id === spId);
     if (!item) return;
+    const linked = item.product_id ? products.find(p => p.id === item.product_id) : null;
     setLines(ls => ls.map((l, idx) => idx === i ? {
       ...l,
+      category: l.category || linked?.category || "",
       supplier_product_id: item.id,
       product_id: item.product_id,
       product_name: item.name,
@@ -188,6 +228,7 @@ const PurchaseOrders = () => {
       if (!l.product_name.trim()) { toast.error("Every item needs a product name"); return; }
       if (!l.quantity || l.quantity <= 0) { toast.error(`Quantity for "${l.product_name}" must be greater than 0`); return; }
       if (!l.unit_cost || l.unit_cost <= 0) { toast.error(`Unit cost for "${l.product_name}" must be greater than 0`); return; }
+      if (!l.category) { toast.error(`Select a category for "${l.product_name}"`); return; }
       if (!l.is_custom_item && !l.supplier_product_id) {
         toast.error(`Choose a catalogue product for line "${l.product_name || "(empty)"}", or use Custom Item`);
         return;
@@ -226,6 +267,7 @@ const PurchaseOrders = () => {
         purchase_order_id: po.id,
         product_id: l.product_id,
         product_name: l.product_name.trim(),
+        category: l.category || null,
         unit: l.unit || "piece",
         quantity: Number(l.quantity),
         unit_cost: Number(l.unit_cost),
