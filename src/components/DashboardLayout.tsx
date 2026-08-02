@@ -214,8 +214,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       <div className="flex">
         {/* Desktop Sidebar */}
-        <aside className="hidden md:flex w-64 min-h-[calc(100vh-4rem)] border-r bg-card">
-          <nav className="flex-1 p-4 space-y-2">
+        <aside className="hidden md:flex w-64 sticky top-16 h-[calc(100vh-4rem)] border-r bg-card">
+          <nav className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
             <NavContent />
           </nav>
         </aside>
