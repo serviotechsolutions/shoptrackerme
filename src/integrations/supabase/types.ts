@@ -58,6 +58,35 @@ export type Database = {
           },
         ]
       }
+      custom_units: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_units_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -371,6 +400,7 @@ export type Database = {
           created_at: string
           id: string
           is_read: boolean
+          link: string | null
           message: string
           metadata: Json | null
           tenant_id: string
@@ -382,6 +412,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          link?: string | null
           message: string
           metadata?: Json | null
           tenant_id: string
@@ -393,6 +424,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean
+          link?: string | null
           message?: string
           metadata?: Json | null
           tenant_id?: string
@@ -901,8 +933,60 @@ export type Database = {
           },
         ]
       }
+      purchase_order_events: {
+        Row: {
+          channel: string | null
+          created_at: string
+          detail: string | null
+          event_type: string
+          id: string
+          purchase_order_id: string
+          status: string | null
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          detail?: string | null
+          event_type: string
+          id?: string
+          purchase_order_id: string
+          status?: string | null
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          detail?: string | null
+          event_type?: string
+          id?: string
+          purchase_order_id?: string
+          status?: string | null
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_events_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_items: {
         Row: {
+          category: string | null
           created_at: string
           id: string
           is_custom_item: boolean
@@ -916,6 +1000,7 @@ export type Database = {
           unit_cost: number
         }
         Insert: {
+          category?: string | null
           created_at?: string
           id?: string
           is_custom_item?: boolean
@@ -929,6 +1014,7 @@ export type Database = {
           unit_cost?: number
         }
         Update: {
+          category?: string | null
           created_at?: string
           id?: string
           is_custom_item?: boolean
@@ -968,8 +1054,12 @@ export type Database = {
       purchase_orders: {
         Row: {
           amount_paid: number
+          approved_at: string | null
           created_at: string
           created_by: string | null
+          email_error: string | null
+          email_sent_at: string | null
+          email_status: string | null
           id: string
           notes: string | null
           ordered_at: string
@@ -980,11 +1070,18 @@ export type Database = {
           tenant_id: string
           total_amount: number
           updated_at: string
+          whatsapp_error: string | null
+          whatsapp_sent_at: string | null
+          whatsapp_status: string | null
         }
         Insert: {
           amount_paid?: number
+          approved_at?: string | null
           created_at?: string
           created_by?: string | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           notes?: string | null
           ordered_at?: string
@@ -995,11 +1092,18 @@ export type Database = {
           tenant_id: string
           total_amount?: number
           updated_at?: string
+          whatsapp_error?: string | null
+          whatsapp_sent_at?: string | null
+          whatsapp_status?: string | null
         }
         Update: {
           amount_paid?: number
+          approved_at?: string | null
           created_at?: string
           created_by?: string | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           notes?: string | null
           ordered_at?: string
@@ -1010,6 +1114,9 @@ export type Database = {
           tenant_id?: string
           total_amount?: number
           updated_at?: string
+          whatsapp_error?: string | null
+          whatsapp_sent_at?: string | null
+          whatsapp_status?: string | null
         }
         Relationships: [
           {
@@ -1275,6 +1382,7 @@ export type Database = {
           tax_number: string | null
           tenant_id: string
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           address?: string | null
@@ -1296,6 +1404,7 @@ export type Database = {
           tax_number?: string | null
           tenant_id: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           address?: string | null
@@ -1317,6 +1426,7 @@ export type Database = {
           tax_number?: string | null
           tenant_id?: string
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: [
           {
