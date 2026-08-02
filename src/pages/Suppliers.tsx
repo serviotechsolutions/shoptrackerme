@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2, Package } from "lucide-react";
+import { Plus, Search, Users, Phone, Mail, Download, Pencil, Building2, Trash2, Package, MessageCircle, Archive, AlertTriangle } from "lucide-react";
 import SupplierCatalogueDialog from "@/components/SupplierCatalogueDialog";
 
 type SuppliedItem = { name: string; unit: string; price: number };
@@ -31,6 +31,7 @@ type Supplier = {
   phone: string | null;
   alt_phone: string | null;
   email: string | null;
+  whatsapp_number: string | null;
   address: string | null;
   city: string | null;
   country: string | null;
@@ -40,7 +41,7 @@ type Supplier = {
   products_supplied: string | null;
   supplied_items: SuppliedItem[] | null;
   notes: string | null;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "archived";
 };
 
 const emptyForm: Partial<Supplier> = { status: "active", supplied_items: [] };
@@ -54,7 +55,7 @@ const Suppliers = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stats, setStats] = useState<Record<string, { total: number; outstanding: number }>>({});
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "archived">("all");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -63,6 +64,10 @@ const Suppliers = () => {
   const [form, setForm] = useState<Partial<Supplier>>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [catalogueFor, setCatalogueFor] = useState<Supplier | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
+  const [deleteChecking, setDeleteChecking] = useState(false);
+  const [deleteRefs, setDeleteRefs] = useState<{ pos: number; grns: number; payments: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -147,6 +152,7 @@ const Suppliers = () => {
         phone: form.phone || null,
         alt_phone: form.alt_phone || null,
         email: form.email || null,
+        whatsapp_number: form.whatsapp_number || null,
         address: form.address || null,
         city: form.city || null,
         country: form.country || null,
@@ -175,11 +181,43 @@ const Suppliers = () => {
     }
   };
 
+  const startDelete = async (s: Supplier) => {
+    setDeleteTarget(s);
+    setDeleteRefs(null);
+    setDeleteChecking(true);
+    const [{ count: pos }, { count: grns }, { count: payments }] = await Promise.all([
+      (supabase as any).from("purchase_orders").select("id", { count: "exact", head: true }).eq("supplier_id", s.id),
+      (supabase as any).from("goods_received_notes").select("id", { count: "exact", head: true }).eq("supplier_id", s.id),
+      (supabase as any).from("supplier_payments").select("id", { count: "exact", head: true }).eq("supplier_id", s.id),
+    ]);
+    setDeleteRefs({ pos: pos || 0, grns: grns || 0, payments: payments || 0 });
+    setDeleteChecking(false);
+  };
+
+  const setSupplierStatus = async (s: Supplier, status: "inactive" | "archived") => {
+    const { error } = await (supabase as any).from("suppliers").update({ status }).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(status === "archived" ? "Supplier archived" : "Supplier deactivated");
+    setDeleteTarget(null);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await (supabase as any).from("suppliers").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) { toast.error("Could not delete supplier", { description: error.message }); return; }
+    toast.success("Supplier deleted");
+    setDeleteTarget(null);
+    load();
+  };
+
   const exportCSV = () => {
     const rows = [
-      ["Name", "Contact Person", "Phone", "Email", "City", "Country", "Status", "Total Purchases", "Outstanding"],
+      ["Name", "Contact Person", "Phone", "WhatsApp", "Email", "City", "Country", "Status", "Total Purchases", "Outstanding"],
       ...filtered.map(s => [
-        s.name, s.contact_person || "", s.phone || "", s.email || "",
+        s.name, s.contact_person || "", s.phone || "", s.whatsapp_number || "", s.email || "",
         s.city || "", s.country || "", s.status,
         (stats[s.id]?.total || 0).toFixed(2),
         (stats[s.id]?.outstanding || 0).toFixed(2),
@@ -221,6 +259,7 @@ const Suppliers = () => {
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -245,13 +284,14 @@ const Suppliers = () => {
                           <Link to={`/suppliers/${s.id}`} className="font-semibold text-base hover:underline truncate">
                             {s.name}
                           </Link>
-                          <Badge variant={s.status === "active" ? "default" : "secondary"} className="text-xs">
+                          <Badge variant={s.status === "active" ? "default" : s.status === "archived" ? "outline" : "secondary"} className="text-xs">
                             {s.status}
                           </Badge>
                         </div>
                         {s.contact_person && <p className="text-sm text-muted-foreground mt-0.5">{s.contact_person}</p>}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                           {s.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{s.phone}</span>}
+                          {s.whatsapp_number && <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{s.whatsapp_number}</span>}
                           {s.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{s.email}</span>}
                           {s.products_supplied && <span className="truncate max-w-[200px]">📦 {s.products_supplied}</span>}
                         </div>
@@ -275,6 +315,11 @@ const Suppliers = () => {
                         {canEdit && (
                           <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon" onClick={() => startDelete(s)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}
                       </div>
@@ -305,7 +350,8 @@ const Suppliers = () => {
             <Field label="Contact Person" value={form.contact_person} onChange={v => setForm({ ...form, contact_person: v })} />
             <Field label="Phone" value={form.phone} onChange={v => setForm({ ...form, phone: v })} />
             <Field label="Alternative Phone" value={form.alt_phone} onChange={v => setForm({ ...form, alt_phone: v })} />
-            <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
+            <Field label="Email Address" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
+            <Field label="WhatsApp Number" value={form.whatsapp_number} onChange={v => setForm({ ...form, whatsapp_number: v })} />
             <Field label="City / District" value={form.city} onChange={v => setForm({ ...form, city: v })} />
             <Field label="Country" value={form.country} onChange={v => setForm({ ...form, country: v })} />
             <Field label="Company Name" value={form.company_name} onChange={v => setForm({ ...form, company_name: v })} />
@@ -345,13 +391,67 @@ const Suppliers = () => {
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Inactive suppliers cannot receive new purchase orders. Archived suppliers stay available for historical reporting.
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save} disabled={saving}>{saving ? "Saving..." : editing ? "Update" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" /> Delete Supplier
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="font-semibold">{deleteTarget?.name}</p>
+            {deleteChecking || !deleteRefs ? (
+              <p className="text-muted-foreground">Checking historical records…</p>
+            ) : deleteRefs.pos + deleteRefs.grns + deleteRefs.payments > 0 ? (
+              <>
+                <div className="rounded border border-orange-300 bg-orange-50 dark:bg-orange-950/20 p-3 text-xs space-y-1">
+                  <p className="font-medium text-orange-700 dark:text-orange-400">
+                    This supplier cannot be deleted — historical purchasing records exist:
+                  </p>
+                  <ul className="list-disc pl-4">
+                    {deleteRefs.pos > 0 && <li>{deleteRefs.pos} purchase order(s)</li>}
+                    {deleteRefs.grns > 0 && <li>{deleteRefs.grns} goods received note(s)</li>}
+                    {deleteRefs.payments > 0 && <li>{deleteRefs.payments} recorded payment(s)</li>}
+                  </ul>
+                  <p>Deactivate or archive instead so history stays intact.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setSupplierStatus(deleteTarget!, "inactive")}>
+                    Deactivate Supplier
+                  </Button>
+                  <Button variant="secondary" className="flex-1" onClick={() => setSupplierStatus(deleteTarget!, "archived")}>
+                    <Archive className="h-4 w-4 mr-1" /> Archive Supplier
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground">
+                This action will permanently remove the supplier and its catalogue. This cannot be undone.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            {deleteRefs && deleteRefs.pos + deleteRefs.grns + deleteRefs.payments === 0 && (
+              <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? "Deleting…" : "Delete permanently"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

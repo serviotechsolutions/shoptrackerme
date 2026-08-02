@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { notificationLink } from "@/lib/notificationLinks";
 
 export interface Notification {
   id: string;
@@ -8,9 +9,10 @@ export interface Notification {
   user_id: string | null;
   title: string;
   message: string;
-  type: "low_stock" | "reorder" | "sales_summary" | "high_profit" | "fast_selling" | "stale_product" | "system";
+  type: string;
   is_read: boolean;
   created_at: string;
+  link?: string | null;
   metadata?: any;
 }
 
@@ -86,6 +88,12 @@ export const useNotifications = () => {
           window.focus();
           browserNotification.close();
           markAsRead(notification.id);
+          try {
+            const target = notificationLink(notification);
+            if (target && window.location.pathname !== target.split("?")[0]) {
+              window.location.href = target;
+            }
+          } catch { /* ignore */ }
         };
 
         // Auto close after 10 seconds
