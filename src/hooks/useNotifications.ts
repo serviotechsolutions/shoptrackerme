@@ -8,9 +8,10 @@ export interface Notification {
   user_id: string | null;
   title: string;
   message: string;
-  type: "low_stock" | "reorder" | "sales_summary" | "high_profit" | "fast_selling" | "stale_product" | "system";
+  type: string;
   is_read: boolean;
   created_at: string;
+  link?: string | null;
   metadata?: any;
 }
 
