@@ -397,10 +397,6 @@ const Suppliers = () => {
               <p className="text-[11px] text-muted-foreground mt-1">
                 Inactive suppliers cannot receive new purchase orders. Archived suppliers stay available for historical reporting.
               </p>
-              <Select value="__hidden__" onValueChange={() => {}}>
-                <SelectTrigger className="hidden"><SelectValue /></SelectTrigger>
-                <SelectContent />
-              </Select>
             </div>
           </div>
           <DialogFooter>
