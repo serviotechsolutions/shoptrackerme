@@ -294,9 +294,19 @@ const GoodsReceivedNotes = () => {
     const settings: PricingSettings = ctx.tenant;
 
 
+    // Categories chosen on the purchase order flow through to inventory/POS.
+    const poItemIds = rows.map(r => r.purchase_order_item_id).filter(Boolean) as string[];
+    const categoryMap = new Map<string, string>();
+    if (poItemIds.length) {
+      const { data: poItems } = await (supabase as any)
+        .from("purchase_order_items").select("id,category").in("id", poItemIds);
+      (poItems || []).forEach((it: any) => { if (it.category) categoryMap.set(it.id, it.category); });
+    }
+
     for (const r of rows) {
       if (!r.received_quantity) continue;
       let productId: string | null = r.product_id;
+      const lineCategory = r.purchase_order_item_id ? categoryMap.get(r.purchase_order_item_id) || null : null;
 
       // Auto-create the product if it doesn't exist in inventory yet.
       if (!productId && direction === 1 && tenantId && r.product_name) {
@@ -317,6 +327,7 @@ const GoodsReceivedNotes = () => {
               buying_price: Number(r.unit_cost || 0),
               selling_price: 0,
               stock: 0,
+              category: lineCategory,
               preferred_supplier_id: supplierId || null,
               last_purchase_price: Number(r.unit_cost || 0),
               average_cost: Number(r.unit_cost || 0),
@@ -359,6 +370,9 @@ const GoodsReceivedNotes = () => {
       }
 
       const update: any = { stock: newStock, average_cost: newAvg };
+      if (direction === 1 && lineCategory && !prod.category) {
+        update.category = lineCategory;
+      }
       if (direction === 1) {
         update.last_purchase_price = unitCost;
         update.last_purchase_date = new Date().toISOString();
