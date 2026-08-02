@@ -1,4 +1,5 @@
 import { Bell, Check, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,10 +11,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useNotifications, type Notification } from "@/hooks/useNotifications";
+import { notificationLink } from "@/lib/notificationLinks";
 import { formatDistanceToNow } from "date-fns";
 
 export const NotificationBell = () => {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -22,6 +25,11 @@ export const NotificationBell = () => {
     markAllAsRead,
     deleteNotification,
   } = useNotifications();
+
+  const openNotification = (n: Notification) => {
+    if (!n.is_read) markAsRead(n.id);
+    navigate(notificationLink(n));
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
