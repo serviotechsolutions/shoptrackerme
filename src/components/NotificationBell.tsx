@@ -101,7 +101,7 @@ export const NotificationBell = () => {
               >
                 <DropdownMenuItem
                   className="flex flex-col items-start p-4 cursor-pointer"
-                  onClick={() => !notification.is_read && markAsRead(notification.id)}
+                  onClick={() => openNotification(notification)}
                 >
                   <div className="flex items-start gap-2 w-full">
                     <span className="text-lg">{getNotificationIcon(notification.type)}</span>
