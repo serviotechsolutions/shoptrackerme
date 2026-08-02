@@ -87,6 +87,12 @@ export const useNotifications = () => {
           window.focus();
           browserNotification.close();
           markAsRead(notification.id);
+          try {
+            const target = notificationLink(notification);
+            if (target && window.location.pathname !== target.split("?")[0]) {
+              window.location.href = target;
+            }
+          } catch { /* ignore */ }
         };
 
         // Auto close after 10 seconds
