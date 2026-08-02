@@ -14,6 +14,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Package } from "lucide-react";
+import UnitSelect from "@/components/UnitSelect";
+import { saveCustomUnit } from "@/lib/units";
 
 export type SupplierProduct = {
   id: string;
@@ -30,8 +32,6 @@ export type SupplierProduct = {
   description: string | null;
   status: "active" | "inactive";
 };
-
-const UNITS = ["piece", "box", "carton", "bottle", "kg", "litre", "packet", "bag", "pair", "set"];
 
 type Props = {
   open: boolean;
@@ -101,6 +101,7 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
         description: form.description?.toString().trim() || null,
         status: form.status || "active",
       };
+      await saveCustomUnit(profile.tenant_id, payload.unit);
       if (editing) {
         const { error } = await (supabase as any).from("supplier_products").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -221,12 +222,11 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
             </div>
             <div>
               <Label className="text-xs">Unit *</Label>
-              <Select value={form.unit || "piece"} onValueChange={v => setForm({ ...form, unit: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <UnitSelect
+                value={form.unit || "piece"}
+                onChange={v => setForm({ ...form, unit: v })}
+                extraUnits={editing?.unit ? [editing.unit] : []}
+              />
             </div>
             <div>
               <Label className="text-xs">Supplier unit cost *</Label>
