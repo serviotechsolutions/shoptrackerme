@@ -100,6 +100,10 @@ const PurchaseOrders = () => {
   const [notes, setNotes] = useState<string>("");
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [historyPo, setHistoryPo] = useState<PO | null>(null);
+  const [history, setHistory] = useState<POEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -278,15 +282,94 @@ const PurchaseOrders = () => {
       const { error: itErr } = await (supabase as any).from("purchase_order_items").insert(itemsRows);
       if (itErr) throw itErr;
 
+      await logPoEvent(tenant_id, po.id, "created", { userId: user!.id, detail: `${itemsRows.length} line(s)` });
+
       toast.success(`Purchase order ${status === "draft" ? "saved as draft" : "approved"}`);
       setOpen(false);
       setSupplierId(""); setNotes(""); setLines([]); setCatalogue([]);
       load();
+
+      if (status === "approved") {
+        const supplier = suppliers.find(x => x.id === supplierId);
+        if (supplier) {
+          await logPoEvent(tenant_id, po.id, "approved", { userId: user!.id });
+          runDelivery({
+            tenantId: tenant_id,
+            poId: po.id,
+            poNumber: po_number,
+            orderedAt: po.ordered_at || new Date().toISOString(),
+            notes: notes || null,
+            total: totalAmount,
+            items: itemsRows.map(r => ({
+              product_name: r.product_name, category: r.category,
+              unit: r.unit, quantity: r.quantity, unit_cost: r.unit_cost, total_cost: r.total_cost,
+            })),
+            supplier,
+          });
+        }
+      }
     } catch (e: any) {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
     }
+  };
+
+  const runDelivery = async (args: Parameters<typeof deliverPurchaseOrder>[0]) => {
+    setSendingId(args.poId);
+    const t = toast.loading(`Sending ${args.poNumber} to ${args.supplier.name}…`);
+    try {
+      const res = await deliverPurchaseOrder({ ...args, userId: user!.id });
+      toast.dismiss(t);
+      const parts: string[] = [];
+      parts.push(`WhatsApp: ${res.whatsapp.status}`);
+      parts.push(`Email: ${res.email.status}`);
+      if (res.whatsapp.status === "failed" || res.email.status === "failed") {
+        toast.error(`Delivery issue for ${args.poNumber}`, { description: parts.join(" · ") });
+      } else {
+        toast.success(`Purchase order sent`, { description: parts.join(" · ") });
+      }
+    } catch (e: any) {
+      toast.dismiss(t);
+      toast.error(e.message || "Delivery failed");
+    } finally {
+      setSendingId(null);
+      load();
+    }
+  };
+
+  const retryDelivery = async (po: PO) => {
+    const supplier = suppliers.find(x => x.id === po.supplier_id);
+    if (!supplier) { toast.error("Supplier is not active — cannot resend."); return; }
+    const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+    const tenant_id = profile?.tenant_id;
+    if (!tenant_id) return;
+    const { data: items } = await (supabase as any)
+      .from("purchase_order_items")
+      .select("product_name,category,unit,quantity,unit_cost,total_cost")
+      .eq("purchase_order_id", po.id);
+    await runDelivery({
+      tenantId: tenant_id,
+      poId: po.id,
+      poNumber: po.po_number,
+      orderedAt: po.ordered_at,
+      notes: po.notes || null,
+      total: Number(po.total_amount),
+      items: (items || []) as any,
+      supplier,
+    });
+  };
+
+  const openHistory = async (po: PO) => {
+    setHistoryPo(po);
+    setHistoryLoading(true);
+    const { data } = await (supabase as any)
+      .from("purchase_order_events")
+      .select("id,event_type,channel,status,detail,created_at")
+      .eq("purchase_order_id", po.id)
+      .order("created_at", { ascending: true });
+    setHistory((data || []) as POEvent[]);
+    setHistoryLoading(false);
   };
 
   const openCreate = () => {
@@ -330,9 +413,30 @@ const PurchaseOrders = () => {
                       <p className="text-sm text-muted-foreground mt-1">
                         {po.supplier_name || "—"} · {new Date(po.ordered_at).toLocaleDateString()}
                       </p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <DeliveryBadge icon={MessageCircle} label="WhatsApp" status={po.whatsapp_status} error={po.whatsapp_error} />
+                        <DeliveryBadge icon={Mail} label="Email" status={po.email_status} error={po.email_error} />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{Number(po.total_amount).toLocaleString()}</p>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <p className="font-semibold mr-1">{Number(po.total_amount).toLocaleString()}</p>
+                      <Button size="sm" variant="ghost" onClick={() => openHistory(po)}>
+                        <History className="h-3.5 w-3.5 mr-1" /> History
+                      </Button>
+                      {canEdit && po.status !== "draft" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={sendingId === po.id}
+                          onClick={() => retryDelivery(po)}
+                        >
+                          {po.whatsapp_status === "failed" || po.email_status === "failed" ? (
+                            <><RefreshCw className={`h-3.5 w-3.5 mr-1 ${sendingId === po.id ? "animate-spin" : ""}`} /> Retry</>
+                          ) : (
+                            <><Send className="h-3.5 w-3.5 mr-1" /> Resend</>
+                          )}
+                        </Button>
+                      )}
                       {canEdit && po.status === "approved" && (
                         <Button size="sm" variant="outline" asChild>
                           <Link to={`/grn?po=${po.id}`}>
@@ -425,12 +529,11 @@ const PurchaseOrders = () => {
                             </div>
                             <div className="col-span-6 sm:col-span-2">
                               <Label className="text-[10px]">Unit *</Label>
-                              <Select value={l.unit || "piece"} onValueChange={v => updateLine(i, { unit: v })}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                                </SelectContent>
-                              </Select>
+                              <UnitSelect
+                                value={l.unit || "piece"}
+                                onChange={v => updateLine(i, { unit: v })}
+                                className="h-9"
+                              />
                             </div>
                             <div className="col-span-6 sm:col-span-2">
                               <Label className="text-[10px]">Qty *</Label>
@@ -445,6 +548,16 @@ const PurchaseOrders = () => {
                             <div className="col-span-4 sm:col-span-1 text-right font-semibold text-sm self-end">
                               {(l.quantity * l.unit_cost).toLocaleString()}
                             </div>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px]">Category *</Label>
+                              <Select value={l.category || ""} onValueChange={v => updateLine(i, { category: v })}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                <SelectContent>
+                                  {PRODUCT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
                           </div>
                         ) : (
                           <div className="grid grid-cols-12 gap-2">
@@ -493,6 +606,15 @@ const PurchaseOrders = () => {
                               <p className="text-[10px] text-muted-foreground">Line total</p>
                               <p className="font-semibold">{(l.quantity * l.unit_cost).toLocaleString()}</p>
                             </div>
+                            <div className="col-span-12 sm:col-span-4">
+                              <Label className="text-[10px]">Category *</Label>
+                              <Select value={l.category || ""} onValueChange={v => updateLine(i, { category: v })}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select category" /></SelectTrigger>
+                                <SelectContent>
+                                  {PRODUCT_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             {l.supplier_product_id && (
                               <div className="col-span-12 flex gap-4 text-[10px] text-muted-foreground">
                                 {l.available_qty != null && <span>Available from supplier: {l.available_qty} {l.unit}</span>}
@@ -528,6 +650,31 @@ const PurchaseOrders = () => {
             <Button variant="secondary" onClick={() => save("draft")} disabled={saving}>Save draft</Button>
             <Button onClick={() => save("approved")} disabled={saving}>Approve</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!historyPo} onOpenChange={(v) => { if (!v) setHistoryPo(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order history — {historyPo?.po_number}</DialogTitle>
+            <DialogDescription>Complete communication and status trail for this purchase order.</DialogDescription>
+          </DialogHeader>
+          {historyLoading ? (
+            <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No events recorded yet.</p>
+          ) : (
+            <ol className="relative border-l pl-4 space-y-4">
+              {history.map(ev => (
+                <li key={ev.id} className="text-sm">
+                  <span className="absolute -left-[5px] mt-1.5 h-2 w-2 rounded-full bg-primary" />
+                  <p className="font-medium capitalize">{ev.event_type.replace(/_/g, " ")}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(ev.created_at).toLocaleString()}</p>
+                  {ev.detail && <p className="text-xs text-muted-foreground mt-0.5">{ev.detail}</p>}
+                </li>
+              ))}
+            </ol>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
