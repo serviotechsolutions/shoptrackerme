@@ -76,6 +76,18 @@ const Products = () => {
     }
 
   }, [tenantId]);
+  // Live inventory — reflects goods received without a page refresh.
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel("products-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => fetchProducts())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
   const fetchTenantId = async () => {
     const {
       data: {
