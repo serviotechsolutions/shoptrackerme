@@ -30,6 +30,7 @@ export type SupplierProduct = {
   available_qty: number | null;
   brand: string | null;
   description: string | null;
+  image_url: string | null;
   status: "active" | "inactive";
 };
 
@@ -44,7 +45,7 @@ type Props = {
 const emptyForm: Partial<SupplierProduct> = {
   name: "", sku: "", unit: "piece", unit_cost: 0,
   min_order_qty: null, available_qty: null, brand: "", description: "",
-  status: "active",
+  image_url: null, status: "active",
 };
 
 export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId, supplierName, canEdit }: Props) {
