@@ -56,6 +56,28 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
   const [editing, setEditing] = useState<SupplierProduct | null>(null);
   const [form, setForm] = useState<Partial<SupplierProduct>>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadImage = async (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
+    setUploading(true);
+    try {
+      const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+      if (!profile?.tenant_id) throw new Error("No tenant");
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${profile.tenant_id}/supplier-catalogue/${supplierId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      setForm(f => ({ ...f, image_url: data.publicUrl }));
+      toast.success("Image uploaded");
+    } catch (e: any) {
+      toast.error(e.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const load = async () => {
     if (!supplierId) return;
