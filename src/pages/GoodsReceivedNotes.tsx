@@ -51,6 +51,8 @@ type GRNItemDraft = {
   purchase_order_item_id: string | null;
   product_id: string | null;
   product_name: string;
+  unit?: string;
+  category?: string | null;
   ordered_quantity: number;
   previously_received: number;
   received_quantity: number;
@@ -116,7 +118,7 @@ const GoodsReceivedNotes = () => {
         .select("*, purchase_orders(po_number), suppliers(name)")
         .order("created_at", { ascending: false }),
       (supabase as any).from("suppliers").select("id,name").eq("status", "active").order("name"),
-      (supabase as any).from("purchase_orders").select("*").in("status", ["approved", "received"]).order("created_at", { ascending: false }),
+      (supabase as any).from("purchase_orders").select("*").in("status", ["approved", "partially_received", "received"]).order("created_at", { ascending: false }),
     ]);
     setGrns((g || []) as GRN[]);
     setSuppliers((sups || []) as Supplier[]);
@@ -126,10 +128,26 @@ const GoodsReceivedNotes = () => {
 
   useEffect(() => { load(); }, []);
 
+  // Live updates — keep the list fresh when POs/GRNs change elsewhere.
+  useEffect(() => {
+    const channel = supabase
+      .channel("grn-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "goods_received_notes" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // Load items when a PO is selected (sum previously-received from prior approved GRNs)
   const loadPoItems = async (poId: string) => {
-    const po = pos.find(p => p.id === poId);
-    if (!po) return;
+    let po: any = pos.find(p => p.id === poId);
+    if (!po) {
+      // Deep-linked from the Purchase Orders page — fetch it directly.
+      const { data } = await (supabase as any)
+        .from("purchase_orders").select("*").eq("id", poId).maybeSingle();
+      if (!data) { toast.error("Purchase order not found"); return; }
+      po = data;
+      setPos(prev => prev.some(p => p.id === po.id) ? prev : [po as PO, ...prev]);
+    }
     setSelSupplier(po.supplier_id || "");
     const { data: poItems } = await (supabase as any)
       .from("purchase_order_items")
@@ -154,13 +172,15 @@ const GoodsReceivedNotes = () => {
     for (const r of priorItems) {
       prevMap.set(r.purchase_order_item_id, (prevMap.get(r.purchase_order_item_id) || 0) + Number(r.received_quantity || 0));
     }
-    const drafts: GRNItemDraft[] = (poItems || []).map((it: POItem) => {
+    const drafts: GRNItemDraft[] = (poItems || []).map((it: any) => {
       const prev = prevMap.get(it.id) || 0;
       const remaining = Math.max(0, Number(it.quantity) - prev);
       return {
         purchase_order_item_id: it.id,
         product_id: it.product_id,
         product_name: it.product_name,
+        unit: it.unit || "piece",
+        category: it.category || null,
         ordered_quantity: Number(it.quantity),
         previously_received: prev,
         received_quantity: remaining,
@@ -169,14 +189,19 @@ const GoodsReceivedNotes = () => {
       };
     });
     setItems(drafts);
+    if (!drafts.length) toast.info("This purchase order has no items left to receive.");
   };
 
+  // Deep link: /grn?po=<id> opens the receive dialog pre-filled from the PO.
+  const [autoLoaded, setAutoLoaded] = useState(false);
   useEffect(() => {
-    if (open && presetPo && pos.length && !selPo) {
-      setSelPo(presetPo);
-      loadPoItems(presetPo);
-    }
-  }, [open, presetPo, pos]);
+    if (!presetPo || autoLoaded || loading) return;
+    setAutoLoaded(true);
+    setSelPo(presetPo);
+    setInvoiceRef(""); setDeliveryNote(""); setNotes("");
+    loadPoItems(presetPo).then(() => setOpen(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetPo, loading]);
 
   const openCreate = () => {
     setSelPo(""); setSelSupplier(""); setInvoiceRef(""); setDeliveryNote("");
@@ -244,11 +269,17 @@ const GoodsReceivedNotes = () => {
         total_cost: Number(i.received_quantity || 0) * Number(i.unit_cost || 0),
         excess_accepted: i.excess_accepted,
       }));
-      const { error: itErr } = await (supabase as any).from("grn_items").insert(rows);
+      const { data: insertedItems, error: itErr } = await (supabase as any)
+        .from("grn_items").insert(rows).select();
       if (itErr) throw itErr;
 
+      // Carry unit/category (kept on the PO line, not on grn_items) for downstream steps.
+      const enriched = (insertedItems || rows).map((r: any, idx: number) => ({
+        ...r, unit: items[idx]?.unit || "piece", category: items[idx]?.category || null,
+      }));
+
       if (status === "approved") {
-        const { created: createdCount, reviews } = await applyStockMovement(rows, +1, tenant_id, selSupplier || null, grn.id, selPo || null);
+        const { created: createdCount, reviews } = await applyStockMovement(enriched, +1, tenant_id, selSupplier || null, grn.id, selPo || null);
         await maybeMarkPoReceived(selPo);
         if (createdCount > 0) {
           toast.success(`${createdCount} new product${createdCount > 1 ? "s" : ""} added to inventory`);
@@ -257,7 +288,7 @@ const GoodsReceivedNotes = () => {
           setAdvisorReviews(reviews);
           setAdvisorOpen(true);
         }
-        await offerCatalogueForNewItems(selSupplier || null, rows);
+        await offerCatalogueForNewItems(selSupplier || null, enriched);
       }
 
       await (supabase as any).from("grn_audit_log").insert({
@@ -303,10 +334,22 @@ const GoodsReceivedNotes = () => {
       (poItems || []).forEach((it: any) => { if (it.category) categoryMap.set(it.id, it.category); });
     }
 
+    // Supplier catalogue images flow through to the inventory/POS product cards.
+    const imageByName = new Map<string, string>();
+    if (supplierId && direction === 1) {
+      const { data: cat } = await (supabase as any)
+        .from("supplier_products").select("name,image_url").eq("supplier_id", supplierId);
+      (cat || []).forEach((c: any) => {
+        if (c.image_url) imageByName.set(String(c.name).trim().toLowerCase(), c.image_url);
+      });
+    }
+
     for (const r of rows) {
       if (!r.received_quantity) continue;
       let productId: string | null = r.product_id;
-      const lineCategory = r.purchase_order_item_id ? categoryMap.get(r.purchase_order_item_id) || null : null;
+      const lineCategory =
+        (r.purchase_order_item_id ? categoryMap.get(r.purchase_order_item_id) : null) || r.category || null;
+      const lineImage = imageByName.get(String(r.product_name || "").trim().toLowerCase()) || null;
 
       // Auto-create the product if it doesn't exist in inventory yet.
       if (!productId && direction === 1 && tenantId && r.product_name) {
@@ -328,6 +371,7 @@ const GoodsReceivedNotes = () => {
               selling_price: 0,
               stock: 0,
               category: lineCategory,
+              image_url: lineImage,
               preferred_supplier_id: supplierId || null,
               last_purchase_price: Number(r.unit_cost || 0),
               average_cost: Number(r.unit_cost || 0),
@@ -339,7 +383,7 @@ const GoodsReceivedNotes = () => {
           productId = newProd.id;
           created += 1;
         }
-        if (grnId && productId) {
+        if (grnId && productId && r.id) {
           await (supabase as any).from("grn_items")
             .update({ product_id: productId }).eq("id", r.id);
         }
@@ -349,7 +393,7 @@ const GoodsReceivedNotes = () => {
 
       const { data: prod } = await (supabase as any)
         .from("products")
-        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price,category,pricing_strategy,target_profit_margin,markup_pct,fixed_profit")
+        .select("id,name,stock,average_cost,selling_price,buying_price,last_purchase_price,category,image_url,preferred_supplier_id,pricing_strategy,target_profit_margin,markup_pct,fixed_profit")
         .eq("id", productId)
         .maybeSingle();
       if (!prod) continue;
@@ -372,6 +416,12 @@ const GoodsReceivedNotes = () => {
       const update: any = { stock: newStock, average_cost: newAvg };
       if (direction === 1 && lineCategory && !prod.category) {
         update.category = lineCategory;
+      }
+      if (direction === 1 && lineImage && !prod.image_url) {
+        update.image_url = lineImage;
+      }
+      if (direction === 1 && supplierId && !prod.preferred_supplier_id) {
+        update.preferred_supplier_id = supplierId;
       }
       if (direction === 1) {
         update.last_purchase_price = unitCost;
@@ -442,9 +492,14 @@ const GoodsReceivedNotes = () => {
     }
     const fullyReceived = (poItems || []).every((it: any) =>
       (sumMap.get(it.id) || 0) >= Number(it.quantity));
+    const anyReceived = (poItems || []).some((it: any) => (sumMap.get(it.id) || 0) > 0);
     if (fullyReceived) {
       await (supabase as any).from("purchase_orders")
         .update({ status: "received", received_at: new Date().toISOString() })
+        .eq("id", poId);
+    } else if (anyReceived) {
+      await (supabase as any).from("purchase_orders")
+        .update({ status: "partially_received" })
         .eq("id", poId);
     }
   };

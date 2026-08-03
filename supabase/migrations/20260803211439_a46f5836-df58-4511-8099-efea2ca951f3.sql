@@ -1,0 +1,2 @@
+ALTER TABLE public.purchase_orders ADD COLUMN IF NOT EXISTS whatsapp_message_id text;
+CREATE INDEX IF NOT EXISTS purchase_orders_whatsapp_message_id_idx ON public.purchase_orders (whatsapp_message_id);

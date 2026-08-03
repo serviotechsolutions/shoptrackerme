@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Package, AlertTriangle, MessageCircle, Mail, RefreshCw, History, Send } from "lucide-react";
+import { Plus, Trash2, FileText, ShoppingBag, ArrowRight, Package, AlertTriangle, MessageCircle, Mail, RefreshCw, History, Send, Pencil } from "lucide-react";
 import UnitSelect from "@/components/UnitSelect";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
 import { saveCustomUnit } from "@/lib/units";
@@ -104,6 +104,7 @@ const PurchaseOrders = () => {
   const [historyPo, setHistoryPo] = useState<PO | null>(null);
   const [history, setHistory] = useState<POEvent[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [editingPo, setEditingPo] = useState<PO | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -121,6 +122,15 @@ const PurchaseOrders = () => {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Live updates — POs change as GRNs are approved elsewhere.
+  useEffect(() => {
+    const channel = supabase
+      .channel("po-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchase_orders" }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const loadCatalogue = async (sid: string) => {
     if (!sid) { setCatalogue([]); return; }
@@ -252,20 +262,44 @@ const PurchaseOrders = () => {
       const tenant_id = profile?.tenant_id;
       if (!tenant_id) throw new Error("No tenant");
 
-      const po_number = `PO-${Date.now().toString().slice(-7)}`;
-      const { data: po, error } = await (supabase as any)
-        .from("purchase_orders")
-        .insert({
-          tenant_id,
-          supplier_id: supplierId,
-          po_number,
-          status,
-          total_amount: totalAmount,
-          notes: notes || null,
-          created_by: user!.id,
-        })
-        .select().single();
-      if (error) throw error;
+      let po: any;
+      let po_number: string;
+
+      if (editingPo) {
+        // Draft is edited in place — the PO number never changes.
+        po_number = editingPo.po_number;
+        const { data, error } = await (supabase as any)
+          .from("purchase_orders")
+          .update({
+            supplier_id: supplierId,
+            status,
+            total_amount: totalAmount,
+            notes: notes || null,
+          })
+          .eq("id", editingPo.id)
+          .select().single();
+        if (error) throw error;
+        po = data;
+        const { error: delErr } = await (supabase as any)
+          .from("purchase_order_items").delete().eq("purchase_order_id", editingPo.id);
+        if (delErr) throw delErr;
+      } else {
+        po_number = `PO-${Date.now().toString().slice(-7)}`;
+        const { data, error } = await (supabase as any)
+          .from("purchase_orders")
+          .insert({
+            tenant_id,
+            supplier_id: supplierId,
+            po_number,
+            status,
+            total_amount: totalAmount,
+            notes: notes || null,
+            created_by: user!.id,
+          })
+          .select().single();
+        if (error) throw error;
+        po = data;
+      }
 
       const itemsRows = lines.map(l => ({
         purchase_order_id: po.id,
@@ -282,16 +316,22 @@ const PurchaseOrders = () => {
       const { error: itErr } = await (supabase as any).from("purchase_order_items").insert(itemsRows);
       if (itErr) throw itErr;
 
-      await logPoEvent(tenant_id, po.id, "created", { userId: user!.id, detail: `${itemsRows.length} line(s)` });
+      await logPoEvent(tenant_id, po.id, "created", {
+        userId: user!.id,
+        detail: `${editingPo ? "Draft updated" : "Created"} — ${itemsRows.length} line(s)`,
+      });
 
       toast.success(`Purchase order ${status === "draft" ? "saved as draft" : "approved"}`);
       setOpen(false);
+      setEditingPo(null);
       setSupplierId(""); setNotes(""); setLines([]); setCatalogue([]);
       load();
 
       if (status === "approved") {
         const supplier = suppliers.find(x => x.id === supplierId);
         if (supplier) {
+          await (supabase as any).from("purchase_orders")
+            .update({ approved_at: new Date().toISOString() }).eq("id", po.id);
           await logPoEvent(tenant_id, po.id, "approved", { userId: user!.id });
           runDelivery({
             tenantId: tenant_id,
@@ -313,6 +353,44 @@ const PurchaseOrders = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ---- Draft management ----
+  const editDraft = async (po: PO) => {
+    setEditingPo(po);
+    setSupplierId(po.supplier_id || "");
+    setNotes(po.notes || "");
+    setCatalogue([]);
+    if (po.supplier_id) await loadCatalogue(po.supplier_id);
+    const { data: its } = await (supabase as any)
+      .from("purchase_order_items")
+      .select("*")
+      .eq("purchase_order_id", po.id)
+      .order("created_at");
+    setLines((its || []).map((it: any) => ({
+      is_custom_item: !!it.is_custom_item,
+      category: it.category || "",
+      supplier_product_id: it.supplier_product_id || null,
+      product_id: it.product_id || null,
+      product_name: it.product_name || "",
+      unit: it.unit || "piece",
+      quantity: Number(it.quantity || 1),
+      unit_cost: Number(it.unit_cost || 0),
+      min_order_qty: null,
+      available_qty: null,
+    })));
+    setOpen(true);
+  };
+
+  const deleteDraft = async (po: PO) => {
+    if (po.status !== "draft") { toast.error("Only draft orders can be deleted"); return; }
+    if (!confirm(`Delete draft ${po.po_number}? This cannot be undone.`)) return;
+    await (supabase as any).from("purchase_order_items").delete().eq("purchase_order_id", po.id);
+    await (supabase as any).from("purchase_order_events").delete().eq("purchase_order_id", po.id);
+    const { error } = await (supabase as any).from("purchase_orders").delete().eq("id", po.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Draft deleted");
+    load();
   };
 
   const runDelivery = async (args: Parameters<typeof deliverPurchaseOrder>[0]) => {
@@ -373,6 +451,7 @@ const PurchaseOrders = () => {
   };
 
   const openCreate = () => {
+    setEditingPo(null);
     setSupplierId(""); setNotes(""); setLines([]); setCatalogue([]);
     setOpen(true);
   };
@@ -423,6 +502,16 @@ const PurchaseOrders = () => {
                       <Button size="sm" variant="ghost" onClick={() => openHistory(po)}>
                         <History className="h-3.5 w-3.5 mr-1" /> History
                       </Button>
+                      {canEdit && po.status === "draft" && (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => editDraft(po)}>
+                            <Pencil className="h-3.5 w-3.5 mr-1" /> Edit draft
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => deleteDraft(po)}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </>
+                      )}
                       {canEdit && po.status !== "draft" && (
                         <Button
                           size="sm"
@@ -437,7 +526,7 @@ const PurchaseOrders = () => {
                           )}
                         </Button>
                       )}
-                      {canEdit && po.status === "approved" && (
+                      {canEdit && (po.status === "approved" || po.status === "partially_received") && (
                         <Button size="sm" variant="outline" asChild>
                           <Link to={`/grn?po=${po.id}`}>
                             Receive goods <ArrowRight className="h-3 w-3 ml-1" />
@@ -453,10 +542,10 @@ const PurchaseOrders = () => {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditingPo(null); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Purchase Order</DialogTitle>
+            <DialogTitle>{editingPo ? `Edit draft — ${editingPo.po_number}` : "Create Purchase Order"}</DialogTitle>
             <DialogDescription>
               Prices come from the supplier's catalogue. Snapshot is saved with the order — future price changes never touch existing orders.
             </DialogDescription>
