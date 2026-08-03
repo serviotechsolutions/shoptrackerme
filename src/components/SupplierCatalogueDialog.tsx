@@ -30,6 +30,7 @@ export type SupplierProduct = {
   available_qty: number | null;
   brand: string | null;
   description: string | null;
+  image_url: string | null;
   status: "active" | "inactive";
 };
 
@@ -44,7 +45,7 @@ type Props = {
 const emptyForm: Partial<SupplierProduct> = {
   name: "", sku: "", unit: "piece", unit_cost: 0,
   min_order_qty: null, available_qty: null, brand: "", description: "",
-  status: "active",
+  image_url: null, status: "active",
 };
 
 export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId, supplierName, canEdit }: Props) {
@@ -55,6 +56,28 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
   const [editing, setEditing] = useState<SupplierProduct | null>(null);
   const [form, setForm] = useState<Partial<SupplierProduct>>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const uploadImage = async (file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Image must be under 5MB"); return; }
+    setUploading(true);
+    try {
+      const { data: profile } = await supabase.from("profiles").select("tenant_id").eq("id", user!.id).maybeSingle();
+      if (!profile?.tenant_id) throw new Error("No tenant");
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${profile.tenant_id}/supplier-catalogue/${supplierId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      setForm(f => ({ ...f, image_url: data.publicUrl }));
+      toast.success("Image uploaded");
+    } catch (e: any) {
+      toast.error(e.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const load = async () => {
     if (!supplierId) return;
@@ -99,6 +122,7 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
           ? null : Number(form.available_qty),
         brand: form.brand?.toString().trim() || null,
         description: form.description?.toString().trim() || null,
+        image_url: form.image_url || null,
         status: form.status || "active",
       };
       await saveCustomUnit(profile.tenant_id, payload.unit);
@@ -174,10 +198,22 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
                   {rows.map(r => (
                     <tr key={r.id} className="border-t hover:bg-muted/30">
                       <td className="p-2">
-                        <p className="font-medium">{r.name}</p>
-                        <div className="flex gap-2 text-[10px] text-muted-foreground">
-                          {r.sku && <span>SKU: {r.sku}</span>}
-                          {r.brand && <span>· {r.brand}</span>}
+                        <div className="flex items-center gap-2">
+                          {r.image_url ? (
+                            <img src={r.image_url} alt={r.name} loading="lazy"
+                              className="h-9 w-9 rounded object-cover border shrink-0" />
+                          ) : (
+                            <div className="h-9 w-9 rounded border bg-muted flex items-center justify-center shrink-0">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium">{r.name}</p>
+                            <div className="flex gap-2 text-[10px] text-muted-foreground">
+                              {r.sku && <span>SKU: {r.sku}</span>}
+                              {r.brand && <span>· {r.brand}</span>}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="p-2">{r.unit}</td>
@@ -255,6 +291,32 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
             <div>
               <Label className="text-xs">Brand</Label>
               <Input value={form.brand || ""} onChange={e => setForm({ ...form, brand: e.target.value })} />
+            </div>
+            <div className="col-span-2">
+              <Label className="text-xs">Product image</Label>
+              <div className="flex items-center gap-3">
+                {form.image_url ? (
+                  <img src={form.image_url} alt={form.name || "Product"} className="h-14 w-14 rounded object-cover border" />
+                ) : (
+                  <div className="h-14 w-14 rounded border bg-muted flex items-center justify-center">
+                    <Package className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <Input
+                    type="file" accept="image/*" disabled={uploading}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {uploading ? "Uploading…" : "Shown on purchase orders, deliveries and the sales screen."}
+                  </p>
+                </div>
+                {form.image_url && (
+                  <Button variant="ghost" size="icon" onClick={() => setForm({ ...form, image_url: null })}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="col-span-2">
               <Label className="text-xs">Description / notes</Label>

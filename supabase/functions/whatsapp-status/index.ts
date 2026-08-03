@@ -26,7 +26,20 @@ function mapStatus(status: string): Record<string, unknown> | null {
 
 async function updateByProviderId(sid: string, patch: Record<string, unknown>) {
   if (!sid || !Object.keys(patch).length) return;
-  await admin().from("whatsapp_messages").update(patch).eq("provider_message_id", sid);
+  const db = admin();
+  await db.from("whatsapp_messages").update(patch).eq("provider_message_id", sid);
+
+  // Mirror delivery state onto any purchase order sent with this message.
+  const status = String((patch as any).status || "");
+  if (["delivered", "read", "failed"].includes(status)) {
+    const poPatch: Record<string, unknown> = {
+      whatsapp_status: status === "read" ? "delivered" : status,
+    };
+    if (status === "failed") {
+      poPatch.whatsapp_error = (patch as any).error_message ?? "Delivery failed";
+    }
+    await db.from("purchase_orders").update(poPatch).eq("whatsapp_message_id", sid);
+  }
 }
 
 async function handleMetaPost(body: any) {

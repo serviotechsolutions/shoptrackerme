@@ -1071,6 +1071,7 @@ export type Database = {
           total_amount: number
           updated_at: string
           whatsapp_error: string | null
+          whatsapp_message_id: string | null
           whatsapp_sent_at: string | null
           whatsapp_status: string | null
         }
@@ -1093,6 +1094,7 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           whatsapp_error?: string | null
+          whatsapp_message_id?: string | null
           whatsapp_sent_at?: string | null
           whatsapp_status?: string | null
         }
@@ -1115,6 +1117,7 @@ export type Database = {
           total_amount?: number
           updated_at?: string
           whatsapp_error?: string | null
+          whatsapp_message_id?: string | null
           whatsapp_sent_at?: string | null
           whatsapp_status?: string | null
         }
@@ -1299,6 +1302,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           min_order_qty: number | null
           name: string
           product_id: string | null
@@ -1316,6 +1320,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           min_order_qty?: number | null
           name: string
           product_id?: string | null
@@ -1333,6 +1338,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           min_order_qty?: number | null
           name?: string
           product_id?: string | null

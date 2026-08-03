@@ -175,6 +175,16 @@ const POS = () => {
   useEffect(() => { fetchUserData(); fetchProducts(); }, [user]);
   useEffect(() => { if (tenantId) { fetchQuickStats(); fetchShopInfo(); fetchCustomers(); } }, [tenantId]);
 
+  // Live inventory — stock received through GRNs shows up instantly.
+  useEffect(() => {
+    const channel = supabase
+      .channel("pos-products-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => fetchProducts())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     let filtered = products;
     if (selectedCategory !== "All Products") filtered = filtered.filter(p => p.category === selectedCategory);

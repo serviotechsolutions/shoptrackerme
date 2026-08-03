@@ -134,17 +134,24 @@ export async function deliverPurchaseOrder(a: DeliverPOArgs): Promise<DeliveryRe
   const message = buildPoMessage(shopName, a);
 
   // ---- WhatsApp ----
+  // "sent" only when the WhatsApp Cloud API accepts the message and returns a message id.
+  // "delivered" is set later by the status webhook.
   const waTarget = normalizePhone(a.supplier.whatsapp_number || a.supplier.phone);
+  let waMessageId: string | null = null;
   if (waTarget) {
     try {
-      await sendWhatsapp({
+      const res: any = await sendWhatsapp({
         to: waTarget,
         body: message,
         media_url: pdfUrl || undefined,
         media_kind: pdfUrl ? "pdf" : null,
         message_type: "custom",
       });
-      result.whatsapp = { status: "sent" };
+      if (!res?.ok || !res?.provider_sid) {
+        throw new Error(res?.error || "WhatsApp provider did not confirm the message");
+      }
+      waMessageId = String(res.provider_sid);
+      result.whatsapp = { status: "sent", error: `Accepted by WhatsApp · ID ${waMessageId}` };
     } catch (e: any) {
       result.whatsapp = { status: "failed", error: e?.message || "WhatsApp send failed" };
     }
@@ -190,6 +197,7 @@ export async function deliverPurchaseOrder(a: DeliverPOArgs): Promise<DeliveryRe
     whatsapp_status: result.whatsapp.status,
     whatsapp_sent_at: result.whatsapp.status === "sent" ? now : null,
     whatsapp_error: result.whatsapp.error || null,
+    whatsapp_message_id: waMessageId,
     email_status: result.email.status,
     email_sent_at: result.email.status === "sent" ? now : null,
     email_error: result.email.error || null,
