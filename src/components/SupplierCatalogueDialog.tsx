@@ -198,10 +198,22 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
                   {rows.map(r => (
                     <tr key={r.id} className="border-t hover:bg-muted/30">
                       <td className="p-2">
-                        <p className="font-medium">{r.name}</p>
-                        <div className="flex gap-2 text-[10px] text-muted-foreground">
-                          {r.sku && <span>SKU: {r.sku}</span>}
-                          {r.brand && <span>· {r.brand}</span>}
+                        <div className="flex items-center gap-2">
+                          {r.image_url ? (
+                            <img src={r.image_url} alt={r.name} loading="lazy"
+                              className="h-9 w-9 rounded object-cover border shrink-0" />
+                          ) : (
+                            <div className="h-9 w-9 rounded border bg-muted flex items-center justify-center shrink-0">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium">{r.name}</p>
+                            <div className="flex gap-2 text-[10px] text-muted-foreground">
+                              {r.sku && <span>SKU: {r.sku}</span>}
+                              {r.brand && <span>· {r.brand}</span>}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="p-2">{r.unit}</td>
