@@ -122,6 +122,7 @@ export default function SupplierCatalogueDialog({ open, onOpenChange, supplierId
           ? null : Number(form.available_qty),
         brand: form.brand?.toString().trim() || null,
         description: form.description?.toString().trim() || null,
+        image_url: form.image_url || null,
         status: form.status || "active",
       };
       await saveCustomUnit(profile.tenant_id, payload.unit);
