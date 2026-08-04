@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { normalizePhone, sendWhatsapp } from "@/lib/whatsapp";
+import WhatsAppInbox from "@/components/whatsapp/WhatsAppInbox";
+import WhatsAppAutomationSettings from "@/components/whatsapp/WhatsAppAutomationSettings";
 import { Loader2, MessageCircle, Save, TestTube2, Send, RefreshCw, Download } from "lucide-react";
+
 
 interface Settings {
   id?: string;
@@ -60,7 +64,10 @@ function StatusBadge({ status }: { status: string }) {
 export default function WhatsApp() {
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
-  const [tab, setTab] = useState("settings");
+  const [params] = useSearchParams();
+  const conversationParam = params.get("conversation");
+  const [tab, setTab] = useState(conversationParam ? "inbox" : "inbox");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -264,11 +271,24 @@ export default function WhatsApp() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap">
+            <TabsTrigger value="inbox">Inbox</TabsTrigger>
             {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="automation">Automation</TabsTrigger>}
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             {isAdmin && <TabsTrigger value="bulk">Bulk</TabsTrigger>}
           </TabsList>
+
+          <TabsContent value="inbox">
+            <WhatsAppInbox initialConversationId={conversationParam} />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="automation">
+              <WhatsAppAutomationSettings />
+            </TabsContent>
+          )}
+
 
           {isAdmin && (
           <TabsContent value="settings">

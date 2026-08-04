@@ -1702,24 +1702,109 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversations: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          customer_id: string | null
+          display_name: string | null
+          greeted_at: string | null
+          id: string
+          is_archived: boolean
+          is_blocked: boolean
+          is_pinned: boolean
+          labels: Json
+          last_auto_reply_at: string | null
+          last_message_at: string
+          last_message_direction: string
+          last_message_preview: string | null
+          phone: string
+          tenant_id: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_id?: string | null
+          display_name?: string | null
+          greeted_at?: string | null
+          id?: string
+          is_archived?: boolean
+          is_blocked?: boolean
+          is_pinned?: boolean
+          labels?: Json
+          last_auto_reply_at?: string | null
+          last_message_at?: string
+          last_message_direction?: string
+          last_message_preview?: string | null
+          phone: string
+          tenant_id: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_id?: string | null
+          display_name?: string | null
+          greeted_at?: string | null
+          id?: string
+          is_archived?: boolean
+          is_blocked?: boolean
+          is_pinned?: boolean
+          labels?: Json
+          last_auto_reply_at?: string | null
+          last_message_at?: string
+          last_message_direction?: string
+          last_message_preview?: string | null
+          phone?: string
+          tenant_id?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           body: string | null
+          conversation_id: string | null
           created_at: string
           customer_id: string | null
           delivered_at: string | null
+          direction: string
           error_code: string | null
           error_message: string | null
           failed_at: string | null
           graph_http_status: number | null
           graph_response_json: Json | null
           id: string
+          is_starred: boolean
+          media_filename: string | null
+          media_id: string | null
           media_kind: string | null
+          media_mime: string | null
           media_url: string | null
           message_type: string
           meta_error_code: string | null
           meta_error_message: string | null
           meta_message_id: string | null
+          payload: Json | null
           provider: string
           provider_message_id: string | null
           read_at: string | null
@@ -1736,21 +1821,28 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
           delivered_at?: string | null
+          direction?: string
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
           graph_http_status?: number | null
           graph_response_json?: Json | null
           id?: string
+          is_starred?: boolean
+          media_filename?: string | null
+          media_id?: string | null
           media_kind?: string | null
+          media_mime?: string | null
           media_url?: string | null
           message_type?: string
           meta_error_code?: string | null
           meta_error_message?: string | null
           meta_message_id?: string | null
+          payload?: Json | null
           provider?: string
           provider_message_id?: string | null
           read_at?: string | null
@@ -1767,21 +1859,28 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
           delivered_at?: string | null
+          direction?: string
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
           graph_http_status?: number | null
           graph_response_json?: Json | null
           id?: string
+          is_starred?: boolean
+          media_filename?: string | null
+          media_id?: string | null
           media_kind?: string | null
+          media_mime?: string | null
           media_url?: string | null
           message_type?: string
           meta_error_code?: string | null
           meta_error_message?: string | null
           meta_message_id?: string | null
+          payload?: Json | null
           provider?: string
           provider_message_id?: string | null
           read_at?: string | null
@@ -1797,6 +1896,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_messages_customer_id_fkey"
             columns: ["customer_id"]
@@ -1827,18 +1933,111 @@ export type Database = {
           },
         ]
       }
+      whatsapp_notes: {
+        Row: {
+          author_id: string | null
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_quick_replies: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          shortcut: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          shortcut: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          shortcut?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_quick_replies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_settings: {
         Row: {
           access_token: string | null
           account_sid: string | null
           api_version: string
+          app_secret: string | null
           auth_token: string | null
+          auto_create_customers: boolean
+          away_enabled: boolean
+          away_message: string | null
           business_account_id: string | null
+          business_close_time: string
           business_name: string | null
+          business_open_time: string
+          closed_days: Json
           created_at: string
           default_format: string
           from_number: string | null
+          greeting_enabled: boolean
+          greeting_message: string | null
+          holiday_enabled: boolean
+          holiday_message: string | null
           id: string
+          instant_reply_enabled: boolean
+          instant_reply_message: string | null
           is_enabled: boolean
           last_test_at: string | null
           last_test_error: string | null
@@ -1846,6 +2045,7 @@ export type Database = {
           max_bulk: number
           max_per_day: number
           max_per_minute: number
+          notify_on_incoming: boolean
           phone_number_id: string | null
           provider: string
           tenant_id: string
@@ -1857,13 +2057,26 @@ export type Database = {
           access_token?: string | null
           account_sid?: string | null
           api_version?: string
+          app_secret?: string | null
           auth_token?: string | null
+          auto_create_customers?: boolean
+          away_enabled?: boolean
+          away_message?: string | null
           business_account_id?: string | null
+          business_close_time?: string
           business_name?: string | null
+          business_open_time?: string
+          closed_days?: Json
           created_at?: string
           default_format?: string
           from_number?: string | null
+          greeting_enabled?: boolean
+          greeting_message?: string | null
+          holiday_enabled?: boolean
+          holiday_message?: string | null
           id?: string
+          instant_reply_enabled?: boolean
+          instant_reply_message?: string | null
           is_enabled?: boolean
           last_test_at?: string | null
           last_test_error?: string | null
@@ -1871,6 +2084,7 @@ export type Database = {
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
+          notify_on_incoming?: boolean
           phone_number_id?: string | null
           provider?: string
           tenant_id: string
@@ -1882,13 +2096,26 @@ export type Database = {
           access_token?: string | null
           account_sid?: string | null
           api_version?: string
+          app_secret?: string | null
           auth_token?: string | null
+          auto_create_customers?: boolean
+          away_enabled?: boolean
+          away_message?: string | null
           business_account_id?: string | null
+          business_close_time?: string
           business_name?: string | null
+          business_open_time?: string
+          closed_days?: Json
           created_at?: string
           default_format?: string
           from_number?: string | null
+          greeting_enabled?: boolean
+          greeting_message?: string | null
+          holiday_enabled?: boolean
+          holiday_message?: string | null
           id?: string
+          instant_reply_enabled?: boolean
+          instant_reply_message?: string | null
           is_enabled?: boolean
           last_test_at?: string | null
           last_test_error?: string | null
@@ -1896,6 +2123,7 @@ export type Database = {
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
+          notify_on_incoming?: boolean
           phone_number_id?: string | null
           provider?: string
           tenant_id?: string
