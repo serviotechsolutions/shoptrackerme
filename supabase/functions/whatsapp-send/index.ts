@@ -3,6 +3,8 @@
 // Providers implement a small interface — Meta Cloud API is the default.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { getOrCreateConversation, touchConversation, previewOf } from "../_shared/conversations.ts";
+
 
 interface SendPayload {
   to: string;
