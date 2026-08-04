@@ -38,7 +38,8 @@ interface ProviderSendArgs {
   to: string;              // E.164 with '+'
   body?: string;
   mediaUrl?: string;
-  mediaKind?: "pdf" | "image" | null;
+  mediaKind?: "pdf" | "image" | "document" | "video" | "audio" | null;
+  mediaFilename?: string | null;
 }
 interface ProviderSendResult {
   ok: boolean;
@@ -57,39 +58,27 @@ interface WhatsAppProvider {
 const metaProvider: WhatsAppProvider = {
   name: "meta",
   isConfigured: (s) => !!(s?.access_token && s?.phone_number_id),
-  async send(s, { to, body, mediaUrl, mediaKind }) {
+  async send(s, { to, body, mediaUrl, mediaKind, mediaFilename }) {
     const version = s.api_version || "v20.0";
     // NOTE: Meta Cloud API requires the Phone Number ID (not the WABA ID) in the URL.
     const phoneNumberId = String(s.phone_number_id).trim();
     const url = `https://graph.facebook.com/${version}/${phoneNumberId}/messages`;
     // E.164 digits only — no leading '+'.
     const toDigits = to.replace(/\D/g, "");
+    const base = { messaging_product: "whatsapp", recipient_type: "individual", to: toDigits };
     let payload: Record<string, unknown>;
-    if (mediaUrl && mediaKind === "pdf") {
-      payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: toDigits,
-        type: "document",
-        document: { link: mediaUrl, filename: "receipt.pdf", caption: body || undefined },
-      };
+    if (mediaUrl && (mediaKind === "pdf" || mediaKind === "document")) {
+      payload = { ...base, type: "document", document: { link: mediaUrl, filename: mediaFilename || "document.pdf", caption: body || undefined } };
     } else if (mediaUrl && mediaKind === "image") {
-      payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: toDigits,
-        type: "image",
-        image: { link: mediaUrl, caption: body || undefined },
-      };
+      payload = { ...base, type: "image", image: { link: mediaUrl, caption: body || undefined } };
+    } else if (mediaUrl && mediaKind === "video") {
+      payload = { ...base, type: "video", video: { link: mediaUrl, caption: body || undefined } };
+    } else if (mediaUrl && mediaKind === "audio") {
+      payload = { ...base, type: "audio", audio: { link: mediaUrl } };
     } else {
-      payload = {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: toDigits,
-        type: "text",
-        text: { body: body || "", preview_url: false },
-      };
+      payload = { ...base, type: "text", text: { body: body || "", preview_url: true } };
     }
+
     console.log("[whatsapp-send] Meta request", {
       url,
       to: toDigits,
