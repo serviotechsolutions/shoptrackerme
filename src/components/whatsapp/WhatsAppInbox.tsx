@@ -1,0 +1,574 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { sendWhatsapp, normalizePhone } from "@/lib/whatsapp";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Loader2, Send, Search, Pin, Archive, Ban, Star, MoreVertical, ArrowLeft, User, Package,
+  Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+
+interface Conversation {
+  id: string;
+  tenant_id: string;
+  customer_id: string | null;
+  phone: string;
+  display_name: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  last_message_direction: string;
+  unread_count: number;
+  is_pinned: boolean;
+  is_archived: boolean;
+  is_blocked: boolean;
+  labels: any;
+}
+
+interface Message {
+  id: string;
+  conversation_id: string | null;
+  direction: string;
+  body: string | null;
+  media_url: string | null;
+  media_kind: string | null;
+  media_filename: string | null;
+  status: string;
+  is_starred: boolean;
+  message_type: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+interface QuickReply { id: string; shortcut: string; title: string; body: string }
+
+const LABELS = ["New", "Order", "Payment", "Complaint", "Delivery", "VIP"];
+
+function initials(name: string) {
+  return name.split(" ").filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join("") || "#";
+}
+
+function timeLabel(iso: string) {
+  const d = new Date(iso);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (d >= today) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  if (d >= yesterday) return "Yesterday";
+  return d.toLocaleDateString();
+}
+
+function TickIcon({ status }: { status: string }) {
+  if (status === "read") return <CheckCheck className="h-3.5 w-3.5 text-sky-500" />;
+  if (status === "delivered") return <CheckCheck className="h-3.5 w-3.5 text-muted-foreground" />;
+  if (status === "sent") return <Check className="h-3.5 w-3.5 text-muted-foreground" />;
+  if (status === "failed") return <AlertCircle className="h-3.5 w-3.5 text-destructive" />;
+  return <Clock className="h-3.5 w-3.5 text-muted-foreground" />;
+}
+
+/** Resolves a stored media reference (storage path or absolute URL) into a viewable URL. */
+function useMediaUrl(raw: string | null | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!raw) { setUrl(null); return; }
+      if (/^https?:\/\//.test(raw)) { setUrl(raw); return; }
+      const { data } = await supabase.storage.from("whatsapp-media").createSignedUrl(raw, 60 * 60);
+      if (active) setUrl(data?.signedUrl ?? null);
+    })();
+    return () => { active = false; };
+  }, [raw]);
+  return url;
+}
+
+function MediaBubble({ message }: { message: Message }) {
+  const url = useMediaUrl(message.media_url);
+  if (!message.media_url) return null;
+  if (!url) return <div className="text-xs text-muted-foreground py-2">Loading attachment…</div>;
+  if (message.media_kind === "image") {
+    return <img src={url} alt={message.body || "Shared photo"} loading="lazy" className="rounded-md max-h-64 w-auto mb-1" />;
+  }
+  if (message.media_kind === "video") {
+    return <video src={url} controls className="rounded-md max-h-64 mb-1" />;
+  }
+  if (message.media_kind === "audio") {
+    return <audio src={url} controls className="mb-1 w-56" />;
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline text-sm mb-1">
+      <Paperclip className="h-4 w-4" />{message.media_filename || "Attachment"}
+    </a>
+  );
+}
+
+export default function WhatsAppInbox({ initialConversationId }: { initialConversationId?: string | null }) {
+  const { toast } = useToast();
+  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(initialConversationId ?? null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [noteBody, setNoteBody] = useState("");
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
+  const [showProfile, setShowProfile] = useState(false);
+  const [customer, setCustomer] = useState<any | null>(null);
+  const [customerStats, setCustomerStats] = useState<{ orders: number; spent: number } | null>(null);
+  const [productPicker, setProductPicker] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState("");
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const active = useMemo(() => conversations.find((c) => c.id === activeId) || null, [conversations, activeId]);
+
+  const loadConversations = useCallback(async () => {
+    const { data } = await supabase.from("whatsapp_conversations")
+      .select("*").order("is_pinned", { ascending: false }).order("last_message_at", { ascending: false }).limit(300);
+    setConversations((data || []) as Conversation[]);
+    setLoading(false);
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    const { data } = await supabase.from("whatsapp_messages")
+      .select("id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, created_at")
+      .eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(500);
+    setMessages((data || []) as Message[]);
+    const { data: n } = await supabase.from("whatsapp_notes")
+      .select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false });
+    setNotes(n || []);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
+      setTenantId(prof?.tenant_id ?? null);
+      await loadConversations();
+      const { data: qr } = await supabase.from("whatsapp_quick_replies").select("*").order("shortcut");
+      setQuickReplies((qr || []) as QuickReply[]);
+    })();
+  }, [loadConversations]);
+
+  // Realtime: conversations + messages
+  useEffect(() => {
+    const channel = supabase.channel("whatsapp-inbox")
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => loadConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_messages" }, (payload: any) => {
+        const row = payload.new || payload.old;
+        if (row?.conversation_id && row.conversation_id === activeId) loadMessages(activeId);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeId, loadConversations, loadMessages]);
+
+  // Open conversation
+  useEffect(() => {
+    if (!activeId) { setMessages([]); setNotes([]); setCustomer(null); return; }
+    loadMessages(activeId);
+    (async () => {
+      await supabase.from("whatsapp_conversations").update({ unread_count: 0 }).eq("id", activeId);
+      const conv = conversations.find((c) => c.id === activeId);
+      if (conv?.customer_id) {
+        const { data: cust } = await supabase.from("customers").select("*").eq("id", conv.customer_id).maybeSingle();
+        setCustomer(cust);
+        const { data: sales } = await supabase.from("sales").select("total_amount").eq("customer_id", conv.customer_id);
+        setCustomerStats({
+          orders: sales?.length || 0,
+          spent: (sales || []).reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0),
+        });
+      } else { setCustomer(null); setCustomerStats(null); }
+    })();
+  }, [activeId, conversations, loadMessages]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
+
+  const filteredConversations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return conversations.filter((c) => {
+      if (filter === "archived" ? !c.is_archived : c.is_archived) return false;
+      if (filter === "unread" && c.unread_count === 0) return false;
+      if (!q) return true;
+      return (c.display_name || "").toLowerCase().includes(q)
+        || c.phone.includes(q)
+        || (c.last_message_preview || "").toLowerCase().includes(q);
+    });
+  }, [conversations, search, filter]);
+
+  const patchConversation = async (id: string, patch: Partial<Conversation>) => {
+    await supabase.from("whatsapp_conversations").update(patch as any).eq("id", id);
+    loadConversations();
+  };
+
+  const send = async (body?: string, media?: { url: string; kind: "image" | "document" }) => {
+    if (!active) return;
+    const text = (body ?? draft).trim();
+    if (!text && !media) return;
+    if (active.is_blocked) { toast({ title: "Contact blocked", description: "Unblock to send messages.", variant: "destructive" }); return; }
+    setSending(true);
+    try {
+      await sendWhatsapp({
+        to: active.phone,
+        body: text || undefined,
+        media_url: media?.url,
+        media_kind: media?.kind ?? null,
+        message_type: "custom",
+        customer_id: active.customer_id,
+      });
+      setDraft("");
+      await loadMessages(active.id);
+      await loadConversations();
+    } catch (e) {
+      toast({ title: "Send failed", description: (e as Error).message, variant: "destructive" });
+    } finally { setSending(false); }
+  };
+
+  const startNewChat = async () => {
+    const phone = normalizePhone(newChatPhone);
+    if (!phone || !tenantId) { toast({ title: "Invalid phone", variant: "destructive" }); return; }
+    const { data: existing } = await supabase.from("whatsapp_conversations")
+      .select("id").eq("tenant_id", tenantId).eq("phone", phone).maybeSingle();
+    let id = existing?.id;
+    if (!id) {
+      const { data, error } = await supabase.from("whatsapp_conversations")
+        .insert({ tenant_id: tenantId, phone }).select("id").single();
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      id = data.id;
+    }
+    setNewChatOpen(false); setNewChatPhone("");
+    await loadConversations();
+    setActiveId(id!);
+  };
+
+  const openProductPicker = async () => {
+    setProductPicker(true);
+    const { data } = await supabase.from("products").select("id, name, selling_price, image_url, stock").order("name").limit(300);
+    setProducts(data || []);
+  };
+
+  const shareProduct = async (p: any) => {
+    const price = `UGX ${Number(p.selling_price || 0).toLocaleString()}`;
+    const body = `*${p.name}*\nPrice: ${price}\n${p.stock > 0 ? "In stock" : "Out of stock"}`;
+    setProductPicker(false);
+    if (p.image_url) await send(body, { url: p.image_url, kind: "image" });
+    else await send(body);
+  };
+
+  const addNote = async () => {
+    if (!active || !noteBody.trim() || !tenantId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("whatsapp_notes").insert({
+      tenant_id: tenantId, conversation_id: active.id, body: noteBody.trim(), author_id: user?.id ?? null,
+    });
+    setNoteBody("");
+    loadMessages(active.id);
+  };
+
+  const toggleStar = async (m: Message) => {
+    await supabase.from("whatsapp_messages").update({ is_starred: !m.is_starred }).eq("id", m.id);
+    if (active) loadMessages(active.id);
+  };
+
+  const toggleLabel = async (label: string) => {
+    if (!active) return;
+    const current: string[] = Array.isArray(active.labels) ? active.labels : [];
+    const next = current.includes(label) ? current.filter((l) => l !== label) : [...current, label];
+    await patchConversation(active.id, { labels: next as any });
+  };
+
+  // Quick reply shortcut expansion: "/thanks "
+  const onDraftChange = (value: string) => {
+    const match = value.match(/^\/(\w+)\s$/);
+    if (match) {
+      const qr = quickReplies.find((q) => q.shortcut.replace(/^\//, "") === match[1]);
+      if (qr) { setDraft(qr.body); return; }
+    }
+    setDraft(value);
+  };
+
+  const labels: string[] = Array.isArray(active?.labels) ? (active!.labels as string[]) : [];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[300px_1fr_280px] gap-3 h-[calc(100vh-16rem)] min-h-[520px]">
+      {/* Conversation list */}
+      <Card className={`overflow-hidden flex flex-col ${activeId ? "hidden md:flex" : "flex"}`}>
+        <div className="p-3 space-y-2 border-b">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-8" placeholder="Search chats" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <Button size="icon" variant="outline" onClick={() => setNewChatOpen(true)} aria-label="New chat">
+              <MessageCircle className="h-4 w-4" />
+            </Button>
+          </div>
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+            <TabsList className="w-full grid grid-cols-3 h-8">
+              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+              <TabsTrigger value="unread" className="text-xs">Unread</TabsTrigger>
+              <TabsTrigger value="archived" className="text-xs">Archived</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <ScrollArea className="flex-1">
+          {loading && <div className="p-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin" /></div>}
+          {!loading && filteredConversations.length === 0 && (
+            <p className="p-4 text-sm text-muted-foreground text-center">No conversations yet.</p>
+          )}
+          {filteredConversations.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveId(c.id)}
+              className={`w-full text-left px-3 py-2.5 border-b hover:bg-muted/60 transition-colors ${activeId === c.id ? "bg-muted" : ""}`}
+            >
+              <div className="flex items-start gap-2">
+                <Avatar className="h-9 w-9"><AvatarFallback className="text-xs">{initials(c.display_name || c.phone)}</AvatarFallback></Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium text-sm truncate flex-1">{c.display_name || c.phone}</span>
+                    {c.is_pinned && <Pin className="h-3 w-3 text-muted-foreground" />}
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{timeLabel(c.last_message_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground truncate flex-1">
+                      {c.last_message_direction === "out" ? "You: " : ""}{c.last_message_preview || "—"}
+                    </span>
+                    {c.unread_count > 0 && <Badge className="h-5 min-w-5 justify-center px-1.5 text-[10px]">{c.unread_count}</Badge>}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </ScrollArea>
+      </Card>
+
+      {/* Chat panel */}
+      <Card className={`overflow-hidden flex flex-col ${activeId ? "flex" : "hidden md:flex"}`}>
+        {!active ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6 text-center">
+            <MessageCircle className="h-10 w-10 opacity-40" />
+            <p className="text-sm">Select a conversation to start chatting.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 p-3 border-b">
+              <Button size="icon" variant="ghost" className="md:hidden" onClick={() => setActiveId(null)} aria-label="Back">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <Avatar className="h-9 w-9"><AvatarFallback className="text-xs">{initials(active.display_name || active.phone)}</AvatarFallback></Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm truncate">{active.display_name || active.phone}</div>
+                <div className="text-xs text-muted-foreground truncate">{active.phone}{active.is_blocked ? " • Blocked" : ""}</div>
+              </div>
+              <Button size="icon" variant="ghost" className="lg:hidden" onClick={() => setShowProfile(true)} aria-label="Contact info">
+                <User className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="Chat options"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => patchConversation(active.id, { is_pinned: !active.is_pinned })}>
+                    <Pin className="mr-2 h-4 w-4" />{active.is_pinned ? "Unpin" : "Pin"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => patchConversation(active.id, { is_archived: !active.is_archived })}>
+                    <Archive className="mr-2 h-4 w-4" />{active.is_archived ? "Unarchive" : "Archive"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => patchConversation(active.id, { unread_count: 1 })}>
+                    <MessageCircle className="mr-2 h-4 w-4" />Mark as unread
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => patchConversation(active.id, { is_blocked: !active.is_blocked })}>
+                    <Ban className="mr-2 h-4 w-4" />{active.is_blocked ? "Unblock" : "Block"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {LABELS.map((l) => (
+                    <DropdownMenuItem key={l} onClick={() => toggleLabel(l)}>
+                      <span className="mr-2">{labels.includes(l) ? "✓" : ""}</span>{l}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {labels.length > 0 && (
+              <div className="flex gap-1 flex-wrap px-3 py-2 border-b">
+                {labels.map((l) => <Badge key={l} variant="secondary" className="text-[10px]">{l}</Badge>)}
+              </div>
+            )}
+
+            <ScrollArea className="flex-1 p-3 bg-muted/30">
+              <div className="space-y-2">
+                {messages.map((m) => (
+                  <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      onDoubleClick={() => toggleStar(m)}
+                      className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                        m.direction === "out" ? "bg-primary text-primary-foreground" : "bg-card border"
+                      }`}
+                    >
+                      <MediaBubble message={m} />
+                      {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                      <div className={`flex items-center gap-1 justify-end mt-1 text-[10px] ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
+                        {m.is_starred && <Star className="h-3 w-3 fill-current" />}
+                        <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                        {m.direction === "out" && <TickIcon status={m.status} />}
+                      </div>
+                      {m.error_message && <p className="text-[10px] text-destructive mt-1">{m.error_message}</p>}
+                    </div>
+                  </div>
+                ))}
+                <div ref={bottomRef} />
+              </div>
+            </ScrollArea>
+
+            <div className="p-3 border-t space-y-2">
+              {quickReplies.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {quickReplies.slice(0, 6).map((q) => (
+                    <Button key={q.id} size="sm" variant="outline" className="h-7 text-xs" onClick={() => setDraft(q.body)}>
+                      <Zap className="mr-1 h-3 w-3" />{q.title}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-end gap-2">
+                <Button size="icon" variant="outline" onClick={openProductPicker} aria-label="Share product"><Package className="h-4 w-4" /></Button>
+                <Textarea
+                  value={draft}
+                  onChange={(e) => onDraftChange(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                  placeholder="Type a message… (/shortcut for quick replies)"
+                  rows={1}
+                  className="min-h-[40px] max-h-32 resize-none"
+                />
+                <Button onClick={() => send()} disabled={sending} size="icon" aria-label="Send">
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* Contact panel (desktop) */}
+      <Card className="hidden lg:flex flex-col overflow-hidden">
+        <ContactPanel
+          active={active} customer={customer} stats={customerStats}
+          notes={notes} noteBody={noteBody} setNoteBody={setNoteBody} addNote={addNote}
+        />
+      </Card>
+
+      {/* Contact panel (mobile dialog) */}
+      <Dialog open={showProfile} onOpenChange={setShowProfile}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Contact details</DialogTitle></DialogHeader>
+          <ContactPanel
+            active={active} customer={customer} stats={customerStats}
+            notes={notes} noteBody={noteBody} setNoteBody={setNoteBody} addNote={addNote}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* New chat */}
+      <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Start a new chat</DialogTitle>
+            <DialogDescription>Enter a WhatsApp number to open a conversation.</DialogDescription>
+          </DialogHeader>
+          <Input value={newChatPhone} onChange={(e) => setNewChatPhone(e.target.value)} placeholder="+256700000000" />
+          <Button onClick={startNewChat}>Open chat</Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product picker */}
+      <Dialog open={productPicker} onOpenChange={setProductPicker}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Share a product</DialogTitle>
+            <DialogDescription>Sends the product name, price and photo to this customer.</DialogDescription>
+          </DialogHeader>
+          <Input placeholder="Search products" value={productSearch} onChange={(e) => setProductSearch(e.target.value)} />
+          <ScrollArea className="flex-1 max-h-[50vh]">
+            {products
+              .filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+              .map((p) => (
+                <button key={p.id} onClick={() => shareProduct(p)} className="w-full flex items-center gap-3 p-2 hover:bg-muted rounded-md text-left">
+                  {p.image_url
+                    ? <img src={p.image_url} alt={p.name} className="h-10 w-10 rounded object-cover" loading="lazy" />
+                    : <div className="h-10 w-10 rounded bg-muted flex items-center justify-center"><Package className="h-4 w-4" /></div>}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">UGX {Number(p.selling_price || 0).toLocaleString()}</div>
+                  </div>
+                </button>
+              ))}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ContactPanel({ active, customer, stats, notes, noteBody, setNoteBody, addNote }: {
+  active: Conversation | null; customer: any; stats: { orders: number; spent: number } | null;
+  notes: any[]; noteBody: string; setNoteBody: (v: string) => void; addNote: () => void;
+}) {
+  if (!active) {
+    return <div className="p-4 text-sm text-muted-foreground">No conversation selected.</div>;
+  }
+  return (
+    <ScrollArea className="flex-1">
+      <CardContent className="p-4 space-y-4">
+        <div className="text-center space-y-1">
+          <Avatar className="h-14 w-14 mx-auto"><AvatarFallback>{initials(active.display_name || active.phone)}</AvatarFallback></Avatar>
+          <div className="font-medium">{active.display_name || active.phone}</div>
+          <div className="text-xs text-muted-foreground">{active.phone}</div>
+        </div>
+        <Separator />
+        {customer ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{customer.name}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="capitalize">{customer.status}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Loyalty</span><span>{customer.loyalty_points} pts</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Orders</span><span>{stats?.orders ?? 0}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Total spent</span><span>UGX {(stats?.spent ?? 0).toLocaleString()}</span></div>
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link to={`/customers/${customer.id}`}>Open customer profile</Link>
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Not linked to a customer record.</p>
+        )}
+        <Separator />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium"><StickyNote className="h-4 w-4" />Internal notes</div>
+          <Textarea rows={2} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} placeholder="Visible to your team only" />
+          <Button size="sm" variant="outline" className="w-full" onClick={addNote}>Add note</Button>
+          <div className="space-y-2">
+            {notes.map((n) => (
+              <div key={n.id} className="text-xs bg-muted rounded-md p-2">
+                <p className="whitespace-pre-wrap">{n.body}</p>
+                <span className="text-[10px] text-muted-foreground">{new Date(n.created_at).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </ScrollArea>
+  );
+}
