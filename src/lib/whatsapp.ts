@@ -86,7 +86,8 @@ export interface SendArgs {
   to: string;
   body?: string;
   media_url?: string;
-  media_kind?: "pdf" | "image" | null;
+  media_kind?: "pdf" | "image" | "document" | "video" | "audio" | null;
+  media_filename?: string | null;
   message_type?: "receipt" | "payment" | "promotion" | "reminder" | "custom" | "test";
   customer_id?: string | null;
   related_sale_id?: string | null;
