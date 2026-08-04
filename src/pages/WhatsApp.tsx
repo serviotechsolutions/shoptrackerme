@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
 import { normalizePhone, sendWhatsapp } from "@/lib/whatsapp";
+import WhatsAppInbox from "@/components/whatsapp/WhatsAppInbox";
+import WhatsAppAutomationSettings from "@/components/whatsapp/WhatsAppAutomationSettings";
 import { Loader2, MessageCircle, Save, TestTube2, Send, RefreshCw, Download } from "lucide-react";
+
 
 interface Settings {
   id?: string;
