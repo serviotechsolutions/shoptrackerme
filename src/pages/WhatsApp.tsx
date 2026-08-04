@@ -64,7 +64,10 @@ function StatusBadge({ status }: { status: string }) {
 export default function WhatsApp() {
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
-  const [tab, setTab] = useState("settings");
+  const [params] = useSearchParams();
+  const conversationParam = params.get("conversation");
+  const [tab, setTab] = useState(conversationParam ? "inbox" : "inbox");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
