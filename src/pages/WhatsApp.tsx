@@ -271,11 +271,24 @@ export default function WhatsApp() {
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="flex flex-wrap">
+            <TabsTrigger value="inbox">Inbox</TabsTrigger>
             {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="automation">Automation</TabsTrigger>}
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             {isAdmin && <TabsTrigger value="bulk">Bulk</TabsTrigger>}
           </TabsList>
+
+          <TabsContent value="inbox">
+            <WhatsAppInbox initialConversationId={conversationParam} />
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="automation">
+              <WhatsAppAutomationSettings />
+            </TabsContent>
+          )}
+
 
           {isAdmin && (
           <TabsContent value="settings">
