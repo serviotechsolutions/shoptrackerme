@@ -8,14 +8,16 @@ interface SendPayload {
   to: string;
   body?: string;
   media_url?: string;
-  media_kind?: "pdf" | "image" | null;
+  media_kind?: "pdf" | "image" | "document" | "video" | "audio" | null;
   message_type?: string;
   customer_id?: string | null;
   related_sale_id?: string | null;
   related_payment_id?: string | null;
   related_promotion_id?: string | null;
+  media_filename?: string | null;
   test?: boolean;
 }
+
 
 function normalizePhone(input: string): string | null {
   if (!input) return null;
