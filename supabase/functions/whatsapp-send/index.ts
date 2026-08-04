@@ -234,15 +234,26 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: `Rate limit: max ${settings.max_per_day} messages/day reached.` }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Thread the message into a conversation
+    const conversation = await getOrCreateConversation(admin, tenantId, to, {
+      customerId: payload.customer_id ?? null,
+    });
+    if (conversation?.is_blocked) {
+      return new Response(JSON.stringify({ error: "This contact is blocked. Unblock them to send messages." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Log pending row first
     const { data: log } = await admin.from("whatsapp_messages").insert({
       tenant_id: tenantId,
-      customer_id: payload.customer_id ?? null,
+      conversation_id: conversation?.id ?? null,
+      direction: "out",
+      customer_id: payload.customer_id ?? conversation?.customer_id ?? null,
       recipient_phone: to,
       message_type: payload.message_type ?? "custom",
       body: payload.body ?? null,
       media_url: payload.media_url ?? null,
       media_kind: payload.media_kind ?? null,
+      media_filename: payload.media_filename ?? null,
       status: "pending",
       provider: provider.name,
       related_sale_id: payload.related_sale_id ?? null,
@@ -253,7 +264,16 @@ Deno.serve(async (req) => {
 
     const result = await provider.send(settings, {
       to, body: payload.body, mediaUrl: payload.media_url, mediaKind: payload.media_kind ?? null,
+      mediaFilename: payload.media_filename ?? null,
     });
+
+    if (conversation?.id) {
+      await touchConversation(admin, conversation.id, {
+        preview: previewOf(payload.body, payload.media_kind),
+        direction: "out",
+      });
+    }
+
 
     const graphResponseJson = (result.providerResponse && typeof result.providerResponse === "object")
       ? result.providerResponse
