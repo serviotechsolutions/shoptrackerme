@@ -553,6 +553,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
 
             <ScrollArea className="flex-1 p-3 bg-muted/30">
               <div className="space-y-2">
+                {hasOlderMessages && (
+                  <div className="flex justify-center pb-1">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={loadOlderMessages} disabled={loadingOlder}>
+                      {loadingOlder ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                      Load earlier messages
+                    </Button>
+                  </div>
+                )}
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
                     <div
@@ -564,17 +572,37 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                       <MediaBubble message={m} />
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                       <div className={`flex items-center gap-1 justify-end mt-1 text-[10px] ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
+                        {m.retry_of_message_id && <span className="opacity-80">resent</span>}
                         {m.is_starred && <Star className="h-3 w-3 fill-current" />}
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {m.direction === "out" && <TickIcon status={m.status} />}
                       </div>
-                      {m.error_message && <p className="text-[10px] text-destructive mt-1">{m.error_message}</p>}
+                      {m.error_message && (
+                        <p className="text-[10px] text-destructive mt-1">
+                          {m.error_code ? `[${m.error_code}] ` : ""}{m.error_message}
+                        </p>
+                      )}
+                      {m.direction === "out" && m.status === "failed" && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <Button
+                            size="sm" variant="secondary" className="h-6 text-[11px]"
+                            onClick={() => retryMessage(m)} disabled={retryingId === m.id}
+                          >
+                            {retryingId === m.id
+                              ? <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              : <RefreshCw className="mr-1 h-3 w-3" />}
+                            Retry
+                          </Button>
+                          {!!m.retries && <span className="text-[10px] opacity-80">{m.retries} attempt{m.retries > 1 ? "s" : ""}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
                 <div ref={bottomRef} />
               </div>
             </ScrollArea>
+
 
             <div className="p-3 border-t space-y-2">
               {quickReplies.length > 0 && (
