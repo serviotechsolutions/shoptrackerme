@@ -1812,7 +1812,9 @@ export type Database = {
           related_payment_id: string | null
           related_promotion_id: string | null
           related_sale_id: string | null
+          retried_at: string | null
           retries: number
+          retry_of_message_id: string | null
           sent_at: string | null
           sent_by: string | null
           status: string
@@ -1850,7 +1852,9 @@ export type Database = {
           related_payment_id?: string | null
           related_promotion_id?: string | null
           related_sale_id?: string | null
+          retried_at?: string | null
           retries?: number
+          retry_of_message_id?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string
@@ -1888,7 +1892,9 @@ export type Database = {
           related_payment_id?: string | null
           related_promotion_id?: string | null
           related_sale_id?: string | null
+          retried_at?: string | null
           retries?: number
+          retry_of_message_id?: string | null
           sent_at?: string | null
           sent_by?: string | null
           status?: string
@@ -1922,6 +1928,13 @@ export type Database = {
             columns: ["related_sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_retry_of_message_id_fkey"
+            columns: ["retry_of_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
             referencedColumns: ["id"]
           },
           {
@@ -2042,6 +2055,9 @@ export type Database = {
           last_test_at: string | null
           last_test_error: string | null
           last_test_status: string | null
+          last_webhook_at: string | null
+          last_webhook_error: string | null
+          last_webhook_signature_ok: boolean | null
           max_bulk: number
           max_per_day: number
           max_per_minute: number
@@ -2081,6 +2097,9 @@ export type Database = {
           last_test_at?: string | null
           last_test_error?: string | null
           last_test_status?: string | null
+          last_webhook_at?: string | null
+          last_webhook_error?: string | null
+          last_webhook_signature_ok?: boolean | null
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
@@ -2120,6 +2139,9 @@ export type Database = {
           last_test_at?: string | null
           last_test_error?: string | null
           last_test_status?: string | null
+          last_webhook_at?: string | null
+          last_webhook_error?: string | null
+          last_webhook_signature_ok?: boolean | null
           max_bulk?: number
           max_per_day?: number
           max_per_minute?: number
