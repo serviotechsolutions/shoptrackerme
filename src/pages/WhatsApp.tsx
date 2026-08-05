@@ -19,6 +19,8 @@ import WhatsAppInbox from "@/components/whatsapp/WhatsAppInbox";
 import WhatsAppAutomationSettings from "@/components/whatsapp/WhatsAppAutomationSettings";
 import { Loader2, MessageCircle, Save, TestTube2, Send, RefreshCw, Download } from "lucide-react";
 
+import WhatsAppConnectionStatus from "@/components/whatsapp/WhatsAppConnectionStatus";
+
 
 interface Settings {
   id?: string;
@@ -49,7 +51,7 @@ interface Settings {
 
 const DEFAULT: Settings = {
   provider: "meta",
-  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", api_version: "v20.0",
+  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", app_secret: "", api_version: "v20.0",
   account_sid: "", auth_token: "", from_number: "", business_name: "",
   default_format: "pdf", max_per_minute: 20, max_per_day: 1000, max_bulk: 200, is_enabled: false,
   last_test_at: null, last_test_status: null, last_test_error: null,
