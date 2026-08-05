@@ -115,7 +115,12 @@ export default function WhatsApp() {
     try {
       const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
       if (!prof?.tenant_id) throw new Error("No tenant");
-      const payload = { ...settings, tenant_id: prof.tenant_id };
+      // Webhook health fields are maintained by the webhook itself — never write them back.
+      const {
+        last_webhook_at: _a, last_webhook_signature_ok: _b, last_webhook_error: _c, ...editable
+      } = settings as Settings & Record<string, unknown>;
+      const payload = { ...editable, tenant_id: prof.tenant_id };
+
       const { error } = await supabase.from("whatsapp_settings")
         .upsert(payload, { onConflict: "tenant_id" });
       if (error) throw error;
@@ -347,9 +352,15 @@ export default function WhatsApp() {
                             <p className="text-xs text-muted-foreground mt-1">Paste the same value in Meta → Webhooks → Verify Token.</p>
                           </div>
                           <div>
+                            <Label>App Secret (webhook signing)</Label>
+                            <Input type="password" value={settings.app_secret || ""} onChange={(e) => setSettings({ ...settings, app_secret: e.target.value })} placeholder="Meta App → Settings → Basic → App Secret" />
+                            <p className="text-xs text-muted-foreground mt-1">Required to verify <code>X-Hub-Signature-256</code>. Unsigned or forged callbacks are rejected once set.</p>
+                          </div>
+                          <div>
                             <Label>Graph API version</Label>
                             <Input value={settings.api_version || "v20.0"} onChange={(e) => setSettings({ ...settings, api_version: e.target.value })} placeholder="v20.0" />
                           </div>
+
                         </>
                       )}
 
