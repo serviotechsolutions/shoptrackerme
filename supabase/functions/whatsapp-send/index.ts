@@ -17,8 +17,10 @@ interface SendPayload {
   related_payment_id?: string | null;
   related_promotion_id?: string | null;
   media_filename?: string | null;
+  retry_of_message_id?: string | null;
   test?: boolean;
 }
+
 
 
 function normalizePhone(input: string): string | null {
