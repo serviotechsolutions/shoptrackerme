@@ -29,7 +29,9 @@ interface Settings {
   phone_number_id: string | null;
   business_account_id: string | null;
   verify_token: string | null;
+  app_secret: string | null;
   api_version: string;
+
   // Legacy Twilio (kept for future providers)
   account_sid: string | null;
   auth_token: string | null;
