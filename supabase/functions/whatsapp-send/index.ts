@@ -246,6 +246,20 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "This contact is blocked. Unblock them to send messages." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // If this is a retry of a failed message, verify the original belongs to this tenant.
+    let retryOf: string | null = null;
+    if (payload.retry_of_message_id) {
+      const { data: original } = await admin.from("whatsapp_messages")
+        .select("id, retries").eq("id", payload.retry_of_message_id).eq("tenant_id", tenantId).maybeSingle();
+      if (original) {
+        retryOf = original.id;
+        await admin.from("whatsapp_messages").update({
+          retries: (original.retries ?? 0) + 1,
+          retried_at: new Date().toISOString(),
+        }).eq("id", original.id);
+      }
+    }
+
     // Log pending row first
     const { data: log } = await admin.from("whatsapp_messages").insert({
       tenant_id: tenantId,
@@ -263,8 +277,10 @@ Deno.serve(async (req) => {
       related_sale_id: payload.related_sale_id ?? null,
       related_payment_id: payload.related_payment_id ?? null,
       related_promotion_id: payload.related_promotion_id ?? null,
+      retry_of_message_id: retryOf,
       sent_by: userId,
     }).select("id").single();
+
 
     const result = await provider.send(settings, {
       to, body: payload.body, mediaUrl: payload.media_url, mediaKind: payload.media_kind ?? null,
