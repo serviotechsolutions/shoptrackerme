@@ -666,7 +666,19 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
         </DialogContent>
       </Dialog>
 
+      {active && (
+        <SendDocumentDialog
+          open={docDialog}
+          onOpenChange={setDocDialog}
+          tenantId={tenantId}
+          phone={active.phone}
+          customerId={active.customer_id}
+          onSent={() => { loadMessages(active.id); refreshConversations(); }}
+        />
+      )}
+
       {/* Product picker */}
+
       <Dialog open={productPicker} onOpenChange={setProductPicker}>
         <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
