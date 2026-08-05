@@ -616,6 +616,8 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
               )}
               <div className="flex items-end gap-2">
                 <Button size="icon" variant="outline" onClick={openProductPicker} aria-label="Share product"><Package className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={() => setDocDialog(true)} aria-label="Attach document"><FileText className="h-4 w-4" /></Button>
+
                 <Textarea
                   value={draft}
                   onChange={(e) => onDraftChange(e.target.value)}
