@@ -314,7 +314,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
 
   const patchConversation = async (id: string, patch: Partial<Conversation>) => {
     await supabase.from("whatsapp_conversations").update(patch as any).eq("id", id);
-    loadConversations();
+    refreshConversations();
   };
 
   const send = async (body?: string, media?: { url: string; kind: "image" | "document" }) => {
@@ -334,7 +334,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       });
       setDraft("");
       await loadMessages(active.id);
-      await loadConversations();
+      await refreshConversations();
     } catch (e) {
       toast({ title: "Send failed", description: (e as Error).message, variant: "destructive" });
     } finally { setSending(false); }
@@ -353,7 +353,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       id = data.id;
     }
     setNewChatOpen(false); setNewChatPhone("");
-    await loadConversations();
+    await refreshConversations();
     setActiveId(id!);
   };
 
