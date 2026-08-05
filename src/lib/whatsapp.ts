@@ -67,20 +67,31 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Blob> {
   return generateReceiptBlob(doc);
 }
 
-export async function uploadReceiptPdf(tenantId: string, invoiceNumber: string, blob: Blob): Promise<string> {
-  const safe = invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "_");
-  const path = `${tenantId}/receipts/${safe}-${Date.now()}.pdf`;
+/** Uploads any generated PDF to the private receipts bucket and returns a signed URL. */
+export async function uploadWhatsAppPdf(
+  tenantId: string,
+  filename: string,
+  blob: Blob,
+  folder = "receipts",
+): Promise<string> {
+  const safe = filename.replace(/\.pdf$/i, "").replace(/[^a-zA-Z0-9-_]/g, "_");
+  const path = `${tenantId}/${folder}/${safe}-${Date.now()}.pdf`;
   const { error } = await supabase.storage.from("whatsapp-receipts").upload(path, blob, {
     contentType: "application/pdf",
     upsert: true,
   });
   if (error) throw error;
-  // 30-day signed URL — Twilio fetches within seconds; long expiry helps re-sends.
+  // 30-day signed URL — Meta fetches within seconds; long expiry helps re-sends.
   const { data, error: signErr } = await supabase.storage
     .from("whatsapp-receipts").createSignedUrl(path, 60 * 60 * 24 * 30);
   if (signErr || !data?.signedUrl) throw signErr || new Error("Failed to sign URL");
   return data.signedUrl;
 }
+
+export async function uploadReceiptPdf(tenantId: string, invoiceNumber: string, blob: Blob): Promise<string> {
+  return uploadWhatsAppPdf(tenantId, invoiceNumber, blob, "receipts");
+}
+
 
 export interface SendArgs {
   to: string;
