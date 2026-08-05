@@ -113,6 +113,15 @@ function MediaBubble({ message }: { message: Message }) {
   );
 }
 
+const CONV_PAGE = 30;
+const MSG_PAGE = 40;
+
+function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
+  const map = new Map<string, T>();
+  [...a, ...b].forEach((row) => map.set(row.id, row));
+  return Array.from(map.values());
+}
+
 export default function WhatsAppInbox({ initialConversationId }: { initialConversationId?: string | null }) {
   const { toast } = useToast();
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -126,7 +135,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
+  const [convPage, setConvPage] = useState(0);
+  const [hasMoreConvs, setHasMoreConvs] = useState(true);
+  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [customer, setCustomer] = useState<any | null>(null);
   const [customerStats, setCustomerStats] = useState<{ orders: number; spent: number } | null>(null);
@@ -135,48 +151,141 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [productSearch, setProductSearch] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
+  const [docDialog, setDocDialog] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const pageRef = useRef(0);
 
   const active = useMemo(() => conversations.find((c) => c.id === activeId) || null, [conversations, activeId]);
 
-  const loadConversations = useCallback(async () => {
-    const { data } = await supabase.from("whatsapp_conversations")
-      .select("*").order("is_pinned", { ascending: false }).order("last_message_at", { ascending: false }).limit(300);
-    setConversations((data || []) as Conversation[]);
-    setLoading(false);
-  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
+  const sortConversations = (rows: Conversation[]) =>
+    [...rows].sort((a, b) =>
+      Number(b.is_pinned) - Number(a.is_pinned) ||
+      new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+
+  /** Server-side paginated conversation query — keeps the inbox fast with thousands of chats. */
+  const fetchConversationPage = useCallback(async (page: number) => {
+    let q = supabase.from("whatsapp_conversations").select("*");
+    q = filter === "archived" ? q.eq("is_archived", true) : q.eq("is_archived", false);
+    if (filter === "unread") q = q.gt("unread_count", 0);
+    const term = debouncedSearch.replace(/[%,]/g, "");
+    if (term) {
+      q = q.or(`display_name.ilike.%${term}%,phone.ilike.%${term}%,last_message_preview.ilike.%${term}%`);
+    }
+    const { data } = await q
+      .order("is_pinned", { ascending: false })
+      .order("last_message_at", { ascending: false })
+      .range(page * CONV_PAGE, page * CONV_PAGE + CONV_PAGE - 1);
+    return (data || []) as Conversation[];
+  }, [filter, debouncedSearch]);
+
+  /** Reloads the first page and merges it with already-loaded pages (used by realtime). */
+  const refreshConversations = useCallback(async () => {
+    const first = await fetchConversationPage(0);
+    setConversations((prev) => {
+      if (pageRef.current === 0) return sortConversations(first);
+      return sortConversations(mergeById(prev, first));
+    });
+    setLoading(false);
+  }, [fetchConversationPage]);
+
+  // Reset pagination whenever the filter or search term changes.
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    pageRef.current = 0;
+    setConvPage(0);
+    fetchConversationPage(0).then((rows) => {
+      if (!active) return;
+      setConversations(sortConversations(rows));
+      setHasMoreConvs(rows.length === CONV_PAGE);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [fetchConversationPage]);
+
+  const loadMoreConversations = useCallback(async () => {
+    if (loadingMoreConvs || !hasMoreConvs) return;
+    setLoadingMoreConvs(true);
+    const next = convPage + 1;
+    const rows = await fetchConversationPage(next);
+    setConversations((prev) => sortConversations(mergeById(prev, rows)));
+    setHasMoreConvs(rows.length === CONV_PAGE);
+    setConvPage(next);
+    pageRef.current = next;
+    setLoadingMoreConvs(false);
+  }, [convPage, fetchConversationPage, hasMoreConvs, loadingMoreConvs]);
+
+  const MESSAGE_COLUMNS =
+    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at";
+
+  /** Loads the most recent page of a conversation; older messages load on demand. */
   const loadMessages = useCallback(async (conversationId: string) => {
     const { data } = await supabase.from("whatsapp_messages")
-      .select("id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, created_at")
-      .eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(500);
-    setMessages((data || []) as Message[]);
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const rows = ((data || []) as Message[]).slice().reverse();
+    setMessages(rows);
+    setHasOlderMessages((data || []).length === MSG_PAGE);
     const { data: n } = await supabase.from("whatsapp_notes")
-      .select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false });
+      .select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false }).limit(50);
     setNotes(n || []);
   }, []);
+
+  /** Merges only new/updated messages so the timeline doesn't reset while scrolled up. */
+  const syncLatestMessages = useCallback(async (conversationId: string) => {
+    const { data } = await supabase.from("whatsapp_messages")
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const fresh = ((data || []) as Message[]).slice().reverse();
+    setMessages((prev) => mergeById(prev, fresh).sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+  }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeId || !messages.length || loadingOlder) return;
+    setLoadingOlder(true);
+    const oldest = messages[0].created_at;
+    const { data } = await supabase.from("whatsapp_messages")
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", activeId)
+      .lt("created_at", oldest)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const older = ((data || []) as Message[]).slice().reverse();
+    setMessages((prev) => [...older, ...prev]);
+    setHasOlderMessages((data || []).length === MSG_PAGE);
+    setLoadingOlder(false);
+  }, [activeId, messages, loadingOlder]);
 
   useEffect(() => {
     (async () => {
       const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
       setTenantId(prof?.tenant_id ?? null);
-      await loadConversations();
       const { data: qr } = await supabase.from("whatsapp_quick_replies").select("*").order("shortcut");
       setQuickReplies((qr || []) as QuickReply[]);
     })();
-  }, [loadConversations]);
+  }, []);
 
   // Realtime: conversations + messages
   useEffect(() => {
     const channel = supabase.channel("whatsapp-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => loadConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => refreshConversations())
       .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_messages" }, (payload: any) => {
         const row = payload.new || payload.old;
-        if (row?.conversation_id && row.conversation_id === activeId) loadMessages(activeId);
+        if (row?.conversation_id && row.conversation_id === activeId) syncLatestMessages(activeId);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [activeId, loadConversations, loadMessages]);
+  }, [activeId, refreshConversations, syncLatestMessages]);
 
   // Open conversation
   useEffect(() => {
@@ -195,21 +304,13 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
         });
       } else { setCustomer(null); setCustomerStats(null); }
     })();
-  }, [activeId, conversations, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, loadMessages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
 
-  const filteredConversations = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return conversations.filter((c) => {
-      if (filter === "archived" ? !c.is_archived : c.is_archived) return false;
-      if (filter === "unread" && c.unread_count === 0) return false;
-      if (!q) return true;
-      return (c.display_name || "").toLowerCase().includes(q)
-        || c.phone.includes(q)
-        || (c.last_message_preview || "").toLowerCase().includes(q);
-    });
-  }, [conversations, search, filter]);
+  const filteredConversations = conversations;
+
 
   const patchConversation = async (id: string, patch: Partial<Conversation>) => {
     await supabase.from("whatsapp_conversations").update(patch as any).eq("id", id);
