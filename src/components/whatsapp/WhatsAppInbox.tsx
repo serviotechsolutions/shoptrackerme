@@ -487,7 +487,16 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
               </div>
             </button>
           ))}
+          {!loading && hasMoreConvs && (
+            <div className="p-2">
+              <Button variant="ghost" size="sm" className="w-full text-xs" onClick={loadMoreConversations} disabled={loadingMoreConvs}>
+                {loadingMoreConvs ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Load more chats
+              </Button>
+            </div>
+          )}
         </ScrollArea>
+
       </Card>
 
       {/* Chat panel */}
