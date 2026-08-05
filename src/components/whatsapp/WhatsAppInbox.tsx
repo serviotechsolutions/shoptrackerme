@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Send, Search, Pin, Archive, Ban, Star, MoreVertical, ArrowLeft, User, Package,
-  Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap,
+  Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap, FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import SendDocumentDialog from "@/components/whatsapp/SendDocumentDialog";
