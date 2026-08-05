@@ -104,8 +104,11 @@ export interface SendArgs {
   related_sale_id?: string | null;
   related_payment_id?: string | null;
   related_promotion_id?: string | null;
+  /** Set when resending a previously failed message — preserves the audit trail. */
+  retry_of_message_id?: string | null;
   test?: boolean;
 }
+
 
 export async function sendWhatsapp(args: SendArgs) {
   const { data, error } = await supabase.functions.invoke("whatsapp-send", { body: args });
