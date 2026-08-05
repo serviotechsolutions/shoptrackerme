@@ -20,6 +20,8 @@ import {
   Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import SendDocumentDialog from "@/components/whatsapp/SendDocumentDialog";
+
 
 interface Conversation {
   id: string;
@@ -49,7 +51,11 @@ interface Message {
   is_starred: boolean;
   message_type: string;
   error_message: string | null;
+  error_code?: string | null;
+  retries?: number | null;
+  retry_of_message_id?: string | null;
   created_at: string;
+
 }
 
 interface QuickReply { id: string; shortcut: string; title: string; body: string }
