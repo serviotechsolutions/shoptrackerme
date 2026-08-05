@@ -404,6 +404,10 @@ export default function WhatsApp() {
                       </div>
                     </div>
 
+                    <WhatsAppConnectionStatus webhookUrl={webhookUrl} />
+
+
+
                     <div className="flex flex-wrap gap-2">
                       <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save</Button>
                     </div>
