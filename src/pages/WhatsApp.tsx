@@ -19,6 +19,8 @@ import WhatsAppInbox from "@/components/whatsapp/WhatsAppInbox";
 import WhatsAppAutomationSettings from "@/components/whatsapp/WhatsAppAutomationSettings";
 import { Loader2, MessageCircle, Save, TestTube2, Send, RefreshCw, Download } from "lucide-react";
 
+import WhatsAppConnectionStatus from "@/components/whatsapp/WhatsAppConnectionStatus";
+
 
 interface Settings {
   id?: string;
@@ -29,7 +31,9 @@ interface Settings {
   phone_number_id: string | null;
   business_account_id: string | null;
   verify_token: string | null;
+  app_secret: string | null;
   api_version: string;
+
   // Legacy Twilio (kept for future providers)
   account_sid: string | null;
   auth_token: string | null;
@@ -47,7 +51,7 @@ interface Settings {
 
 const DEFAULT: Settings = {
   provider: "meta",
-  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", api_version: "v20.0",
+  access_token: "", phone_number_id: "", business_account_id: "", verify_token: "", app_secret: "", api_version: "v20.0",
   account_sid: "", auth_token: "", from_number: "", business_name: "",
   default_format: "pdf", max_per_minute: 20, max_per_day: 1000, max_bulk: 200, is_enabled: false,
   last_test_at: null, last_test_status: null, last_test_error: null,
@@ -111,7 +115,12 @@ export default function WhatsApp() {
     try {
       const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
       if (!prof?.tenant_id) throw new Error("No tenant");
-      const payload = { ...settings, tenant_id: prof.tenant_id };
+      // Webhook health fields are maintained by the webhook itself — never write them back.
+      const {
+        last_webhook_at: _a, last_webhook_signature_ok: _b, last_webhook_error: _c, ...editable
+      } = settings as Settings & Record<string, unknown>;
+      const payload = { ...editable, tenant_id: prof.tenant_id };
+
       const { error } = await supabase.from("whatsapp_settings")
         .upsert(payload, { onConflict: "tenant_id" });
       if (error) throw error;
@@ -343,9 +352,15 @@ export default function WhatsApp() {
                             <p className="text-xs text-muted-foreground mt-1">Paste the same value in Meta → Webhooks → Verify Token.</p>
                           </div>
                           <div>
+                            <Label>App Secret (webhook signing)</Label>
+                            <Input type="password" value={settings.app_secret || ""} onChange={(e) => setSettings({ ...settings, app_secret: e.target.value })} placeholder="Meta App → Settings → Basic → App Secret" />
+                            <p className="text-xs text-muted-foreground mt-1">Required to verify <code>X-Hub-Signature-256</code>. Unsigned or forged callbacks are rejected once set.</p>
+                          </div>
+                          <div>
                             <Label>Graph API version</Label>
                             <Input value={settings.api_version || "v20.0"} onChange={(e) => setSettings({ ...settings, api_version: e.target.value })} placeholder="v20.0" />
                           </div>
+
                         </>
                       )}
 
@@ -388,6 +403,10 @@ export default function WhatsApp() {
                         to deliver status updates (POST).
                       </div>
                     </div>
+
+                    <WhatsAppConnectionStatus webhookUrl={webhookUrl} />
+
+
 
                     <div className="flex flex-wrap gap-2">
                       <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save</Button>

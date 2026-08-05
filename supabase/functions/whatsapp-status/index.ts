@@ -331,6 +331,64 @@ async function handleTwilioForm(params: URLSearchParams) {
   await updateByProviderId(sid, patch);
 }
 
+// ---------- Meta signature verification (X-Hub-Signature-256) ----------
+
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.trim().toLowerCase();
+  const out = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  return out;
+}
+
+async function verifyMetaSignature(rawBody: string, header: string | null, appSecret: string): Promise<boolean> {
+  if (!header) return false;
+  const provided = header.startsWith("sha256=") ? header.slice(7) : header;
+  if (!/^[0-9a-fA-F]{64}$/.test(provided)) return false;
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(appSecret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody)));
+  const expected = hexToBytes(provided);
+  if (expected.length !== sig.length) return false;
+  // Constant-time comparison
+  let diff = 0;
+  for (let i = 0; i < sig.length; i++) diff |= sig[i] ^ expected[i];
+  return diff === 0;
+}
+
+/** Resolves the tenant settings row that a Meta webhook payload belongs to. */
+async function resolveTenantSettings(body: any): Promise<{ tenant_id: string; app_secret: string | null } | null> {
+  const db = admin();
+  const entries = Array.isArray(body?.entry) ? body.entry : [];
+  for (const entry of entries) {
+    const changes = Array.isArray(entry?.changes) ? entry.changes : [];
+    for (const change of changes) {
+      const phoneNumberId = String(change?.value?.metadata?.phone_number_id || "");
+      if (phoneNumberId) {
+        const { data } = await db.from("whatsapp_settings")
+          .select("tenant_id, app_secret").eq("phone_number_id", phoneNumberId).maybeSingle();
+        if (data) return data as any;
+      }
+    }
+    const wabaId = String(entry?.id || "");
+    if (wabaId) {
+      const { data } = await db.from("whatsapp_settings")
+        .select("tenant_id, app_secret").eq("business_account_id", wabaId).maybeSingle();
+      if (data) return data as any;
+    }
+  }
+  return null;
+}
+
+async function recordWebhookHealth(tenantId: string, ok: boolean, error: string | null) {
+  await admin().from("whatsapp_settings").update({
+    last_webhook_at: new Date().toISOString(),
+    last_webhook_signature_ok: ok,
+    last_webhook_error: error,
+  }).eq("tenant_id", tenantId);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -345,6 +403,7 @@ Deno.serve(async (req) => {
         const { data } = await admin().from("whatsapp_settings")
           .select("tenant_id").eq("verify_token", token).limit(1).maybeSingle();
         if (data) {
+          await recordWebhookHealth(data.tenant_id, true, null);
           return new Response(challenge, { status: 200, headers: { ...corsHeaders, "Content-Type": "text/plain" } });
         }
         return new Response("Forbidden", { status: 403, headers: corsHeaders });
@@ -353,16 +412,38 @@ Deno.serve(async (req) => {
     }
 
     const contentType = req.headers.get("content-type") || "";
+    const raw = await req.text();
+
     if (contentType.includes("application/json")) {
-      const body = await req.json();
+      let body: any = null;
+      try { body = JSON.parse(raw); } catch { /* ignore */ }
+
       if (body?.object === "whatsapp_business_account" || Array.isArray(body?.entry)) {
+        const settings = await resolveTenantSettings(body);
+        if (!settings) {
+          console.warn("[whatsapp-webhook] no tenant matched this payload");
+          return new Response("ok", { headers: corsHeaders });
+        }
+        if (settings.app_secret) {
+          const valid = await verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"), settings.app_secret);
+          if (!valid) {
+            console.error("[whatsapp-webhook] invalid signature — payload rejected");
+            await recordWebhookHealth(settings.tenant_id, false, "Invalid X-Hub-Signature-256 — payload rejected");
+            return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+          }
+          await recordWebhookHealth(settings.tenant_id, true, null);
+        } else {
+          await recordWebhookHealth(
+            settings.tenant_id, false,
+            "Signature verification disabled — add your Meta App Secret in Settings → WhatsApp.",
+          );
+        }
         await handleMetaPost(body);
       } else if (body?.MessageSid || body?.SmsSid) {
         await handleTwilioForm(new URLSearchParams(body as Record<string, string>));
       }
     } else {
-      const text = await req.text();
-      const params = new URLSearchParams(text);
+      const params = new URLSearchParams(raw);
       if (params.get("MessageSid") || params.get("SmsSid")) {
         await handleTwilioForm(params);
       }
@@ -373,3 +454,4 @@ Deno.serve(async (req) => {
     return new Response("error", { status: 200, headers: corsHeaders });
   }
 });
+

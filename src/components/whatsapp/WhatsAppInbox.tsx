@@ -17,9 +17,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Send, Search, Pin, Archive, Ban, Star, MoreVertical, ArrowLeft, User, Package,
-  Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap,
+  Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap, FileText,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import SendDocumentDialog from "@/components/whatsapp/SendDocumentDialog";
+
 
 interface Conversation {
   id: string;
@@ -49,7 +51,11 @@ interface Message {
   is_starred: boolean;
   message_type: string;
   error_message: string | null;
+  error_code?: string | null;
+  retries?: number | null;
+  retry_of_message_id?: string | null;
   created_at: string;
+
 }
 
 interface QuickReply { id: string; shortcut: string; title: string; body: string }
@@ -113,6 +119,15 @@ function MediaBubble({ message }: { message: Message }) {
   );
 }
 
+const CONV_PAGE = 30;
+const MSG_PAGE = 40;
+
+function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
+  const map = new Map<string, T>();
+  [...a, ...b].forEach((row) => map.set(row.id, row));
+  return Array.from(map.values());
+}
+
 export default function WhatsAppInbox({ initialConversationId }: { initialConversationId?: string | null }) {
   const { toast } = useToast();
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -126,7 +141,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "archived">("all");
+  const [convPage, setConvPage] = useState(0);
+  const [hasMoreConvs, setHasMoreConvs] = useState(true);
+  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [customer, setCustomer] = useState<any | null>(null);
   const [customerStats, setCustomerStats] = useState<{ orders: number; spent: number } | null>(null);
@@ -135,48 +157,141 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [productSearch, setProductSearch] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
+  const [docDialog, setDocDialog] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const pageRef = useRef(0);
 
   const active = useMemo(() => conversations.find((c) => c.id === activeId) || null, [conversations, activeId]);
 
-  const loadConversations = useCallback(async () => {
-    const { data } = await supabase.from("whatsapp_conversations")
-      .select("*").order("is_pinned", { ascending: false }).order("last_message_at", { ascending: false }).limit(300);
-    setConversations((data || []) as Conversation[]);
-    setLoading(false);
-  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
+  const sortConversations = (rows: Conversation[]) =>
+    [...rows].sort((a, b) =>
+      Number(b.is_pinned) - Number(a.is_pinned) ||
+      new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+
+  /** Server-side paginated conversation query — keeps the inbox fast with thousands of chats. */
+  const fetchConversationPage = useCallback(async (page: number) => {
+    let q = supabase.from("whatsapp_conversations").select("*");
+    q = filter === "archived" ? q.eq("is_archived", true) : q.eq("is_archived", false);
+    if (filter === "unread") q = q.gt("unread_count", 0);
+    const term = debouncedSearch.replace(/[%,]/g, "");
+    if (term) {
+      q = q.or(`display_name.ilike.%${term}%,phone.ilike.%${term}%,last_message_preview.ilike.%${term}%`);
+    }
+    const { data } = await q
+      .order("is_pinned", { ascending: false })
+      .order("last_message_at", { ascending: false })
+      .range(page * CONV_PAGE, page * CONV_PAGE + CONV_PAGE - 1);
+    return (data || []) as Conversation[];
+  }, [filter, debouncedSearch]);
+
+  /** Reloads the first page and merges it with already-loaded pages (used by realtime). */
+  const refreshConversations = useCallback(async () => {
+    const first = await fetchConversationPage(0);
+    setConversations((prev) => {
+      if (pageRef.current === 0) return sortConversations(first);
+      return sortConversations(mergeById(prev, first));
+    });
+    setLoading(false);
+  }, [fetchConversationPage]);
+
+  // Reset pagination whenever the filter or search term changes.
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    pageRef.current = 0;
+    setConvPage(0);
+    fetchConversationPage(0).then((rows) => {
+      if (!active) return;
+      setConversations(sortConversations(rows));
+      setHasMoreConvs(rows.length === CONV_PAGE);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [fetchConversationPage]);
+
+  const loadMoreConversations = useCallback(async () => {
+    if (loadingMoreConvs || !hasMoreConvs) return;
+    setLoadingMoreConvs(true);
+    const next = convPage + 1;
+    const rows = await fetchConversationPage(next);
+    setConversations((prev) => sortConversations(mergeById(prev, rows)));
+    setHasMoreConvs(rows.length === CONV_PAGE);
+    setConvPage(next);
+    pageRef.current = next;
+    setLoadingMoreConvs(false);
+  }, [convPage, fetchConversationPage, hasMoreConvs, loadingMoreConvs]);
+
+  const MESSAGE_COLUMNS =
+    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at";
+
+  /** Loads the most recent page of a conversation; older messages load on demand. */
   const loadMessages = useCallback(async (conversationId: string) => {
     const { data } = await supabase.from("whatsapp_messages")
-      .select("id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, created_at")
-      .eq("conversation_id", conversationId).order("created_at", { ascending: true }).limit(500);
-    setMessages((data || []) as Message[]);
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const rows = ((data || []) as Message[]).slice().reverse();
+    setMessages(rows);
+    setHasOlderMessages((data || []).length === MSG_PAGE);
     const { data: n } = await supabase.from("whatsapp_notes")
-      .select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false });
+      .select("*").eq("conversation_id", conversationId).order("created_at", { ascending: false }).limit(50);
     setNotes(n || []);
   }, []);
+
+  /** Merges only new/updated messages so the timeline doesn't reset while scrolled up. */
+  const syncLatestMessages = useCallback(async (conversationId: string) => {
+    const { data } = await supabase.from("whatsapp_messages")
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const fresh = ((data || []) as Message[]).slice().reverse();
+    setMessages((prev) => mergeById(prev, fresh).sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+  }, []);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeId || !messages.length || loadingOlder) return;
+    setLoadingOlder(true);
+    const oldest = messages[0].created_at;
+    const { data } = await supabase.from("whatsapp_messages")
+      .select(MESSAGE_COLUMNS)
+      .eq("conversation_id", activeId)
+      .lt("created_at", oldest)
+      .order("created_at", { ascending: false })
+      .limit(MSG_PAGE);
+    const older = ((data || []) as Message[]).slice().reverse();
+    setMessages((prev) => [...older, ...prev]);
+    setHasOlderMessages((data || []).length === MSG_PAGE);
+    setLoadingOlder(false);
+  }, [activeId, messages, loadingOlder]);
 
   useEffect(() => {
     (async () => {
       const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
       setTenantId(prof?.tenant_id ?? null);
-      await loadConversations();
       const { data: qr } = await supabase.from("whatsapp_quick_replies").select("*").order("shortcut");
       setQuickReplies((qr || []) as QuickReply[]);
     })();
-  }, [loadConversations]);
+  }, []);
 
   // Realtime: conversations + messages
   useEffect(() => {
     const channel = supabase.channel("whatsapp-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => loadConversations())
+      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => refreshConversations())
       .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_messages" }, (payload: any) => {
         const row = payload.new || payload.old;
-        if (row?.conversation_id && row.conversation_id === activeId) loadMessages(activeId);
+        if (row?.conversation_id && row.conversation_id === activeId) syncLatestMessages(activeId);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [activeId, loadConversations, loadMessages]);
+  }, [activeId, refreshConversations, syncLatestMessages]);
 
   // Open conversation
   useEffect(() => {
@@ -195,25 +310,17 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
         });
       } else { setCustomer(null); setCustomerStats(null); }
     })();
-  }, [activeId, conversations, loadMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, loadMessages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
 
-  const filteredConversations = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return conversations.filter((c) => {
-      if (filter === "archived" ? !c.is_archived : c.is_archived) return false;
-      if (filter === "unread" && c.unread_count === 0) return false;
-      if (!q) return true;
-      return (c.display_name || "").toLowerCase().includes(q)
-        || c.phone.includes(q)
-        || (c.last_message_preview || "").toLowerCase().includes(q);
-    });
-  }, [conversations, search, filter]);
+  const filteredConversations = conversations;
+
 
   const patchConversation = async (id: string, patch: Partial<Conversation>) => {
     await supabase.from("whatsapp_conversations").update(patch as any).eq("id", id);
-    loadConversations();
+    refreshConversations();
   };
 
   const send = async (body?: string, media?: { url: string; kind: "image" | "document" }) => {
@@ -233,11 +340,36 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       });
       setDraft("");
       await loadMessages(active.id);
-      await loadConversations();
+      await refreshConversations();
     } catch (e) {
       toast({ title: "Send failed", description: (e as Error).message, variant: "destructive" });
     } finally { setSending(false); }
   };
+
+  /** Resends a failed outgoing message. The original row is kept and linked for the audit trail. */
+  const retryMessage = async (m: Message) => {
+    if (!active) return;
+    setRetryingId(m.id);
+    try {
+      await sendWhatsapp({
+        to: active.phone,
+        body: m.body || undefined,
+        media_url: m.media_url || undefined,
+        media_kind: (m.media_kind as any) ?? null,
+        media_filename: m.media_filename,
+        message_type: (m.message_type as any) || "custom",
+        customer_id: active.customer_id,
+        retry_of_message_id: m.id,
+      });
+      toast({ title: "Message resent", description: "A new attempt was queued and linked to the failed message." });
+      await loadMessages(active.id);
+      await refreshConversations();
+    } catch (e) {
+      toast({ title: "Retry failed", description: (e as Error).message, variant: "destructive" });
+      await loadMessages(active.id);
+    } finally { setRetryingId(null); }
+  };
+
 
   const startNewChat = async () => {
     const phone = normalizePhone(newChatPhone);
@@ -252,7 +384,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       id = data.id;
     }
     setNewChatOpen(false); setNewChatPhone("");
-    await loadConversations();
+    await refreshConversations();
     setActiveId(id!);
   };
 
@@ -355,7 +487,16 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
               </div>
             </button>
           ))}
+          {!loading && hasMoreConvs && (
+            <div className="p-2">
+              <Button variant="ghost" size="sm" className="w-full text-xs" onClick={loadMoreConversations} disabled={loadingMoreConvs}>
+                {loadingMoreConvs ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+                Load more chats
+              </Button>
+            </div>
+          )}
         </ScrollArea>
+
       </Card>
 
       {/* Chat panel */}
@@ -412,6 +553,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
 
             <ScrollArea className="flex-1 p-3 bg-muted/30">
               <div className="space-y-2">
+                {hasOlderMessages && (
+                  <div className="flex justify-center pb-1">
+                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={loadOlderMessages} disabled={loadingOlder}>
+                      {loadingOlder ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : null}
+                      Load earlier messages
+                    </Button>
+                  </div>
+                )}
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
                     <div
@@ -423,17 +572,37 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                       <MediaBubble message={m} />
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                       <div className={`flex items-center gap-1 justify-end mt-1 text-[10px] ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
+                        {m.retry_of_message_id && <span className="opacity-80">resent</span>}
                         {m.is_starred && <Star className="h-3 w-3 fill-current" />}
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {m.direction === "out" && <TickIcon status={m.status} />}
                       </div>
-                      {m.error_message && <p className="text-[10px] text-destructive mt-1">{m.error_message}</p>}
+                      {m.error_message && (
+                        <p className="text-[10px] text-destructive mt-1">
+                          {m.error_code ? `[${m.error_code}] ` : ""}{m.error_message}
+                        </p>
+                      )}
+                      {m.direction === "out" && m.status === "failed" && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <Button
+                            size="sm" variant="secondary" className="h-6 text-[11px]"
+                            onClick={() => retryMessage(m)} disabled={retryingId === m.id}
+                          >
+                            {retryingId === m.id
+                              ? <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              : <RefreshCw className="mr-1 h-3 w-3" />}
+                            Retry
+                          </Button>
+                          {!!m.retries && <span className="text-[10px] opacity-80">{m.retries} attempt{m.retries > 1 ? "s" : ""}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
                 <div ref={bottomRef} />
               </div>
             </ScrollArea>
+
 
             <div className="p-3 border-t space-y-2">
               {quickReplies.length > 0 && (
@@ -447,6 +616,8 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
               )}
               <div className="flex items-end gap-2">
                 <Button size="icon" variant="outline" onClick={openProductPicker} aria-label="Share product"><Package className="h-4 w-4" /></Button>
+                <Button size="icon" variant="outline" onClick={() => setDocDialog(true)} aria-label="Attach document"><FileText className="h-4 w-4" /></Button>
+
                 <Textarea
                   value={draft}
                   onChange={(e) => onDraftChange(e.target.value)}
@@ -495,7 +666,19 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
         </DialogContent>
       </Dialog>
 
+      {active && (
+        <SendDocumentDialog
+          open={docDialog}
+          onOpenChange={setDocDialog}
+          tenantId={tenantId}
+          phone={active.phone}
+          customerId={active.customer_id}
+          onSent={() => { loadMessages(active.id); refreshConversations(); }}
+        />
+      )}
+
       {/* Product picker */}
+
       <Dialog open={productPicker} onOpenChange={setProductPicker}>
         <DialogContent className="sm:max-w-md max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
