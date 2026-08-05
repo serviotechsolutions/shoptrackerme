@@ -340,6 +340,31 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     } finally { setSending(false); }
   };
 
+  /** Resends a failed outgoing message. The original row is kept and linked for the audit trail. */
+  const retryMessage = async (m: Message) => {
+    if (!active) return;
+    setRetryingId(m.id);
+    try {
+      await sendWhatsapp({
+        to: active.phone,
+        body: m.body || undefined,
+        media_url: m.media_url || undefined,
+        media_kind: (m.media_kind as any) ?? null,
+        media_filename: m.media_filename,
+        message_type: (m.message_type as any) || "custom",
+        customer_id: active.customer_id,
+        retry_of_message_id: m.id,
+      });
+      toast({ title: "Message resent", description: "A new attempt was queued and linked to the failed message." });
+      await loadMessages(active.id);
+      await refreshConversations();
+    } catch (e) {
+      toast({ title: "Retry failed", description: (e as Error).message, variant: "destructive" });
+      await loadMessages(active.id);
+    } finally { setRetryingId(null); }
+  };
+
+
   const startNewChat = async () => {
     const phone = normalizePhone(newChatPhone);
     if (!phone || !tenantId) { toast({ title: "Invalid phone", variant: "destructive" }); return; }
