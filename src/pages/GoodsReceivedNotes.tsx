@@ -659,7 +659,7 @@ const GoodsReceivedNotes = () => {
             { label: "Reversed", value: metrics.reversed, icon: RotateCcw },
             { label: "Stock Value", value: fmt(metrics.totalValue), icon: AlertTriangle },
           ].map(m => (
-            <Card key={m.label}>
+            <Card key={m.label} className={m.label === "Stock Value" ? "col-span-2 md:col-span-1" : undefined}>
               <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -674,13 +674,13 @@ const GoodsReceivedNotes = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
+        <div className="grid grid-cols-2 sm:flex gap-2">
+          <div className="relative col-span-2 min-w-0 flex-1">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input className="pl-8" placeholder="Search GRN, supplier or PO" value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="sm:w-40"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
+            <SelectTrigger className="min-w-0 sm:w-40"><Filter className="h-4 w-4 mr-1" /><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
@@ -689,7 +689,7 @@ const GoodsReceivedNotes = () => {
             </SelectContent>
           </Select>
           <Select value={rangeFilter} onValueChange={setRangeFilter}>
-            <SelectTrigger className="sm:w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="min-w-0 sm:w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All time</SelectItem>
               <SelectItem value="today">Today</SelectItem>

@@ -403,7 +403,7 @@ const Reports = () => {
 
         {/* Filters & exports */}
         <Card>
-          <CardContent className="pt-4 space-y-3">
+          <CardContent className="pt-4 flex flex-wrap items-center gap-3">
             <div className="flex flex-wrap gap-2">
               {([
                 ['today', 'Today'], ['week', 'This Week'], ['month', 'This Month'],
@@ -436,7 +436,7 @@ const Reports = () => {
                 </Popover>
               </div>
             )}
-            <div className="flex flex-wrap gap-2 pt-2 border-t">
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportPDF} className="text-xs h-8"><FileText className="h-3 w-3 mr-1" />PDF</Button>
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportCSV} className="text-xs h-8"><Download className="h-3 w-3 mr-1" />CSV</Button>
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportExcel} className="text-xs h-8"><FileSpreadsheet className="h-3 w-3 mr-1" />Excel</Button>
@@ -491,7 +491,7 @@ const Reports = () => {
                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} formatter={(v: number) => fmt(v)} />
                     <Legend />
                     <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} name="Sales" />
-                    <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} name="Profit" />
+                    <Line type="monotone" dataKey="profit" stroke="hsl(var(--success))" strokeWidth={2} name="Profit" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -503,14 +503,14 @@ const Reports = () => {
               <CardHeader><CardTitle className="text-base">Top Products by Revenue</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={productStats.slice(0, 10)} layout="vertical">
+                  <BarChart data={productStats.slice(0, 10)} layout="vertical" margin={{ left: 0, right: 12, top: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 10 }} />
-                    <YAxis dataKey="product_name" type="category" width={120} tick={{ fontSize: 10 }} />
+                    <YAxis dataKey="product_name" type="category" width={88} interval={0} tick={{ fontSize: 10 }} tickFormatter={(name: string) => name.length > 14 ? `${name.slice(0, 13)}…` : name} />
                     <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} formatter={(v: number) => fmt(v)} />
                     <Legend />
                     <Bar dataKey="total_sales" fill="hsl(var(--primary))" name="Revenue" />
-                    <Bar dataKey="total_profit" fill="#10b981" name="Profit" />
+                    <Bar dataKey="total_profit" fill="hsl(var(--success))" name="Profit" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

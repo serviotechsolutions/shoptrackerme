@@ -401,7 +401,7 @@ const Promotions = () => {
 
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="scroll-rail w-full justify-start h-auto min-h-11 bg-transparent p-0 [&>button]:rounded-full [&>button]:min-h-11 [&>button]:px-4 [&>button]:border [&>button]:border-border">
             <TabsTrigger value="overview">All Campaigns</TabsTrigger>
             <TabsTrigger value="flash">Flash Sales</TabsTrigger>
             <TabsTrigger value="ai">AI Suggestions</TabsTrigger>

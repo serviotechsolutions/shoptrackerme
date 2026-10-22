@@ -271,7 +271,7 @@ export default function WhatsApp() {
           <h1 className="text-xl font-bold">WhatsApp</h1>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2">
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Sent today</div><div className="text-2xl font-bold">{stats.today}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Delivered today</div><div className="text-2xl font-bold text-green-600">{stats.todayDelivered}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Failed today</div><div className="text-2xl font-bold text-red-600">{stats.todayFailed}</div></CardContent></Card>
@@ -279,7 +279,7 @@ export default function WhatsApp() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="flex flex-wrap">
+          <TabsList className="scroll-rail w-full justify-start h-auto min-h-11 [&>button]:min-h-11">
             <TabsTrigger value="inbox">Inbox</TabsTrigger>
             {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
             {isAdmin && <TabsTrigger value="automation">Automation</TabsTrigger>}
@@ -443,8 +443,8 @@ export default function WhatsApp() {
                 <CardDescription>All WhatsApp messages sent from this shop.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Input placeholder="Search phone, name, text..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input placeholder="Search phone, name, text..." value={search} onChange={(e) => setSearch(e.target.value)} className="min-w-0 basis-48 flex-1" />
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -460,7 +460,7 @@ export default function WhatsApp() {
                   <Button variant="outline" size="sm" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>
                 </div>
                 <div className="overflow-x-auto border rounded-md">
-                  <Table>
+                  <Table className="whitespace-nowrap [&_td]:px-2 [&_th]:px-2">
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
@@ -468,38 +468,20 @@ export default function WhatsApp() {
                         <TableHead>Recipient</TableHead>
                         <TableHead>Customer</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>HTTP</TableHead>
-                        <TableHead>Meta Message ID</TableHead>
-                        <TableHead>Meta Error</TableHead>
-                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">No messages</TableCell></TableRow>}
+                      {filtered.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No messages</TableCell></TableRow>}
                       {filtered.map(m => (
                         <TableRow key={m.id}>
                           <TableCell className="text-xs">{new Date(m.created_at).toLocaleString()}</TableCell>
                           <TableCell className="capitalize">{m.message_type}</TableCell>
-                          <TableCell>{m.recipient_phone}</TableCell>
+                          <TableCell><Button variant="link" size="sm" className="px-0" onClick={() => setInspectMsg(m)} title="Inspect message">{m.recipient_phone}</Button></TableCell>
                           <TableCell>{m.customers?.name || "-"}</TableCell>
                           <TableCell>
                             <StatusBadge status={m.status} />
+                            {m.status === "failed" && <Button size="sm" variant="outline" className="ml-2" onClick={() => retry(m)}>Retry</Button>}
                             {m.error_message && <div className="text-[10px] text-red-600 max-w-[180px] truncate mt-1" title={m.error_message}>{m.error_message}</div>}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {m.graph_http_status ? (
-                              <span className={m.graph_http_status === 200 ? "text-green-600" : "text-red-600"}>{m.graph_http_status}</span>
-                            ) : "-"}
-                          </TableCell>
-                          <TableCell className="text-xs font-mono max-w-[200px] truncate" title={m.meta_message_id || ""}>{m.meta_message_id || "-"}</TableCell>
-                          <TableCell className="text-xs text-red-600 max-w-[200px]">
-                            {m.meta_error_code && <div className="font-mono">#{m.meta_error_code}</div>}
-                            {m.meta_error_message && <div className="truncate" title={m.meta_error_message}>{m.meta_error_message}</div>}
-                            {!m.meta_error_code && !m.meta_error_message && "-"}
-                          </TableCell>
-                          <TableCell className="space-x-1 whitespace-nowrap">
-                            <Button size="sm" variant="outline" onClick={() => setInspectMsg(m)}>Inspect</Button>
-                            {m.status === "failed" && <Button size="sm" variant="outline" onClick={() => retry(m)}>Retry</Button>}
                           </TableCell>
                         </TableRow>
                       ))}
