@@ -299,11 +299,11 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-          <Link to="/pos" className="group">
+        <div className="grid grid-cols-3 items-stretch gap-2 sm:gap-4 [&_header]:min-w-0 [&_h3]:break-words [&_svg]:shrink-0 [&_.p-6]:p-3 sm:[&_.p-6]:p-6">
+          <Link to="/pos" className="group min-w-0">
             <Card className="h-full cursor-pointer bg-card/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary hover:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm text-foreground group-hover:text-primary transition-colors">
+                <CardTitle className="flex flex-col sm:flex-row items-start gap-2 text-xs sm:text-sm text-foreground group-hover:text-primary transition-colors">
                   <ShoppingCart className="h-5 w-5 text-primary" />
                   Point of Sale
                 </CardTitle>
@@ -311,10 +311,10 @@ const Dashboard = () => {
               <CardContent><p className="text-xs text-muted-foreground">Process sales quickly</p></CardContent>
             </Card>
           </Link>
-          <Link to="/products" className="group">
+          <Link to="/products" className="group min-w-0">
             <Card className="h-full cursor-pointer bg-card/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary hover:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm text-foreground group-hover:text-primary transition-colors">
+                <CardTitle className="flex flex-col sm:flex-row items-start gap-2 text-xs sm:text-sm text-foreground group-hover:text-primary transition-colors">
                   <Package className="h-5 w-5 text-primary" />
                   Manage Products
                 </CardTitle>
@@ -322,10 +322,10 @@ const Dashboard = () => {
               <CardContent><p className="text-xs text-muted-foreground">Add or edit inventory</p></CardContent>
             </Card>
           </Link>
-          <Link to="/reports" className="group">
+          <Link to="/reports" className="group min-w-0">
             <Card className="h-full cursor-pointer bg-card/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/20 hover:border-primary hover:bg-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm text-foreground group-hover:text-primary transition-colors">
+                <CardTitle className="flex flex-col sm:flex-row items-start gap-2 text-xs sm:text-sm text-foreground group-hover:text-primary transition-colors">
                   <TrendingUp className="h-5 w-5 text-primary" />
                   View Reports
                 </CardTitle>

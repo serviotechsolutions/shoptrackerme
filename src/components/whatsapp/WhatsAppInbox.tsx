@@ -104,16 +104,16 @@ function MediaBubble({ message }: { message: Message }) {
   if (!message.media_url) return null;
   if (!url) return <div className="text-xs text-muted-foreground py-2">Loading attachment…</div>;
   if (message.media_kind === "image") {
-    return <img src={url} alt={message.body || "Shared photo"} loading="lazy" className="rounded-md max-h-64 w-auto mb-1" />;
+    return <img src={url} alt={message.body || "Shared photo"} loading="lazy" className="rounded-md max-h-64 max-w-full object-contain w-auto mb-1" />;
   }
   if (message.media_kind === "video") {
-    return <video src={url} controls className="rounded-md max-h-64 mb-1" />;
+    return <video src={url} controls className="rounded-md max-h-64 max-w-full mb-1" />;
   }
   if (message.media_kind === "audio") {
-    return <audio src={url} controls className="mb-1 w-56" />;
+    return <audio src={url} controls className="mb-1 w-56 max-w-full" />;
   }
   return (
-    <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-2 underline text-sm mb-1">
+    <a href={url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 underline text-sm mb-1 [overflow-wrap:anywhere]">
       <Paperclip className="h-4 w-4" />{message.media_filename || "Attachment"}
     </a>
   );
@@ -437,7 +437,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const labels: string[] = Array.isArray(active?.labels) ? (active!.labels as string[]) : [];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[300px_1fr_280px] gap-3 h-[calc(100vh-16rem)] min-h-[520px]">
+    <div className="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(13rem,28%)_minmax(0,1fr)] xl:grid-cols-[minmax(13rem,25%)_minmax(0,1fr)_minmax(14rem,23%)] gap-3 h-[calc(100dvh-16rem)] min-h-[420px]">
       {/* Conversation list */}
       <Card className={`overflow-hidden flex flex-col ${activeId ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 space-y-2 border-b">
@@ -517,7 +517,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                 <div className="font-medium text-sm truncate">{active.display_name || active.phone}</div>
                 <div className="text-xs text-muted-foreground truncate">{active.phone}{active.is_blocked ? " • Blocked" : ""}</div>
               </div>
-              <Button size="icon" variant="ghost" className="lg:hidden" onClick={() => setShowProfile(true)} aria-label="Contact info">
+              <Button size="icon" variant="ghost" className="xl:hidden" onClick={() => setShowProfile(true)} aria-label="Contact info">
                 <User className="h-4 w-4" />
               </Button>
               <DropdownMenu>
@@ -565,7 +565,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
                     <div
                       onDoubleClick={() => toggleStar(m)}
-                      className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                      className={`min-w-0 max-w-[85%] sm:max-w-[80%] [overflow-wrap:anywhere] rounded-lg px-3 py-2 text-sm shadow-sm ${
                         m.direction === "out" ? "bg-primary text-primary-foreground" : "bg-card border"
                       }`}
                     >
@@ -614,7 +614,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   ))}
                 </div>
               )}
-              <div className="flex items-end gap-2">
+              <div className="flex flex-wrap items-end gap-2">
                 <Button size="icon" variant="outline" onClick={openProductPicker} aria-label="Share product"><Package className="h-4 w-4" /></Button>
                 <Button size="icon" variant="outline" onClick={() => setDocDialog(true)} aria-label="Attach document"><FileText className="h-4 w-4" /></Button>
 
@@ -624,7 +624,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                   placeholder="Type a message… (/shortcut for quick replies)"
                   rows={1}
-                  className="min-h-[40px] max-h-32 resize-none"
+                  className="order-first basis-full sm:order-none sm:basis-auto sm:flex-1 min-w-0 min-h-11 max-h-32 resize-none"
                 />
                 <Button onClick={() => send()} disabled={sending} size="icon" aria-label="Send">
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -636,7 +636,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       </Card>
 
       {/* Contact panel (desktop) */}
-      <Card className="hidden lg:flex flex-col overflow-hidden">
+      <Card className="hidden xl:flex flex-col overflow-hidden">
         <ContactPanel
           active={active} customer={customer} stats={customerStats}
           notes={notes} noteBody={noteBody} setNoteBody={setNoteBody} addNote={addNote}

@@ -277,11 +277,11 @@ const Suppliers = () => {
               const st = stats[s.id] || { total: 0, outstanding: 0 };
               return (
                 <Card key={s.id} className="hover:shadow-md transition">
-                  <CardContent className="p-4">
+                  <CardContent className="relative p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link to={`/suppliers/${s.id}`} className="font-semibold text-base hover:underline truncate">
+                        <div className="flex flex-wrap items-center gap-2 pr-24 sm:pr-0">
+                          <Link to={`/suppliers/${s.id}`} title={s.name} className="max-w-full font-semibold text-base hover:underline truncate">
                             {s.name}
                           </Link>
                           <Badge variant={s.status === "active" ? "default" : s.status === "archived" ? "outline" : "secondary"} className="text-xs">
@@ -292,7 +292,7 @@ const Suppliers = () => {
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                           {s.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{s.phone}</span>}
                           {s.whatsapp_number && <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{s.whatsapp_number}</span>}
-                          {s.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{s.email}</span>}
+                          {s.email && <span className="flex max-w-full items-center gap-1 [overflow-wrap:anywhere]"><Mail className="h-3 w-3 shrink-0" />{s.email}</span>}
                           {s.products_supplied && <span className="truncate max-w-[200px]">📦 {s.products_supplied}</span>}
                         </div>
                       </div>
@@ -308,17 +308,17 @@ const Suppliers = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-1">
+                      <div className="flex flex-row gap-1">
                         <Button variant="outline" size="sm" onClick={() => setCatalogueFor(s)}>
                           <Package className="h-3 w-3 mr-1" /> Catalogue
                         </Button>
                         {canEdit && (
-                          <Button variant="ghost" size="icon" onClick={() => startEdit(s)}>
+                          <Button variant="ghost" size="icon" className="absolute right-14 top-2 sm:static" aria-label={`Edit ${s.name}`} title="Edit supplier" onClick={() => startEdit(s)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
                         {isAdmin && (
-                          <Button variant="ghost" size="icon" onClick={() => startDelete(s)}>
+                          <Button variant="ghost" size="icon" className="absolute right-2 top-2 sm:static" aria-label={`Delete ${s.name}`} title="Delete supplier" onClick={() => startDelete(s)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

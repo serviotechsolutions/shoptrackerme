@@ -209,8 +209,8 @@ const Customers = () => {
                                 {r.photo_url
                                   ? <img src={r.photo_url} alt="" className="h-7 w-7 rounded-full object-cover" />
                                   : <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold">{r.name.charAt(0).toUpperCase()}</div>}
-                                <div>
-                                  <div>{r.name}</div>
+                                <div className="min-w-0 max-w-40 sm:max-w-56">
+                                  <div title={r.name} className="truncate">{r.name}</div>
                                   <div className="md:hidden text-xs text-muted-foreground">{r.phone}</div>
                                 </div>
                               </Link>

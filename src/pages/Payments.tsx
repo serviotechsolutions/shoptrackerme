@@ -776,9 +776,9 @@ const Payments = () => {
                   </Table>
                 </div>
 
-                <div className="flex justify-between items-center border-t pt-4">
+                <div className="flex flex-wrap justify-between items-center gap-3 border-t pt-4">
                   <span className="text-lg font-bold">Total: UGX {selectedPayment.amount.toLocaleString()}</span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {selectedPayment.payment_status === 'pending_customer' && (
                       <Button size="sm" variant="outline" onClick={() => { setDetailsDialogOpen(false); openAssignModal(selectedPayment.id); }}>
                         <UserPlus className="h-4 w-4 mr-1" /> Assign Customer

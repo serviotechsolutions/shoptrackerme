@@ -905,7 +905,7 @@ const POS = () => {
 
   return (
     <DashboardLayout>
-    <div className="-m-4 md:-m-6">
+    <div className="-m-3 sm:-m-4 lg:-m-6 min-w-0">
       {/* POS Sub-header */}
       <header className="bg-primary text-primary-foreground shadow-lg">
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
@@ -930,9 +930,9 @@ const POS = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] gap-4 sm:gap-6">
           {/* Left Section - Products */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="min-w-0 space-y-4">
             {/* Search */}
             <div className="bg-card rounded-lg shadow-sm p-3 sm:p-4">
               <div className="flex gap-2">
@@ -955,14 +955,14 @@ const POS = () => {
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
               {displayedProducts.map((product) => {
                 const inCart = cart.find(i => i.id === product.id);
                 const isTapped = tappedProductId === product.id;
                 return (
                   <div
                     key={product.id}
-                    className={`bg-card rounded-xl shadow-sm overflow-hidden border-2 transition-all duration-150 relative
+                    className={`bg-card rounded-lg shadow-sm overflow-hidden border-2 transition-all duration-150 relative
                       ${inCart ? "border-primary ring-1 ring-primary/30" : "border-transparent"}
                       ${isTapped ? "scale-95 bg-primary/5" : ""}
                       active:scale-95 active:bg-primary/5
@@ -988,7 +988,7 @@ const POS = () => {
                     </div>
 
                     <div className="p-2.5 sm:p-3">
-                      <h3 className="font-semibold text-xs sm:text-sm line-clamp-2 leading-tight mb-1">{product.name}</h3>
+                      <h3 title={product.name} className="font-semibold text-xs sm:text-sm line-clamp-2 leading-tight mb-1 min-h-8">{product.name}</h3>
                       <p className="text-sm sm:text-base font-bold text-primary">
                         {product.selling_price > 0 ? formatCurrency(product.selling_price) : (
                           <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(product.buying_price)}</span>
@@ -1019,7 +1019,7 @@ const POS = () => {
           </div>
 
           {/* Right Section - Cart & Stats */}
-          <div className="lg:sticky lg:top-20 space-y-4 self-start">
+          <div id="pos-cart" className="min-w-0 lg:sticky lg:top-20 space-y-4 self-start scroll-mt-20">
             {/* Quick Stats */}
             <div className="bg-card rounded-lg shadow-sm p-4">
               <h2 className="text-sm font-bold mb-2">Today's Stats</h2>
@@ -1041,7 +1041,7 @@ const POS = () => {
 
             {/* Cart */}
             <div className="bg-card rounded-lg shadow-sm p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold">Cart</h2>
                   {cartItemCount > 0 && <Badge variant="secondary" className="text-xs">{cartItemCount} item{cartItemCount !== 1 ? "s" : ""}</Badge>}
@@ -1120,13 +1120,17 @@ const POS = () => {
                 ))}
               </div>
 
-              <Button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full mt-3 text-sm" size="lg">
+              <Button onClick={handleCheckout} disabled={loading || cart.length === 0} className="w-full mt-3 text-sm whitespace-normal" size="lg">
                 {loading ? "Processing..." : `Checkout • ${formatCurrency(calculateTotal())}`}
               </Button>
             </div>
           </div>
         </div>
       </div>
+
+      <Button asChild className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden" size="lg">
+        <a href="#pos-cart"><ShoppingCart className="h-4 w-4" />Cart {cartItemCount > 0 ? `(${cartItemCount})` : ''}</a>
+      </Button>
 
       {/* Customer Selection Modal — shown after sale if no customer was provided */}
       <Dialog open={customerModalOpen} onOpenChange={(open) => {

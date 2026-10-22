@@ -263,8 +263,8 @@ const Sales = () => {
 
         {/* Filters & Search */}
         <Card>
-          <CardContent className="p-4 space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-2">
               {filterButtons.map(fb => (
                 <Button
                   key={fb.value}
@@ -298,8 +298,7 @@ const Sales = () => {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
-            <div className="relative max-w-md">
+            <div className="relative min-w-0 basis-48 flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by invoice number or product name..."
@@ -307,6 +306,7 @@ const Sales = () => {
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
             </div>
           </CardContent>
         </Card>
@@ -349,7 +349,7 @@ const Sales = () => {
                         <TableCell>
                           <div className="flex flex-col gap-0.5">
                             {sale.items.slice(0, 2).map((item, i) => (
-                              <span key={i} className="text-sm">{item.product_name} ×{item.quantity}</span>
+                              <span key={i} className="text-sm block max-w-56 truncate" title={item.product_name}>{item.product_name} ×{item.quantity}</span>
                             ))}
                             {sale.items.length > 2 && <span className="text-xs text-muted-foreground">+{sale.items.length - 2} more</span>}
                           </div>

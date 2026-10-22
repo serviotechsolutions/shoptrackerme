@@ -555,7 +555,7 @@ const productData = {
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between gap-2">
-                  <p className="font-medium truncate">{product.name}</p>
+                  <p title={product.name} className="font-medium truncate">{product.name}</p>
                   {product.stock <= product.low_stock_threshold ? (
                     <Badge variant="destructive" className="gap-1 shrink-0"><AlertTriangle className="h-3 w-3" />Low</Badge>
                   ) : <Badge variant="default" className="shrink-0">In Stock</Badge>}
@@ -612,7 +612,7 @@ const productData = {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium"><span title={product.name} className="block max-w-56 truncate">{product.name}</span></TableCell>
                     <TableCell>{formatCurrency(avg)}</TableCell>
                     <TableCell className={belowCost ? "text-destructive font-medium" : ""}>
                       {formatCurrency(product.selling_price)}

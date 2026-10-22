@@ -83,7 +83,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
 
   return (
     <>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
           <FileText className="mr-2 h-4 w-4" />
           Download
@@ -125,7 +125,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
           <div
             id="receipt-print-area"
             className="mx-auto bg-white text-black font-sans border-2 border-black rounded-xl p-5 print:rounded-none"
-            style={{ width: '320px' }}
+            style={{ width: '320px', maxWidth: '100%' }}
           >
             <div className="text-center">
               {data.shop.logo_url && (
@@ -148,7 +148,7 @@ const ReceiptGenerator = ({ data }: ReceiptGeneratorProps) => {
               {data.customer_name && <div>Customer: {data.customer_name}</div>}
             </div>
 
-            <table className="w-full text-[12px] mt-3">
+            <table className="w-full table-fixed text-[12px] mt-3 [overflow-wrap:anywhere]">
               <thead>
                 <tr className="bg-gray-100 font-bold">
                   <th className="text-left px-1 py-1">Item</th>
