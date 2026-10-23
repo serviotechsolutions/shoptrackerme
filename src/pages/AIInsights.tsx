@@ -342,7 +342,7 @@ const AIInsights = () => {
         </div>
 
         <Tabs defaultValue="chat" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="scroll-rail w-full justify-start h-auto">
             <TabsTrigger value="chat">
               <MessageCircle className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">AI Chat</span>
