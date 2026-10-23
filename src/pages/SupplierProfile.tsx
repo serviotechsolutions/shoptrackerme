@@ -186,7 +186,7 @@ const SupplierProfile = () => {
         </div>
 
         <Tabs defaultValue="orders">
-          <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+          <TabsList className="scroll-rail w-full sm:w-auto justify-start h-auto">
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>

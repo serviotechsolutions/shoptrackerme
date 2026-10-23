@@ -148,4 +148,11 @@ All colors MUST be HSL.
   .dialog-surface { max-width: calc(100vw - 1.5rem); max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
   .dialog-surface > * { min-width: 0; }
   .dialog-actions { position: sticky; bottom: -1.5rem; z-index: 1; background: hsl(var(--background)); padding-block: 0.75rem; }
+  .app-content [class*="overflow-x-auto"] { max-width: 100%; min-width: 0; overscroll-behavior-x: contain; }
+  .app-content table:not(#receipt-print-area table) th { position: sticky; top: 0; z-index: 1; background: hsl(var(--card)); }
+}
+
+@media print {
+  .dialog-surface { max-width: none; max-height: none; overflow: visible; }
+  #receipt-print-area { max-width: none !important; }
 }
