@@ -917,6 +917,9 @@ const POS = () => {
             <p className="text-sm font-medium whitespace-nowrap">{currentTime}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="secondary" size="sm" className="lg:hidden" onClick={() => document.getElementById('pos-cart')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}>
+              <ShoppingCart className="h-4 w-4" />Cart {cartItemCount > 0 ? `(${cartItemCount})` : ''}
+            </Button>
             {heldSales.length > 0 && (
               <Button variant="secondary" size="sm" onClick={() => setHeldSalesOpen(true)} className="relative gap-1">
                 <PauseCircle className="h-4 w-4" />
@@ -1127,10 +1130,6 @@ const POS = () => {
           </div>
         </div>
       </div>
-
-      <Button asChild className="fixed bottom-4 right-4 z-40 shadow-lg lg:hidden" size="lg">
-        <a href="#pos-cart"><ShoppingCart className="h-4 w-4" />Cart {cartItemCount > 0 ? `(${cartItemCount})` : ''}</a>
-      </Button>
 
       {/* Customer Selection Modal — shown after sale if no customer was provided */}
       <Dialog open={customerModalOpen} onOpenChange={(open) => {
