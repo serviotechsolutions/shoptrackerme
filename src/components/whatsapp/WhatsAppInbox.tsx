@@ -241,6 +241,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", conversationId)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
     const rows = ((data || []) as Message[]).slice().reverse();
@@ -256,9 +257,13 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", conversationId)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
     const fresh = ((data || []) as Message[]).slice().reverse();
+    // Drop messages that were deleted since the last sync.
+    setMessages((prev) => prev.filter((p) => fresh.some((f) => f.id === p.id) || new Date(p.created_at) < new Date(fresh[0]?.created_at ?? 0)));
+    setMessages((prev) => {
     setMessages((prev) => mergeById(prev, fresh).sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
   }, []);
