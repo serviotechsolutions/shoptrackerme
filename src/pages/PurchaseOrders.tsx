@@ -543,7 +543,7 @@ const PurchaseOrders = () => {
       </div>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditingPo(null); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPo ? `Edit draft — ${editingPo.po_number}` : "Create Purchase Order"}</DialogTitle>
             <DialogDescription>
@@ -579,7 +579,7 @@ const PurchaseOrders = () => {
             )}
 
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <Label className="text-xs">Order Lines</Label>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={addCatalogueLine} disabled={!supplierId}>
@@ -605,7 +605,7 @@ const PurchaseOrders = () => {
                           <Badge variant={l.is_custom_item ? "secondary" : "outline"} className="text-[10px]">
                             {l.is_custom_item ? "Custom Item" : "Catalogue"}
                           </Badge>
-                          <Button size="icon" variant="ghost" onClick={() => removeLine(i)}>
+                          <Button size="icon" variant="ghost" aria-label="Remove order line" onClick={() => removeLine(i)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
