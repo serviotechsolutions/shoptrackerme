@@ -436,11 +436,11 @@ const Reports = () => {
                 </Popover>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-2 ml-auto">
+            <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 sm:ml-auto">
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportPDF} className="text-xs h-8"><FileText className="h-3 w-3 mr-1" />PDF</Button>
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportCSV} className="text-xs h-8"><Download className="h-3 w-3 mr-1" />CSV</Button>
               <Button size="sm" variant="outline" disabled={!hasData} onClick={exportExcel} className="text-xs h-8"><FileSpreadsheet className="h-3 w-3 mr-1" />Excel</Button>
-              <span className="text-xs text-muted-foreground ml-auto self-center">{rangeLabel} • {filteredTx.length} txns</span>
+              <span className="w-full sm:w-auto text-xs text-muted-foreground sm:ml-auto self-center">{rangeLabel} • {filteredTx.length} txns</span>
             </div>
           </CardContent>
         </Card>

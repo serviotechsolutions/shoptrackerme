@@ -138,19 +138,19 @@ const CustomerProfile = () => {
         {creditLimit > 0 && (
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Credit Account</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-3 gap-4 text-sm">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
               <div><div className="text-xs text-muted-foreground">Credit Limit</div><div className="font-medium">UGX {creditLimit.toLocaleString()}</div></div>
               <div><div className="text-xs text-muted-foreground">Used</div><div className="font-medium">UGX {creditUsed.toLocaleString()}</div></div>
               <div><div className="text-xs text-muted-foreground">Available</div><div className="font-medium text-primary">UGX {creditAvail.toLocaleString()}</div></div>
               {creditUsed > creditLimit && (
-                <div className="col-span-3 flex items-center gap-2 text-destructive text-xs"><AlertTriangle className="h-4 w-4" /> Customer is over their credit limit.</div>
+                <div className="col-span-full flex items-center gap-2 text-destructive text-xs"><AlertTriangle className="h-4 w-4 shrink-0" /> Customer is over their credit limit.</div>
               )}
             </CardContent>
           </Card>
         )}
 
         <Tabs defaultValue="purchases">
-          <TabsList className="flex-wrap h-auto">
+          <TabsList className="scroll-rail w-full justify-start h-auto">
             <TabsTrigger value="purchases">Purchases</TabsTrigger>
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="ledger">Ledger</TabsTrigger>
