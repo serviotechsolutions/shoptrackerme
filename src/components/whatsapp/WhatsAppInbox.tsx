@@ -261,11 +261,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
     const fresh = ((data || []) as Message[]).slice().reverse();
-    // Drop messages that were deleted since the last sync.
-    setMessages((prev) => prev.filter((p) => fresh.some((f) => f.id === p.id) || new Date(p.created_at) < new Date(fresh[0]?.created_at ?? 0)));
+    // Merge updates and drop messages deleted since the last sync (older loaded pages are kept).
     setMessages((prev) => {
-    setMessages((prev) => mergeById(prev, fresh).sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+      const freshIds = new Set(fresh.map((f) => f.id));
+      const oldestFresh = fresh[0] ? new Date(fresh[0].created_at).getTime() : 0;
+      const kept = prev.filter((p) => freshIds.has(p.id) || new Date(p.created_at).getTime() < oldestFresh);
+      return mergeById(kept, fresh).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
   }, []);
 
   const loadOlderMessages = useCallback(async () => {
@@ -275,6 +278,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", activeId)
+      .eq("is_deleted", false)
       .lt("created_at", oldest)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
