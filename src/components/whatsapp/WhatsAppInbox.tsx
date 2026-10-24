@@ -55,7 +55,9 @@ interface Message {
   retries?: number | null;
   retry_of_message_id?: string | null;
   created_at: string;
-
+  edited_at?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
 }
 
 interface QuickReply { id: string; shortcut: string; title: string; body: string }
@@ -158,6 +160,11 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
   const [docDialog, setDocDialog] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef(0);
 
@@ -227,7 +234,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   }, [convPage, fetchConversationPage, hasMoreConvs, loadingMoreConvs]);
 
   const MESSAGE_COLUMNS =
-    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at";
+    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at, edited_at, is_deleted, deleted_at";
 
   /** Loads the most recent page of a conversation; older messages load on demand. */
   const loadMessages = useCallback(async (conversationId: string) => {
