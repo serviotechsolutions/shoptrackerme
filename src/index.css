@@ -145,9 +145,9 @@ All colors MUST be HSL.
   .toolbar-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
   .chart-box { width: 100%; min-width: 0; overflow: hidden; }
   .auto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
-  .dialog-surface { max-width: calc(100vw - 1.5rem); max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
+  .dialog-surface { width: calc(100% - 1.5rem); max-width: calc(100vw - 1.5rem); max-height: 90dvh; overflow-y: auto; overscroll-behavior: contain; }
   .dialog-surface > * { min-width: 0; }
-  .dialog-actions { position: sticky; bottom: -1.5rem; z-index: 1; background: hsl(var(--background)); padding-block: 0.75rem; }
+  .dialog-actions { position: sticky; bottom: 0; z-index: 1; background: hsl(var(--background)); padding-block: 0.75rem; }
   .app-content [class*="overflow-x-auto"] { max-width: 100%; min-width: 0; overscroll-behavior-x: contain; }
   .app-content table:not(#receipt-print-area table) th { position: sticky; top: 0; z-index: 1; background: hsl(var(--card)); }
 }

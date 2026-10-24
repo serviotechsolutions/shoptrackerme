@@ -252,8 +252,8 @@ const StockPredictions = () => {
               className="pl-9"
             />
           </div>
-          <Tabs value={String(period)} onValueChange={v => setPeriod(Number(v) as Period)}>
-            <TabsList>
+          <Tabs className="min-w-0" value={String(period)} onValueChange={v => setPeriod(Number(v) as Period)}>
+            <TabsList className="scroll-rail justify-start">
               {PERIODS.map(d => <TabsTrigger key={d} value={String(d)}>{d}d</TabsTrigger>)}
             </TabsList>
           </Tabs>

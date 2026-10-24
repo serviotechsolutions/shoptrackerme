@@ -437,7 +437,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const labels: string[] = Array.isArray(active?.labels) ? (active!.labels as string[]) : [];
 
   return (
-    <div className="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(13rem,28%)_minmax(0,1fr)] xl:grid-cols-[minmax(13rem,25%)_minmax(0,1fr)_minmax(14rem,23%)] gap-3 h-[calc(100dvh-16rem)] min-h-[420px]">
+    <div className="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(13rem,28%)_minmax(0,1fr)] xl:grid-cols-[minmax(13rem,25%)_minmax(0,1fr)_minmax(14rem,23%)] gap-3 h-[max(20rem,calc(100dvh-16rem))] md:min-h-[420px]">
       {/* Conversation list */}
       <Card className={`overflow-hidden flex flex-col ${activeId ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 space-y-2 border-b">
@@ -475,7 +475,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   <div className="flex items-center gap-1">
                     <span className="font-medium text-sm truncate flex-1">{c.display_name || c.phone}</span>
                     {c.is_pinned && <Pin className="h-3 w-3 text-muted-foreground" />}
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">{timeLabel(c.last_message_at)}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{timeLabel(c.last_message_at)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-muted-foreground truncate flex-1">
@@ -571,14 +571,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                     >
                       <MediaBubble message={m} />
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-                      <div className={`flex items-center gap-1 justify-end mt-1 text-[10px] ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
+                      <div className={`flex flex-wrap items-center gap-1 justify-end mt-1 text-xs ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
                         {m.retry_of_message_id && <span className="opacity-80">resent</span>}
                         {m.is_starred && <Star className="h-3 w-3 fill-current" />}
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {m.direction === "out" && <TickIcon status={m.status} />}
                       </div>
                       {m.error_message && (
-                        <p className="text-[10px] text-destructive mt-1">
+                        <p className="text-xs text-destructive mt-1">
                           {m.error_code ? `[${m.error_code}] ` : ""}{m.error_message}
                         </p>
                       )}
@@ -593,7 +593,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                               : <RefreshCw className="mr-1 h-3 w-3" />}
                             Retry
                           </Button>
-                          {!!m.retries && <span className="text-[10px] opacity-80">{m.retries} attempt{m.retries > 1 ? "s" : ""}</span>}
+                          {!!m.retries && <span className="text-xs opacity-80">{m.retries} attempt{m.retries > 1 ? "s" : ""}</span>}
                         </div>
                       )}
                     </div>

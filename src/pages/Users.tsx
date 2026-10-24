@@ -281,7 +281,7 @@ const Users = () => {
                       {u.id !== user?.id && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                            <Button variant="ghost" size="icon" aria-label="Remove team member" className="text-destructive hover:text-destructive">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
@@ -337,10 +337,10 @@ const Users = () => {
                     <TableCell>
                       {inv.status === 'pending' && (
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" title="Resend invitation" onClick={() => handleResendInvitation(inv)}>
+                          <Button variant="ghost" size="icon" aria-label="Resend invitation" title="Resend invitation" onClick={() => handleResendInvitation(inv)}>
                             <Send className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
+                          <Button variant="ghost" size="icon" aria-label="Delete invitation" className="text-destructive hover:text-destructive" onClick={() => handleDeleteInvitation(inv.id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
