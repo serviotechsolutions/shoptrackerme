@@ -1786,14 +1786,17 @@ export type Database = {
           conversation_id: string | null
           created_at: string
           customer_id: string | null
+          deleted_at: string | null
           delivered_at: string | null
           direction: string
+          edited_at: string | null
           error_code: string | null
           error_message: string | null
           failed_at: string | null
           graph_http_status: number | null
           graph_response_json: Json | null
           id: string
+          is_deleted: boolean
           is_starred: boolean
           media_filename: string | null
           media_id: string | null
@@ -1826,14 +1829,17 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
           delivered_at?: string | null
           direction?: string
+          edited_at?: string | null
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
           graph_http_status?: number | null
           graph_response_json?: Json | null
           id?: string
+          is_deleted?: boolean
           is_starred?: boolean
           media_filename?: string | null
           media_id?: string | null
@@ -1866,14 +1872,17 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
+          deleted_at?: string | null
           delivered_at?: string | null
           direction?: string
+          edited_at?: string | null
           error_code?: string | null
           error_message?: string | null
           failed_at?: string | null
           graph_http_status?: number | null
           graph_response_json?: Json | null
           id?: string
+          is_deleted?: boolean
           is_starred?: boolean
           media_filename?: string | null
           media_id?: string | null

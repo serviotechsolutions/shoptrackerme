@@ -55,7 +55,9 @@ interface Message {
   retries?: number | null;
   retry_of_message_id?: string | null;
   created_at: string;
-
+  edited_at?: string | null;
+  is_deleted?: boolean;
+  deleted_at?: string | null;
 }
 
 interface QuickReply { id: string; shortcut: string; title: string; body: string }
@@ -158,6 +160,11 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
   const [docDialog, setDocDialog] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef(0);
 
@@ -227,13 +234,14 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   }, [convPage, fetchConversationPage, hasMoreConvs, loadingMoreConvs]);
 
   const MESSAGE_COLUMNS =
-    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at";
+    "id, conversation_id, direction, body, media_url, media_kind, media_filename, status, is_starred, message_type, error_message, error_code, retries, retry_of_message_id, created_at, edited_at, is_deleted, deleted_at";
 
   /** Loads the most recent page of a conversation; older messages load on demand. */
   const loadMessages = useCallback(async (conversationId: string) => {
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", conversationId)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
     const rows = ((data || []) as Message[]).slice().reverse();
@@ -249,11 +257,18 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", conversationId)
+      .eq("is_deleted", false)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
     const fresh = ((data || []) as Message[]).slice().reverse();
-    setMessages((prev) => mergeById(prev, fresh).sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+    // Merge updates and drop messages deleted since the last sync (older loaded pages are kept).
+    setMessages((prev) => {
+      const freshIds = new Set(fresh.map((f) => f.id));
+      const oldestFresh = fresh[0] ? new Date(fresh[0].created_at).getTime() : 0;
+      const kept = prev.filter((p) => freshIds.has(p.id) || new Date(p.created_at).getTime() < oldestFresh);
+      return mergeById(kept, fresh).sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
   }, []);
 
   const loadOlderMessages = useCallback(async () => {
@@ -263,6 +278,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     const { data } = await supabase.from("whatsapp_messages")
       .select(MESSAGE_COLUMNS)
       .eq("conversation_id", activeId)
+      .eq("is_deleted", false)
       .lt("created_at", oldest)
       .order("created_at", { ascending: false })
       .limit(MSG_PAGE);
