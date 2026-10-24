@@ -979,7 +979,7 @@ const POS = () => {
                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/placeholder.svg"; }}
                       />
                       {product.stock <= product.low_stock_threshold && (
-                        <Badge variant="destructive" className="absolute top-1.5 right-1.5 text-[10px] px-1.5 py-0.5">
+                        <Badge variant="destructive" className="absolute top-1.5 right-1.5 text-xs px-1.5 py-0.5">
                           {product.stock} left
                         </Badge>
                       )}
@@ -997,7 +997,7 @@ const POS = () => {
                           <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(product.buying_price)}</span>
                         )}
                       </p>
-                      <p className="text-[10px] text-muted-foreground mb-2">{product.stock} in stock</p>
+                      <p className="text-xs text-muted-foreground mb-2">{product.stock} in stock</p>
 
                       <Button
                         onClick={(e) => { e.stopPropagation(); addToCart(product); }}
@@ -1029,15 +1029,15 @@ const POS = () => {
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center min-w-0">
                   <p className="text-sm font-bold text-primary truncate">{formatCurrency(quickStats.salesToday)}</p>
-                  <p className="text-[10px] text-muted-foreground">Revenue</p>
+                  <p className="text-xs text-muted-foreground">Revenue</p>
                 </div>
                 <div className="text-center min-w-0">
                   <p className="text-sm font-bold">{quickStats.transactionsToday}</p>
-                  <p className="text-[10px] text-muted-foreground">Sales</p>
+                  <p className="text-xs text-muted-foreground">Sales</p>
                 </div>
                 <div className="text-center min-w-0">
                   <p className="text-xs font-bold truncate">{quickStats.topItem}</p>
-                  <p className="text-[10px] text-muted-foreground">Top Item</p>
+                  <p className="text-xs text-muted-foreground">Top Item</p>
                 </div>
               </div>
             </div>

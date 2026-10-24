@@ -739,7 +739,7 @@ const GoodsReceivedNotes = () => {
 
       {/* Create GRN dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Goods Received Note</DialogTitle>
             <DialogDescription>Record what was actually delivered. Stock updates only after approval.</DialogDescription>
@@ -808,12 +808,12 @@ const GoodsReceivedNotes = () => {
                         </div>
                         <div className="grid grid-cols-12 gap-2">
                           <div className="col-span-6 sm:col-span-3">
-                            <Label className="text-[10px]">Received now</Label>
+                            <Label className="text-xs">Received now</Label>
                             <Input type="number" min={0} value={it.received_quantity}
                               onChange={e => updateItem(i, { received_quantity: Number(e.target.value) })} />
                           </div>
                           <div className="col-span-6 sm:col-span-3">
-                            <Label className="text-[10px]">Unit cost</Label>
+                            <Label className="text-xs">Unit cost</Label>
                             <Input type="number" min={0} value={it.unit_cost}
                               onChange={e => updateItem(i, { unit_cost: Number(e.target.value) })} />
                           </div>
@@ -875,7 +875,7 @@ const GoodsReceivedNotes = () => {
 
       {/* View GRN dialog */}
       <Dialog open={!!viewing} onOpenChange={v => !v && setViewing(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto print:max-w-none print:shadow-none">
+        <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto print:max-w-none print:shadow-none">
           {viewing && (
             <>
               <DialogHeader>
@@ -974,7 +974,7 @@ const GoodsReceivedNotes = () => {
 
       {/* Add-to-catalogue prompt after approval */}
       <Dialog open={catalogueOfferOpen} onOpenChange={setCatalogueOfferOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add items to supplier catalogue?</DialogTitle>
             <DialogDescription>
@@ -991,20 +991,20 @@ const GoodsReceivedNotes = () => {
                   />
                 </div>
                 <div className="col-span-11 sm:col-span-4">
-                  <Label className="text-[10px]">Product</Label>
+                  <Label className="text-xs">Product</Label>
                   <Input value={it.name} readOnly className="bg-muted/40 h-9" />
                 </div>
-                <div className="col-span-4 sm:col-span-2">
-                  <Label className="text-[10px]">Unit</Label>
+                <div className="col-span-12 sm:col-span-2">
+                  <Label className="text-xs">Unit</Label>
                   <Input value={it.unit} onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit: e.target.value } : x))} className="h-9" />
                 </div>
-                <div className="col-span-4 sm:col-span-2">
-                  <Label className="text-[10px]">Unit cost</Label>
+                <div className="col-span-12 sm:col-span-2">
+                  <Label className="text-xs">Unit cost</Label>
                   <Input type="number" min={0.01} step="0.01" value={it.unit_cost}
                     onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, unit_cost: Number(e.target.value) } : x))} className="h-9" />
                 </div>
-                <div className="col-span-4 sm:col-span-3">
-                  <Label className="text-[10px]">Min order (optional)</Label>
+                <div className="col-span-12 sm:col-span-3">
+                  <Label className="text-xs">Min order (optional)</Label>
                   <Input type="number" min={0} value={it.min_order_qty}
                     onChange={e => setCatalogueOfferItems(arr => arr.map((x, idx) => idx === i ? { ...x, min_order_qty: e.target.value } : x))} className="h-9" />
                 </div>

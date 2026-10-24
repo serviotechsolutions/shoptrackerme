@@ -700,7 +700,7 @@ const PromoCodes = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Revenue</p>
-                <p className="text-lg font-bold truncate">{formatCurrency(totalRevenue)}</p>
+                <p className="text-lg font-bold [overflow-wrap:anywhere]">{formatCurrency(totalRevenue)}</p>
               </div>
             </CardContent>
           </Card>
@@ -740,7 +740,7 @@ const PromoCodes = () => {
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Button variant="ghost" size="icon" aria-label="Promo code actions">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -852,7 +852,7 @@ const PromoCodes = () => {
                             <TableCell className="text-right">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Button variant="ghost" size="icon" aria-label="Promo code actions">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -965,7 +965,7 @@ const PromoCodes = () => {
                 <Button type="button" variant="outline" size="sm" onClick={() => setCode(generateCode())}>Generate</Button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Discount Type</Label>
                 <Select value={discountType} onValueChange={setDiscountType}>
@@ -981,7 +981,7 @@ const PromoCodes = () => {
                 <Input id="discount_value" type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder={discountType === 'percentage' ? '10' : '5000'} min="0" max={discountType === 'percentage' ? '100' : undefined} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="valid_until">Expires On (Optional)</Label>
                 <Input id="valid_until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
@@ -1011,7 +1011,7 @@ const PromoCodes = () => {
             <DialogDescription>Create multiple codes at once with the same discount settings</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="bulk_count">Number of Codes</Label>
                 <Input id="bulk_count" type="number" value={bulkCount} onChange={(e) => setBulkCount(e.target.value)} min="1" max="100" required />
@@ -1021,7 +1021,7 @@ const PromoCodes = () => {
                 <Input id="bulk_prefix" value={bulkPrefix} onChange={(e) => setBulkPrefix(e.target.value.toUpperCase())} placeholder="e.g. SALE" className="font-mono uppercase" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Discount Type</Label>
                 <Select value={bulkDiscountType} onValueChange={setBulkDiscountType}>
@@ -1037,7 +1037,7 @@ const PromoCodes = () => {
                 <Input id="bulk_discount_value" type="number" value={bulkDiscountValue} onChange={(e) => setBulkDiscountValue(e.target.value)} placeholder={bulkDiscountType === 'percentage' ? '10' : '5000'} min="0" max={bulkDiscountType === 'percentage' ? '100' : undefined} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="bulk_valid_until">Expires On (Optional)</Label>
                 <Input id="bulk_valid_until" type="date" value={bulkValidUntil} onChange={(e) => setBulkValidUntil(e.target.value)} />
