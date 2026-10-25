@@ -443,6 +443,11 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     if (!editingMessage || !active) return;
     const text = editBody.trim();
     if (!text || text === editingMessage.body) { setEditingMessage(null); return; }
+    if (Date.now() - new Date(editingMessage.created_at).getTime() >= 60_000) {
+      toast({ title: "Edit time expired", description: "Messages can only be edited within 1 minute of sending.", variant: "destructive" });
+      setEditingMessage(null);
+      return;
+    }
     setSavingEdit(true);
     const { error } = await supabase.from("whatsapp_messages")
       .update({ body: text, edited_at: new Date().toISOString() })
@@ -634,7 +639,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                         <DropdownMenuItem onClick={() => toggleStar(m)}>
                           <Star className="mr-2 h-4 w-4" />{m.is_starred ? "Unstar" : "Star"}
                         </DropdownMenuItem>
-                        {m.direction === "out" && m.body && !m.media_url && (
+                        {m.direction === "out" && m.body && !m.media_url && Date.now() - new Date(m.created_at).getTime() < 60_000 && (
                           <DropdownMenuItem onClick={() => { setEditingMessage(m); setEditBody(m.body || ""); }}>
                             <Pencil className="mr-2 h-4 w-4" />Edit
                           </DropdownMenuItem>

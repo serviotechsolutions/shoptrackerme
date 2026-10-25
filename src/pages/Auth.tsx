@@ -203,7 +203,11 @@ const Auth = () => {
                 <div className="text-right">
                   <button
                     type="button"
-                    onClick={() => setForgotOpen(true)}
+                    onClick={() => {
+                      const typed = (document.getElementById('login-email') as HTMLInputElement | null)?.value;
+                      if (typed) setForgotEmail(typed);
+                      setForgotOpen(true);
+                    }}
                     className="text-sm text-primary hover:underline"
                   >
                     Forgot password?
