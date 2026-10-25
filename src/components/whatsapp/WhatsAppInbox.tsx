@@ -443,11 +443,6 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     if (!editingMessage || !active) return;
     const text = editBody.trim();
     if (!text || text === editingMessage.body) { setEditingMessage(null); return; }
-    if (Date.now() - new Date(editingMessage.created_at).getTime() >= 60_000) {
-      toast({ title: "Edit time expired", description: "Messages can only be edited within 1 minute of sending.", variant: "destructive" });
-      setEditingMessage(null);
-      return;
-    }
     setSavingEdit(true);
     const { error } = await supabase.from("whatsapp_messages")
       .update({ body: text, edited_at: new Date().toISOString() })
