@@ -18,7 +18,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Send, Search, Pin, Archive, Ban, Star, MoreVertical, ArrowLeft, User, Package,
   Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap, FileText,
+  Pencil, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
 import SendDocumentDialog from "@/components/whatsapp/SendDocumentDialog";
 
@@ -433,6 +438,42 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
     if (active) loadMessages(active.id);
   };
 
+  /** Edits the shop's own record of a sent message. WhatsApp cannot change what was already delivered. */
+  const saveEdit = async () => {
+    if (!editingMessage || !active) return;
+    const text = editBody.trim();
+    if (!text || text === editingMessage.body) { setEditingMessage(null); return; }
+    setSavingEdit(true);
+    const { error } = await supabase.from("whatsapp_messages")
+      .update({ body: text, edited_at: new Date().toISOString() })
+      .eq("id", editingMessage.id);
+    setSavingEdit(false);
+    if (error) { toast({ title: "Edit failed", description: error.message, variant: "destructive" }); return; }
+    setEditingMessage(null);
+    await loadMessages(active.id);
+    await refreshConversations();
+  };
+
+  /** Soft-deletes a message from the inbox view; the row stays in the database for the audit trail. */
+  const confirmDelete = async () => {
+    if (!deletingMessage || !active) return;
+    setDeleting(true);
+    const { error } = await supabase.from("whatsapp_messages")
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+      .eq("id", deletingMessage.id);
+    setDeleting(false);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    const wasLast = messages[messages.length - 1]?.id === deletingMessage.id;
+    setDeletingMessage(null);
+    if (wasLast) {
+      await supabase.from("whatsapp_conversations")
+        .update({ last_message_preview: "Message deleted" })
+        .eq("id", active.id);
+    }
+    await loadMessages(active.id);
+    await refreshConversations();
+  };
+
   const toggleLabel = async (label: string) => {
     if (!active) return;
     const current: string[] = Array.isArray(active.labels) ? active.labels : [];
@@ -578,7 +619,34 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   </div>
                 )}
                 {messages.map((m) => (
-                  <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                  <div key={m.id} className={`group flex items-start gap-1 ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon" variant="ghost"
+                          className={`h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity ${m.direction === "out" ? "order-2" : ""}`}
+                          aria-label="Message actions"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={m.direction === "out" ? "end" : "start"}>
+                        <DropdownMenuItem onClick={() => toggleStar(m)}>
+                          <Star className="mr-2 h-4 w-4" />{m.is_starred ? "Unstar" : "Star"}
+                        </DropdownMenuItem>
+                        {m.direction === "out" && m.body && !m.media_url && (
+                          <DropdownMenuItem onClick={() => { setEditingMessage(m); setEditBody(m.body || ""); }}>
+                            <Pencil className="mr-2 h-4 w-4" />Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeletingMessage(m)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <div
                       onDoubleClick={() => toggleStar(m)}
                       className={`min-w-0 max-w-[85%] sm:max-w-[80%] [overflow-wrap:anywhere] rounded-lg px-3 py-2 text-sm shadow-sm ${
@@ -589,6 +657,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                       <div className={`flex flex-wrap items-center gap-1 justify-end mt-1 text-xs ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
                         {m.retry_of_message_id && <span className="opacity-80">resent</span>}
+                        {m.edited_at && <span className="opacity-80 italic">edited</span>}
                         {m.is_starred && <Star className="h-3 w-3 fill-current" />}
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {m.direction === "out" && <TickIcon status={m.status} />}
@@ -692,6 +761,57 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
           onSent={() => { loadMessages(active.id); refreshConversations(); }}
         />
       )}
+
+      {/* Edit message */}
+      <Dialog open={!!editingMessage} onOpenChange={(open) => { if (!open) setEditingMessage(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit message</DialogTitle>
+            <DialogDescription>
+              This updates the message in your shop's chat record. WhatsApp cannot change the message already delivered to the customer's phone.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={4}
+            className="resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingMessage(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={savingEdit || !editBody.trim()}>
+              {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete message */}
+      <AlertDialog open={!!deletingMessage} onOpenChange={(open) => { if (!open) setDeletingMessage(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingMessage?.direction === "out"
+                ? "It will be removed from this chat view. WhatsApp cannot remove it from the customer's phone if it was already delivered."
+                : "It will be removed from this chat view."}
+              {" "}The record is kept in your message history for auditing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Product picker */}
 
