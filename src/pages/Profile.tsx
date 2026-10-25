@@ -216,7 +216,7 @@ const Profile = () => {
             </div>
 
             {/* Profile Fields */}
-            <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="full_name">Full Name</Label>
                 <Input
