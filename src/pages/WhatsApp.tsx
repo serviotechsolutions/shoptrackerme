@@ -271,7 +271,7 @@ export default function WhatsApp() {
           <h1 className="text-xl font-bold">WhatsApp</h1>
         </div>
 
-        <div className="grid gap-3 grid-cols-2">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Sent today</div><div className="text-2xl font-bold">{stats.today}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Delivered today</div><div className="text-2xl font-bold text-green-600">{stats.todayDelivered}</div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="text-xs text-muted-foreground">Failed today</div><div className="text-2xl font-bold text-red-600">{stats.todayFailed}</div></CardContent></Card>
