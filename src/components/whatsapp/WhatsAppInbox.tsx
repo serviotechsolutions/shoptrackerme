@@ -619,7 +619,34 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                   </div>
                 )}
                 {messages.map((m) => (
-                  <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                  <div key={m.id} className={`group flex items-start gap-1 ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon" variant="ghost"
+                          className={`h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity ${m.direction === "out" ? "order-2" : ""}`}
+                          aria-label="Message actions"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align={m.direction === "out" ? "end" : "start"}>
+                        <DropdownMenuItem onClick={() => toggleStar(m)}>
+                          <Star className="mr-2 h-4 w-4" />{m.is_starred ? "Unstar" : "Star"}
+                        </DropdownMenuItem>
+                        {m.direction === "out" && m.body && !m.media_url && (
+                          <DropdownMenuItem onClick={() => { setEditingMessage(m); setEditBody(m.body || ""); }}>
+                            <Pencil className="mr-2 h-4 w-4" />Edit
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeletingMessage(m)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <div
                       onDoubleClick={() => toggleStar(m)}
                       className={`min-w-0 max-w-[85%] sm:max-w-[80%] [overflow-wrap:anywhere] rounded-lg px-3 py-2 text-sm shadow-sm ${
@@ -630,6 +657,7 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
                       {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                       <div className={`flex flex-wrap items-center gap-1 justify-end mt-1 text-xs ${m.direction === "out" ? "opacity-80" : "text-muted-foreground"}`}>
                         {m.retry_of_message_id && <span className="opacity-80">resent</span>}
+                        {m.edited_at && <span className="opacity-80 italic">edited</span>}
                         {m.is_starred && <Star className="h-3 w-3 fill-current" />}
                         <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         {m.direction === "out" && <TickIcon status={m.status} />}
