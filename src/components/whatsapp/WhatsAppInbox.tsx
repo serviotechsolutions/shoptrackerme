@@ -762,6 +762,57 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
         />
       )}
 
+      {/* Edit message */}
+      <Dialog open={!!editingMessage} onOpenChange={(open) => { if (!open) setEditingMessage(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit message</DialogTitle>
+            <DialogDescription>
+              This updates the message in your shop's chat record. WhatsApp cannot change the message already delivered to the customer's phone.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={4}
+            className="resize-none"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditingMessage(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={savingEdit || !editBody.trim()}>
+              {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete message */}
+      <AlertDialog open={!!deletingMessage} onOpenChange={(open) => { if (!open) setDeletingMessage(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingMessage?.direction === "out"
+                ? "It will be removed from this chat view. WhatsApp cannot remove it from the customer's phone if it was already delivered."
+                : "It will be removed from this chat view."}
+              {" "}The record is kept in your message history for auditing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Product picker */}
 
       <Dialog open={productPicker} onOpenChange={setProductPicker}>
