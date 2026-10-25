@@ -18,7 +18,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Send, Search, Pin, Archive, Ban, Star, MoreVertical, ArrowLeft, User, Package,
   Paperclip, StickyNote, Check, CheckCheck, Clock, AlertCircle, MessageCircle, RefreshCw, Zap, FileText,
+  Pencil, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Link } from "react-router-dom";
 import SendDocumentDialog from "@/components/whatsapp/SendDocumentDialog";
 
@@ -431,6 +436,42 @@ export default function WhatsAppInbox({ initialConversationId }: { initialConver
   const toggleStar = async (m: Message) => {
     await supabase.from("whatsapp_messages").update({ is_starred: !m.is_starred }).eq("id", m.id);
     if (active) loadMessages(active.id);
+  };
+
+  /** Edits the shop's own record of a sent message. WhatsApp cannot change what was already delivered. */
+  const saveEdit = async () => {
+    if (!editingMessage || !active) return;
+    const text = editBody.trim();
+    if (!text || text === editingMessage.body) { setEditingMessage(null); return; }
+    setSavingEdit(true);
+    const { error } = await supabase.from("whatsapp_messages")
+      .update({ body: text, edited_at: new Date().toISOString() })
+      .eq("id", editingMessage.id);
+    setSavingEdit(false);
+    if (error) { toast({ title: "Edit failed", description: error.message, variant: "destructive" }); return; }
+    setEditingMessage(null);
+    await loadMessages(active.id);
+    await refreshConversations();
+  };
+
+  /** Soft-deletes a message from the inbox view; the row stays in the database for the audit trail. */
+  const confirmDelete = async () => {
+    if (!deletingMessage || !active) return;
+    setDeleting(true);
+    const { error } = await supabase.from("whatsapp_messages")
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+      .eq("id", deletingMessage.id);
+    setDeleting(false);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    const wasLast = messages[messages.length - 1]?.id === deletingMessage.id;
+    setDeletingMessage(null);
+    if (wasLast) {
+      await supabase.from("whatsapp_conversations")
+        .update({ last_message_preview: "Message deleted" })
+        .eq("id", active.id);
+    }
+    await loadMessages(active.id);
+    await refreshConversations();
   };
 
   const toggleLabel = async (label: string) => {
