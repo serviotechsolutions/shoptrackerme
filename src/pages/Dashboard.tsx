@@ -174,24 +174,24 @@ const Dashboard = () => {
         )}
 
         {/* Stats Grid */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-4">
+          <Card className="py-4 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4">
               <CardTitle className="text-sm font-medium">Total Products</CardTitle>
               <Package className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4">
               <div className="text-lg font-bold">{stats.totalProducts}</div>
               <p className="text-xs text-muted-foreground">{stats.totalStock} items in stock</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-4 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4">
               <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
               <ShoppingCart className="h-4 w-4 text-primary" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4">
               <div className="text-lg font-bold">{formatCurrency(stats.todaySales)}</div>
               <div className="flex items-center gap-1">
                 <ChangeIndicator current={stats.todaySales} previous={stats.yesterdaySales} />
@@ -200,12 +200,12 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-4 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4">
               <CardTitle className="text-sm font-medium">Today's Profit</CardTitle>
               <TrendingUp className="h-4 w-4 text-success" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4">
               <div className="text-lg font-bold text-success">{formatCurrency(stats.todayProfit)}</div>
               <div className="flex items-center gap-1">
                 <ChangeIndicator current={stats.todayProfit} previous={stats.yesterdayProfit} />
@@ -214,12 +214,12 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <Card className="py-4 hover:shadow-lg transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4">
               <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4">
               <div className="text-lg font-bold text-destructive">{stats.lowStockCount}</div>
               <p className="text-xs text-muted-foreground">Items need restocking</p>
             </CardContent>
