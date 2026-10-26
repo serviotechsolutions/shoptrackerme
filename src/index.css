@@ -43,6 +43,10 @@ All colors MUST be HSL.
     /* Success color for profit indicators */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    --violet: 265 85% 62%;
+    --teal: 180 70% 40%;
 
     --overlay: 0 0% 0%;
 
@@ -87,6 +91,10 @@ All colors MUST be HSL.
     
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    --violet: 265 85% 62%;
+    --teal: 180 70% 40%;
 
     --sidebar-background: 220 13% 16%;
     --sidebar-foreground: 0 0% 98%;
