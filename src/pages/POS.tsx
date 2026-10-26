@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import WhatsAppSendDialog from "@/components/WhatsAppSendDialog";
 import type { ReceiptData } from "@/lib/whatsapp";
+import { getPOSUnitPrice } from "@/lib/posPricing";
 
 interface Product {
   id: string;
@@ -247,7 +248,7 @@ const POS = () => {
       }
       setCart(cart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      setCart([...cart, { ...product, selling_price: product.selling_price > 0 ? product.selling_price : costOf(product), quantity: 1 }]);
+      setCart([...cart, { ...product, selling_price: getPOSUnitPrice(product), quantity: 1 }]);
     }
     setSearchTerm("");
   };
@@ -294,7 +295,7 @@ const POS = () => {
       if (addQty <= 0) { notes.push(`${product.name} has no more stock available`); continue; }
       if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available in stock`);
 
-      const defaultPrice = product.selling_price > 0 ? product.selling_price : costOf(product);
+      const defaultPrice = getPOSUnitPrice(product);
       let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
       if (it.unitPrice != null && !isAdmin && it.unitPrice < costOf(product)) {
         price = costOf(product);
@@ -440,7 +441,7 @@ const POS = () => {
       const addQty = Math.min(it.quantity, Math.max(0, product.stock - currentQty));
       if (addQty <= 0) { notes.push(`${product.name} is out of stock`); continue; }
       if (addQty < it.quantity) notes.push(`Only ${addQty} ${product.name} available`);
-      const defaultPrice = product.selling_price > 0 ? product.selling_price : costOf(product);
+      const defaultPrice = getPOSUnitPrice(product);
       let price = it.unitPrice ?? (existing ? existing.selling_price : defaultPrice);
       if (it.unitPrice != null && !isAdmin && it.unitPrice < costOf(product)) {
         price = costOf(product);
@@ -993,8 +994,8 @@ const POS = () => {
                     <div className="p-2.5 sm:p-3">
                       <h3 title={product.name} className="font-semibold text-xs sm:text-sm line-clamp-2 leading-tight mb-1 min-h-8">{product.name}</h3>
                       <p className="text-sm sm:text-base font-bold text-primary">
-                        {product.selling_price > 0 ? formatCurrency(product.selling_price) : (
-                          <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(product.buying_price)}</span>
+                        {product.selling_price > 0 ? formatCurrency(getPOSUnitPrice(product)) : (
+                          <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(getPOSUnitPrice(product))}</span>
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground mb-2">{product.stock} in stock</p>
