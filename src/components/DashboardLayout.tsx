@@ -238,7 +238,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </aside>
 
         {/* Main Content */}
-        <main className="app-content flex-1 p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-24">
+        <main className="app-content flex-1 p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
           {children}
         </main>
       </div>

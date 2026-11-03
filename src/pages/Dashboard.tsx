@@ -21,14 +21,6 @@ type Sale = { id: string; created_at: string; customer_name: string | null; tota
 type Notif = { id: string; title: string; message: string; type: string; created_at: string; link: string | null };
 type Range = '7D' | '30D' | '12M';
 
-const tones = {
-  blue: { card: 'from-primary/25 to-primary/5 border-primary/40', icon: 'bg-primary text-primary-foreground', stroke: 'hsl(var(--primary))' },
-  green: { card: 'from-success/25 to-success/5 border-success/40', icon: 'bg-success text-success-foreground', stroke: 'hsl(var(--success))' },
-  violet: { card: 'from-violet/25 to-violet/5 border-violet/40', icon: 'bg-violet text-primary-foreground', stroke: 'hsl(var(--violet))' },
-  amber: { card: 'from-warning/25 to-warning/5 border-warning/40', icon: 'bg-warning text-primary-foreground', stroke: 'hsl(var(--warning))' },
-  red: { card: 'from-destructive/25 to-destructive/5 border-destructive/40', icon: 'bg-destructive text-destructive-foreground', stroke: 'hsl(var(--destructive))' },
-  teal: { card: 'from-teal/25 to-teal/5 border-teal/40', icon: 'bg-teal text-primary-foreground', stroke: 'hsl(var(--teal))' },
-};
 
 const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString('en-US')}`;
 const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : `${Math.round(n)}`);
@@ -215,13 +207,22 @@ const Dashboard = () => {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const stats = [
-    { tone: 'blue', icon: Package, title: 'Total Products', value: String(d.total), sub: <span className="text-sm font-medium text-success"><ArrowUp className="inline h-3.5 w-3.5" /> {d.newThisMonth} new this month</span>, to: '/products', link: 'View all' },
-    { tone: 'green', icon: DollarSign, title: "Today's Sales", value: fmt(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
-    { tone: 'violet', icon: CircleDollarSign, title: "Today's Profit", value: fmt(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
-    { tone: 'amber', icon: ClipboardList, title: 'Orders Today', value: String(d.ordersToday), sub: <span className="text-xs text-muted-foreground"><span className={d.ordersDiff >= 0 ? 'text-warning' : 'text-destructive'}>{d.ordersDiff >= 0 ? '↑' : '↓'} {Math.abs(d.ordersDiff)}</span> vs yesterday</span>, to: '/sales', link: 'View orders', spark: d.spark.orders },
-    { tone: 'red', icon: AlertTriangle, title: 'Low Stock Alerts', value: String(d.needs.length), sub: <span className="text-xs text-muted-foreground">Items need restocking</span>, to: '/stock-predictions', link: 'View items' },
-    { tone: 'teal', icon: Star, title: 'Top Product', value: d.top?.[0] || '—', sub: <span className="text-xs text-info">{d.top ? `${d.top[1]} sold today` : 'No sales yet today'}</span>, to: '/products', link: 'View products', image: d.topImage, small: true },
+    { icon: Package, title: 'Total Products', value: String(d.total), sub: <span className="text-sm font-medium text-success"><ArrowUp className="inline h-3.5 w-3.5" /> {d.newThisMonth} new this month</span>, to: '/products', link: 'View all' },
+    { icon: DollarSign, title: "Today's Sales", value: fmt(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
+    { icon: CircleDollarSign, title: "Today's Profit", value: fmt(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
+    { icon: ClipboardList, title: 'Orders Today', value: String(d.ordersToday), sub: <span className="text-xs text-muted-foreground"><span className={d.ordersDiff >= 0 ? 'text-success' : 'text-destructive'}>{d.ordersDiff >= 0 ? '↑' : '↓'} {Math.abs(d.ordersDiff)}</span> vs yesterday</span>, to: '/sales', link: 'View orders', spark: d.spark.orders },
+    { icon: AlertTriangle, title: 'Low Stock Alerts', value: String(d.needs.length), sub: <span className="text-xs text-muted-foreground">Items need restocking</span>, to: '/stock-predictions', link: 'View items' },
+    { icon: Star, title: 'Top Product', value: d.top?.[0] || '—', sub: <span className="text-xs text-muted-foreground">{d.top ? `${d.top[1]} sold today` : 'No sales yet today'}</span>, to: '/products', link: 'View products', image: d.topImage, small: true },
   ] as const;
+
+  const quickActions = [
+    { to: '/pos', icon: ShoppingCart, label: 'Record Sale', desc: 'Open the point of sale' },
+    { to: '/products', icon: Package, label: 'Add Product', desc: 'Add a new item to stock' },
+    { to: '/reports', icon: BarChart3, label: 'Reports', desc: 'Sales and profit reports' },
+    { to: '/customers', icon: Users, label: 'Customers', desc: 'Manage your customers' },
+    { to: '/payments', icon: Wallet, label: 'Add Expense', desc: 'Record a payment or expense' },
+    { to: '/products', icon: CircleDollarSign, label: 'Manage Products', desc: 'Edit prices and stock' },
+  ];
 
   const inv = [
     { name: 'Good', value: d.good, color: 'hsl(var(--success))', dot: 'bg-success' },
@@ -230,10 +231,10 @@ const Dashboard = () => {
   ];
 
   const summary = [
-    { icon: Receipt, label: 'Revenue', value: fmt(d.wRev), color: 'text-primary', bg: 'bg-primary/15 text-primary', ch: pct(d.wRev, d.lwRev) },
-    { icon: Wallet, label: 'Cost', value: fmt(d.wRev - d.wProfit), color: 'text-destructive', bg: 'bg-destructive/15 text-destructive', ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
-    { icon: TrendingUp, label: 'Profit', value: fmt(d.wProfit), color: 'text-success', bg: 'bg-success/15 text-success', ch: pct(d.wProfit, d.lwProfit) },
-    { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, color: 'text-success', bg: 'bg-success/15 text-success', ch: d.margin - d.lwMargin },
+    { icon: Receipt, label: 'Revenue', value: fmt(d.wRev), ch: pct(d.wRev, d.lwRev) },
+    { icon: Wallet, label: 'Cost', value: fmt(d.wRev - d.wProfit), ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
+    { icon: TrendingUp, label: 'Profit', value: fmt(d.wProfit), ch: pct(d.wProfit, d.lwProfit) },
+    { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, ch: d.margin - d.lwMargin },
   ];
 
   const notifIcon = (t: string) => t.includes('stock') ? <AlertTriangle className="h-4 w-4 text-warning" /> : t.includes('sale') ? <TrendingUp className="h-4 w-4 text-success" /> : t.includes('payment') ? <CircleDollarSign className="h-4 w-4 text-success" /> : <Bell className="h-4 w-4 text-info" />;
@@ -261,12 +262,11 @@ const Dashboard = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
           {stats.map(s => {
-            const t = tones[s.tone];
             return (
               <Link key={s.title} to={s.to} className="group min-w-0">
-                <Card className={`relative h-full overflow-hidden border bg-gradient-to-br p-3 transition-transform hover:-translate-y-0.5 ${t.card}`}>
+                <Card className="relative h-full overflow-hidden border bg-card p-3 transition-transform hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${t.icon}`}><s.icon className="h-5 w-5" /></span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><s.icon className="h-5 w-5" /></span>
                     <span className="truncate text-sm font-semibold">{s.title}</span>
                     <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground 2xl:hidden" />
                   </div>
@@ -275,7 +275,7 @@ const Dashboard = () => {
                       <div className={`truncate font-bold ${'small' in s ? 'text-lg' : 'text-xl sm:text-2xl'}`}>{s.value}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">{s.sub}</div>
                     </div>
-                    {'spark' in s && <div className="hidden sm:block"><Spark data={s.spark} color={t.stroke} /></div>}
+                    {'spark' in s && <div className="hidden sm:block"><Spark data={s.spark} color="hsl(var(--primary))" /></div>}
                     {'image' in s && s.image && <img src={s.image} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />}
                   </div>
                   <span className="mt-2 hidden items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground 2xl:flex">{s.link} →</span>
@@ -312,7 +312,7 @@ const Dashboard = () => {
             <div className="mb-2 flex justify-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />Sales (UGX)</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />Profit (UGX)</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet" />Orders</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Orders</span>
             </div>
             <div className="h-56 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -327,7 +327,7 @@ const Dashboard = () => {
                   <Tooltip formatter={(v: number, k: string) => (k === 'Orders' ? v : fmt(v))} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                   <Area yAxisId="m" type="monotone" dataKey="sales" name="Sales" stroke="hsl(var(--primary))" fill="url(#gSales)" strokeWidth={2.5} dot={range === '7D'} />
                   <Area yAxisId="m" type="monotone" dataKey="profit" name="Profit" stroke="hsl(var(--success))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
-                  <Area yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--violet))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
+                  <Area yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--muted-foreground))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -338,10 +338,10 @@ const Dashboard = () => {
             <div className="divide-y">
               {summary.map(s => (
                 <div key={s.label} className="flex items-center gap-3 py-2.5">
-                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${s.bg}`}><s.icon className="h-4 w-4" /></span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><s.icon className="h-4 w-4" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p className={`truncate font-semibold ${s.color}`}>{s.value}</p>
+                    <p className="truncate font-semibold">{s.value}</p>
                   </div>
                   <Change value={s.ch} />
                 </div>
@@ -375,10 +375,10 @@ const Dashboard = () => {
                 </ul>
               </div>
             </Panel>
-            <Card className="relative overflow-hidden border-violet/50 bg-gradient-to-br from-violet/30 to-primary/10 p-4">
+            <Card className="relative overflow-hidden border bg-card p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-violet" /> AI Insight</h2>
-                <span className="rounded-md bg-violet/30 px-2 py-0.5 text-xs">AI Powered</span>
+                <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> AI Insight</h2>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">AI Powered</span>
               </div>
               <p className="text-sm font-medium">{d.insight.head}</p>
               <p className="mt-1 text-xs text-muted-foreground">{d.insight.sub}</p>
@@ -476,6 +476,24 @@ const Dashboard = () => {
           <PricingAlertsWidget />
           <WhatsAppActivityWidget />
         </div>
+
+        {/* Quick Actions — desktop only (phones/tablets use the bottom bar) */}
+        <Panel icon={Sparkles} title="Quick Actions" className="hidden lg:block">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {quickActions.map(a => (
+              <Link key={a.label} to={a.to} className="group min-w-0">
+                <Card className="flex h-full items-center gap-3 border bg-card p-3 transition-colors group-hover:border-primary/40">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><a.icon className="h-5 w-5" /></span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{a.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{a.desc}</span>
+                  </span>
+                  <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </Panel>
       </div>
     </DashboardLayout>
   );
