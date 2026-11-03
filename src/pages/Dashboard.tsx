@@ -262,12 +262,11 @@ const Dashboard = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
           {stats.map(s => {
-            const t = tones[s.tone];
             return (
               <Link key={s.title} to={s.to} className="group min-w-0">
-                <Card className={`relative h-full overflow-hidden border bg-gradient-to-br p-3 transition-transform hover:-translate-y-0.5 ${t.card}`}>
+                <Card className="relative h-full overflow-hidden border bg-card p-3 transition-transform hover:-translate-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${t.icon}`}><s.icon className="h-5 w-5" /></span>
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><s.icon className="h-5 w-5" /></span>
                     <span className="truncate text-sm font-semibold">{s.title}</span>
                     <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground 2xl:hidden" />
                   </div>
@@ -276,7 +275,7 @@ const Dashboard = () => {
                       <div className={`truncate font-bold ${'small' in s ? 'text-lg' : 'text-xl sm:text-2xl'}`}>{s.value}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">{s.sub}</div>
                     </div>
-                    {'spark' in s && <div className="hidden sm:block"><Spark data={s.spark} color={t.stroke} /></div>}
+                    {'spark' in s && <div className="hidden sm:block"><Spark data={s.spark} color="hsl(var(--primary))" /></div>}
                     {'image' in s && s.image && <img src={s.image} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />}
                   </div>
                   <span className="mt-2 hidden items-center gap-1 text-xs text-muted-foreground group-hover:text-foreground 2xl:flex">{s.link} →</span>
@@ -313,7 +312,7 @@ const Dashboard = () => {
             <div className="mb-2 flex justify-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" />Sales (UGX)</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />Profit (UGX)</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-violet" />Orders</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" />Orders</span>
             </div>
             <div className="h-56 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -328,7 +327,7 @@ const Dashboard = () => {
                   <Tooltip formatter={(v: number, k: string) => (k === 'Orders' ? v : fmt(v))} contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                   <Area yAxisId="m" type="monotone" dataKey="sales" name="Sales" stroke="hsl(var(--primary))" fill="url(#gSales)" strokeWidth={2.5} dot={range === '7D'} />
                   <Area yAxisId="m" type="monotone" dataKey="profit" name="Profit" stroke="hsl(var(--success))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
-                  <Area yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--violet))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
+                  <Area yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="hsl(var(--muted-foreground))" fill="transparent" strokeWidth={2.5} dot={range === '7D'} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
