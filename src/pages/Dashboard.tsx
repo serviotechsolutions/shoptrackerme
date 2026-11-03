@@ -231,10 +231,10 @@ const Dashboard = () => {
   ];
 
   const summary = [
-    { icon: Receipt, label: 'Revenue', value: fmt(d.wRev), color: 'text-primary', bg: 'bg-primary/15 text-primary', ch: pct(d.wRev, d.lwRev) },
-    { icon: Wallet, label: 'Cost', value: fmt(d.wRev - d.wProfit), color: 'text-destructive', bg: 'bg-destructive/15 text-destructive', ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
-    { icon: TrendingUp, label: 'Profit', value: fmt(d.wProfit), color: 'text-success', bg: 'bg-success/15 text-success', ch: pct(d.wProfit, d.lwProfit) },
-    { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, color: 'text-success', bg: 'bg-success/15 text-success', ch: d.margin - d.lwMargin },
+    { icon: Receipt, label: 'Revenue', value: fmt(d.wRev), ch: pct(d.wRev, d.lwRev) },
+    { icon: Wallet, label: 'Cost', value: fmt(d.wRev - d.wProfit), ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
+    { icon: TrendingUp, label: 'Profit', value: fmt(d.wProfit), ch: pct(d.wProfit, d.lwProfit) },
+    { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, ch: d.margin - d.lwMargin },
   ];
 
   const notifIcon = (t: string) => t.includes('stock') ? <AlertTriangle className="h-4 w-4 text-warning" /> : t.includes('sale') ? <TrendingUp className="h-4 w-4 text-success" /> : t.includes('payment') ? <CircleDollarSign className="h-4 w-4 text-success" /> : <Bell className="h-4 w-4 text-info" />;
@@ -338,10 +338,10 @@ const Dashboard = () => {
             <div className="divide-y">
               {summary.map(s => (
                 <div key={s.label} className="flex items-center gap-3 py-2.5">
-                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${s.bg}`}><s.icon className="h-4 w-4" /></span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><s.icon className="h-4 w-4" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p className={`truncate font-semibold ${s.color}`}>{s.value}</p>
+                    <p className="truncate font-semibold">{s.value}</p>
                   </div>
                   <Change value={s.ch} />
                 </div>
@@ -375,10 +375,10 @@ const Dashboard = () => {
                 </ul>
               </div>
             </Panel>
-            <Card className="relative overflow-hidden border-violet/50 bg-gradient-to-br from-violet/30 to-primary/10 p-4">
+            <Card className="relative overflow-hidden border bg-card p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-violet" /> AI Insight</h2>
-                <span className="rounded-md bg-violet/30 px-2 py-0.5 text-xs">AI Powered</span>
+                <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles className="h-4 w-4 text-primary" /> AI Insight</h2>
+                <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">AI Powered</span>
               </div>
               <p className="text-sm font-medium">{d.insight.head}</p>
               <p className="mt-1 text-xs text-muted-foreground">{d.insight.sub}</p>
