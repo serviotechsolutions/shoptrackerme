@@ -236,15 +236,6 @@ const Dashboard = () => {
     { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, color: 'text-success', bg: 'bg-success/15 text-success', ch: d.margin - d.lwMargin },
   ];
 
-  const actions = [
-    { to: '/pos', icon: ShoppingCart, title: 'Record Sale', sub: 'Start a new sale', cls: 'bg-primary/90 border-primary' },
-    { to: '/products', icon: Package, title: 'Add Product', sub: 'Add to inventory', cls: 'bg-success/80 border-success' },
-    { to: '/payments', icon: Wallet, title: 'Add Expense', sub: 'Track payments', cls: 'bg-warning/80 border-warning' },
-    { to: '/products', icon: CircleDollarSign, title: 'Manage Products', sub: 'Edit & organize', cls: 'bg-violet/80 border-violet' },
-    { to: '/reports', icon: BarChart3, title: 'View Reports', sub: 'Detailed analytics', cls: 'bg-info/80 border-info' },
-    { to: '/customers', icon: Users, title: 'Customers', sub: 'Manage customers', cls: 'bg-teal/80 border-teal' },
-  ];
-
   const notifIcon = (t: string) => t.includes('stock') ? <AlertTriangle className="h-4 w-4 text-warning" /> : t.includes('sale') ? <TrendingUp className="h-4 w-4 text-success" /> : t.includes('payment') ? <CircleDollarSign className="h-4 w-4 text-success" /> : <Bell className="h-4 w-4 text-info" />;
 
   return (
@@ -464,20 +455,8 @@ const Dashboard = () => {
             )}
           </Panel>
 
-          {/* Quick actions */}
-          <Panel icon={Sparkles} title="Quick Actions" className="lg:col-span-12 xl:col-span-9">
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {actions.map(a => (
-                <Link key={a.title} to={a.to} className={`flex min-w-0 flex-col items-center gap-1 rounded-lg border p-2 text-center text-primary-foreground transition-transform active:scale-95 hover:-translate-y-0.5 lg:flex-row lg:gap-3 lg:p-3 lg:text-left ${a.cls}`}>
-                  <a.icon className="h-6 w-6 shrink-0" />
-                  <div className="min-w-0"><p className="text-xs font-semibold lg:text-sm">{a.title}</p><p className="hidden text-xs opacity-80 lg:block">{a.sub}</p></div>
-                </Link>
-              ))}
-            </div>
-          </Panel>
-
           {/* Shop health */}
-          <Panel icon={CheckCircle2} title="Shop Health Score" className="lg:col-span-12 xl:col-span-3">
+          <Panel icon={CheckCircle2} title="Shop Health Score" className="lg:col-span-12">
             <div className="flex items-center gap-4">
               <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-[6px] border-success">
                 <span className="text-lg font-bold">{d.score}<span className="text-xs text-muted-foreground">/100</span></span>
