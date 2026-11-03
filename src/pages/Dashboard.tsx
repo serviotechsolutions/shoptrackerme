@@ -21,14 +21,6 @@ type Sale = { id: string; created_at: string; customer_name: string | null; tota
 type Notif = { id: string; title: string; message: string; type: string; created_at: string; link: string | null };
 type Range = '7D' | '30D' | '12M';
 
-const tones = {
-  blue: { card: 'from-primary/25 to-primary/5 border-primary/40', icon: 'bg-primary text-primary-foreground', stroke: 'hsl(var(--primary))' },
-  green: { card: 'from-success/25 to-success/5 border-success/40', icon: 'bg-success text-success-foreground', stroke: 'hsl(var(--success))' },
-  violet: { card: 'from-violet/25 to-violet/5 border-violet/40', icon: 'bg-violet text-primary-foreground', stroke: 'hsl(var(--violet))' },
-  amber: { card: 'from-warning/25 to-warning/5 border-warning/40', icon: 'bg-warning text-primary-foreground', stroke: 'hsl(var(--warning))' },
-  red: { card: 'from-destructive/25 to-destructive/5 border-destructive/40', icon: 'bg-destructive text-destructive-foreground', stroke: 'hsl(var(--destructive))' },
-  teal: { card: 'from-teal/25 to-teal/5 border-teal/40', icon: 'bg-teal text-primary-foreground', stroke: 'hsl(var(--teal))' },
-};
 
 const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString('en-US')}`;
 const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : `${Math.round(n)}`);
@@ -215,13 +207,22 @@ const Dashboard = () => {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   const stats = [
-    { tone: 'blue', icon: Package, title: 'Total Products', value: String(d.total), sub: <span className="text-sm font-medium text-success"><ArrowUp className="inline h-3.5 w-3.5" /> {d.newThisMonth} new this month</span>, to: '/products', link: 'View all' },
-    { tone: 'green', icon: DollarSign, title: "Today's Sales", value: fmt(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
-    { tone: 'violet', icon: CircleDollarSign, title: "Today's Profit", value: fmt(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
-    { tone: 'amber', icon: ClipboardList, title: 'Orders Today', value: String(d.ordersToday), sub: <span className="text-xs text-muted-foreground"><span className={d.ordersDiff >= 0 ? 'text-warning' : 'text-destructive'}>{d.ordersDiff >= 0 ? '↑' : '↓'} {Math.abs(d.ordersDiff)}</span> vs yesterday</span>, to: '/sales', link: 'View orders', spark: d.spark.orders },
-    { tone: 'red', icon: AlertTriangle, title: 'Low Stock Alerts', value: String(d.needs.length), sub: <span className="text-xs text-muted-foreground">Items need restocking</span>, to: '/stock-predictions', link: 'View items' },
-    { tone: 'teal', icon: Star, title: 'Top Product', value: d.top?.[0] || '—', sub: <span className="text-xs text-info">{d.top ? `${d.top[1]} sold today` : 'No sales yet today'}</span>, to: '/products', link: 'View products', image: d.topImage, small: true },
+    { icon: Package, title: 'Total Products', value: String(d.total), sub: <span className="text-sm font-medium text-success"><ArrowUp className="inline h-3.5 w-3.5" /> {d.newThisMonth} new this month</span>, to: '/products', link: 'View all' },
+    { icon: DollarSign, title: "Today's Sales", value: fmt(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
+    { icon: CircleDollarSign, title: "Today's Profit", value: fmt(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
+    { icon: ClipboardList, title: 'Orders Today', value: String(d.ordersToday), sub: <span className="text-xs text-muted-foreground"><span className={d.ordersDiff >= 0 ? 'text-success' : 'text-destructive'}>{d.ordersDiff >= 0 ? '↑' : '↓'} {Math.abs(d.ordersDiff)}</span> vs yesterday</span>, to: '/sales', link: 'View orders', spark: d.spark.orders },
+    { icon: AlertTriangle, title: 'Low Stock Alerts', value: String(d.needs.length), sub: <span className="text-xs text-muted-foreground">Items need restocking</span>, to: '/stock-predictions', link: 'View items' },
+    { icon: Star, title: 'Top Product', value: d.top?.[0] || '—', sub: <span className="text-xs text-muted-foreground">{d.top ? `${d.top[1]} sold today` : 'No sales yet today'}</span>, to: '/products', link: 'View products', image: d.topImage, small: true },
   ] as const;
+
+  const quickActions = [
+    { to: '/pos', icon: ShoppingCart, label: 'Record Sale', desc: 'Open the point of sale' },
+    { to: '/products', icon: Package, label: 'Add Product', desc: 'Add a new item to stock' },
+    { to: '/reports', icon: BarChart3, label: 'Reports', desc: 'Sales and profit reports' },
+    { to: '/customers', icon: Users, label: 'Customers', desc: 'Manage your customers' },
+    { to: '/payments', icon: Wallet, label: 'Add Expense', desc: 'Record a payment or expense' },
+    { to: '/products', icon: CircleDollarSign, label: 'Manage Products', desc: 'Edit prices and stock' },
+  ];
 
   const inv = [
     { name: 'Good', value: d.good, color: 'hsl(var(--success))', dot: 'bg-success' },
