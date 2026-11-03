@@ -476,6 +476,24 @@ const Dashboard = () => {
           <PricingAlertsWidget />
           <WhatsAppActivityWidget />
         </div>
+
+        {/* Quick Actions — desktop only (phones/tablets use the bottom bar) */}
+        <Panel icon={Sparkles} title="Quick Actions" className="hidden lg:block">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {quickActions.map(a => (
+              <Link key={a.label} to={a.to} className="group min-w-0">
+                <Card className="flex h-full items-center gap-3 border bg-card p-3 transition-colors group-hover:border-primary/40">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground"><a.icon className="h-5 w-5" /></span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{a.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{a.desc}</span>
+                  </span>
+                  <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </Panel>
       </div>
     </DashboardLayout>
   );
