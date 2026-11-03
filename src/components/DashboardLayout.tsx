@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { BottomNav } from './BottomNav';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -237,10 +238,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </aside>
 
         {/* Main Content */}
-        <main className="app-content flex-1 p-3 sm:p-4 lg:p-6">
+        <main className="app-content flex-1 p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-24">
           {children}
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 };
