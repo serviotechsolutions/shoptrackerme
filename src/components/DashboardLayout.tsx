@@ -217,8 +217,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             
             <Link to="/dashboard" className="flex items-center gap-2">
               <Store className="h-5 w-5 text-primary" />
-              <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline">
-                Shop Tracker
+              <span className="text-base font-bold hidden sm:inline">
+                Shop<span className="text-primary">Tracker</span>
               </span>
             </Link>
           </div>
