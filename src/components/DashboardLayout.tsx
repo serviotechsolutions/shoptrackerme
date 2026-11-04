@@ -54,7 +54,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const location = useLocation();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebarCollapsed') === 'true');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved === null ? window.matchMedia('(max-width: 1279px)').matches : saved === 'true';
+  });
 
   const toggleSidebar = () => setSidebarCollapsed(current => {
     localStorage.setItem('sidebarCollapsed', String(!current));
@@ -168,7 +171,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </div>
               </SheetContent>
             </Sheet>
-            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={toggleSidebar} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex" onClick={toggleSidebar} aria-controls="desktop-sidebar" aria-expanded={!sidebarCollapsed} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
               <PanelLeft className="h-5 w-5" />
             </Button>
             
@@ -230,10 +233,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       <div className="flex min-w-0">
         {/* Desktop Sidebar */}
-        <aside className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card ${sidebarCollapsed ? 'w-16' : 'w-16 xl:w-64'}`}>
-          <nav aria-label="Main navigation" className="flex-1 min-w-0 overflow-y-auto overscroll-contain p-2 xl:p-4 space-y-2">
-            <div className={sidebarCollapsed ? '' : 'xl:hidden'}><NavContent compact /></div>
-            {!sidebarCollapsed && <div className="hidden xl:block"><NavContent /></div>}
+        <aside id="desktop-sidebar" className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+          <nav aria-label="Main navigation" className={`flex-1 min-w-0 overflow-y-auto overscroll-contain space-y-2 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
+            <NavContent compact={sidebarCollapsed} />
           </nav>
         </aside>
 
