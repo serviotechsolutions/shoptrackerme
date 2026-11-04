@@ -972,7 +972,7 @@ const POS = () => {
                       active:scale-95 active:bg-primary/5
                     `}
                   >
-                    <div className="aspect-square bg-muted flex items-center justify-center relative">
+                    <div className="aspect-[3/2] bg-muted flex items-center justify-center relative">
                       <img
                         src={product.image_url || "/placeholder.svg"}
                         alt={product.name}
@@ -991,19 +991,19 @@ const POS = () => {
                       )}
                     </div>
 
-                    <div className="p-2.5 sm:p-3">
-                      <h3 title={product.name} className="font-semibold text-xs sm:text-sm line-clamp-2 leading-tight mb-1 min-h-8">{product.name}</h3>
-                      <p className="text-sm sm:text-base font-bold text-primary">
+                    <div className="p-2">
+                      <h3 title={product.name} className="font-semibold text-xs sm:text-sm truncate leading-tight mb-0.5">{product.name}</h3>
+                      <p className="text-xs sm:text-sm font-bold text-primary leading-tight">
                         {product.selling_price > 0 ? formatCurrency(getPOSUnitPrice(product)) : (
                           <span className="text-xs text-muted-foreground font-normal">Cost: {formatCurrency(getPOSUnitPrice(product))}</span>
                         )}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-2">{product.stock} in stock</p>
+                      <p className="text-xs text-muted-foreground mb-1.5 mt-0.5">{product.stock} in stock</p>
 
                       <Button
                         onClick={(e) => { e.stopPropagation(); addToCart(product); }}
                         size="sm"
-                        className="w-full h-10 sm:h-9 text-sm font-semibold gap-1.5 rounded-lg"
+                        className="w-full h-9 sm:h-8 text-xs sm:text-sm font-semibold gap-1.5 rounded-lg"
                       >
                         <Plus className="h-4 w-4" />
                         Add
