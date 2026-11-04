@@ -19,18 +19,20 @@ import {
   Menu,
   Settings,
   Users,
-  CreditCard,
   Brain,
   User,
-  Tag,
   Sparkles,
-  Brain as BrainIcon,
   Truck,
-  ShoppingBag,
-  UserCircle2,
   PackageCheck,
   MessageCircle,
-  PanelLeft
+  PanelLeft,
+  Monitor,
+  TrendingUp,
+  ClipboardList,
+  Megaphone,
+  Ticket,
+  Wallet,
+  ChevronRight
 } from 'lucide-react';
 
 
