@@ -273,9 +273,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       <div className="flex min-w-0">
         {/* Desktop Sidebar */}
-        <aside id="desktop-sidebar" className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-          <nav aria-label="Main navigation" className={`flex-1 min-w-0 overflow-y-auto overscroll-contain space-y-2 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
+        <aside id="desktop-sidebar" className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+          {!sidebarCollapsed && (
+            <div className="shrink-0 flex items-center gap-2 px-4 py-4 border-b">
+              <Store className="h-5 w-5 text-primary shrink-0" />
+              <span className="text-base font-bold truncate">
+                Shop<span className="text-primary">Tracker</span>
+              </span>
+            </div>
+          )}
+          <nav aria-label="Main navigation" className={`flex-1 min-w-0 overflow-y-auto overscroll-contain space-y-1 ${sidebarCollapsed ? 'p-2' : 'p-2 sm:p-3'}`}>
             <NavContent compact={sidebarCollapsed} />
+            <div className="h-2" />
           </nav>
         </aside>
 
