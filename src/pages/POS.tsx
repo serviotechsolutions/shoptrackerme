@@ -972,7 +972,7 @@ const POS = () => {
                       active:scale-95 active:bg-primary/5
                     `}
                   >
-                    <div className="aspect-square bg-muted flex items-center justify-center relative">
+                    <div className="aspect-[3/2] bg-muted flex items-center justify-center relative">
                       <img
                         src={product.image_url || "/placeholder.svg"}
                         alt={product.name}
