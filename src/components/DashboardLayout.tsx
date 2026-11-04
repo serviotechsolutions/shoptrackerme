@@ -19,18 +19,20 @@ import {
   Menu,
   Settings,
   Users,
-  CreditCard,
   Brain,
   User,
-  Tag,
   Sparkles,
-  Brain as BrainIcon,
   Truck,
-  ShoppingBag,
-  UserCircle2,
   PackageCheck,
   MessageCircle,
-  PanelLeft
+  PanelLeft,
+  Monitor,
+  TrendingUp,
+  ClipboardList,
+  Megaphone,
+  Ticket,
+  Wallet,
+  ChevronRight
 } from 'lucide-react';
 
 
@@ -98,46 +100,84 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   const allNavItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
-    { path: '/pos', label: 'POS', icon: CreditCard, show: canMakeSales },
-    { path: '/customers', label: 'Customers', icon: UserCircle2, show: true },
-    { path: '/products', label: 'Products', icon: Package, show: canManageProducts },
+    { path: '/pos', label: 'POS', icon: Monitor, show: canMakeSales },
     { path: '/sales', label: 'Sales', icon: ShoppingCart, show: canMakeSales },
-    { path: '/promotions', label: 'Promotions', icon: Sparkles, show: canManagePromotions },
-    { path: '/promo-codes', label: 'Promo Codes', icon: Tag, show: canManagePromotions },
-    { path: '/reports', label: 'Reports', icon: BarChart3, show: canViewReports },
-    { path: '/ai-insights', label: 'AI Insights', icon: Brain, show: canViewReports },
-    { path: '/stock-predictions', label: 'Stock Forecast', icon: BrainIcon, show: canManageProducts },
+    { path: '/customers', label: 'Customers', icon: Users, show: true },
+    { path: '/products', label: 'Products', icon: Package, show: canManageProducts },
+    { path: '/stock-predictions', label: 'Stock Forecast', icon: TrendingUp, show: canManageProducts },
     { path: '/suppliers', label: 'Suppliers', icon: Truck, show: true },
-    { path: '/purchase-orders', label: 'Purchase Orders', icon: ShoppingBag, show: canManageProducts },
+    { path: '/purchase-orders', label: 'Purchase Orders', icon: ClipboardList, show: canManageProducts },
     { path: '/grn', label: 'Goods Received (GRN)', icon: PackageCheck, show: true },
-    { path: '/payments', label: 'Payments', icon: CreditCard, show: canMakeSales },
+    { path: '/promotions', label: 'Promotions', icon: Megaphone, show: canManagePromotions },
+    { path: '/promo-codes', label: 'Promo Codes', icon: Ticket, show: canManagePromotions },
     { path: '/whatsapp', label: 'WhatsApp', icon: MessageCircle, show: true },
+    { path: '/payments', label: 'Payments', icon: Wallet, show: canMakeSales },
+    { path: '/reports', label: 'Reports', icon: BarChart3, show: canViewReports },
+    { path: '/ai-insights', label: 'AI Insights', icon: Sparkles, show: canViewReports },
     { path: '/users', label: 'Team', icon: Users, show: canManageTeam },
     { path: '/settings', label: 'Settings', icon: Settings, show: canManageSettings },
   ];
 
   const navItems = allNavItems.filter(item => item.show);
 
+  const navGroups: { label: string; paths: string[] }[] = [
+    { label: 'Sales & Customers', paths: ['/pos', '/sales', '/customers'] },
+    { label: 'Inventory Management', paths: ['/products', '/stock-predictions', '/suppliers', '/purchase-orders', '/grn'] },
+    { label: 'Marketing & Engagement', paths: ['/promotions', '/promo-codes', '/whatsapp'] },
+    { label: 'Finance', paths: ['/payments'] },
+    { label: 'Analytics & Intelligence', paths: ['/reports', '/ai-insights'] },
+    { label: 'Administration', paths: ['/users', '/settings'] },
+  ];
+
+  const itemsByPath = new Map(navItems.map(item => [item.path, item]));
+
+  const NavItem = ({ item, compact }: { item: typeof allNavItems[number]; compact?: boolean }) => (
+    <Link
+      to={item.path}
+      title={compact ? item.label : undefined}
+      aria-label={item.label}
+      aria-current={location.pathname === item.path ? 'page' : undefined}
+      onClick={() => setMobileOpen(false)}
+      className={`flex min-h-11 items-center gap-3 ${compact ? 'justify-center px-2' : 'px-4'} py-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        location.pathname === item.path
+          ? 'bg-primary text-primary-foreground'
+          : 'hover:bg-primary/10'
+      }`}
+    >
+      <item.icon className="h-4 w-4 shrink-0" />
+      {compact ? (
+        <span className="sr-only">{item.label}</span>
+      ) : (
+        <>
+          <span className="text-sm flex-1 min-w-0 truncate">{item.label}</span>
+          <ChevronRight className={`h-4 w-4 shrink-0 ${location.pathname === item.path ? 'text-primary-foreground/70' : 'text-muted-foreground/60'}`} />
+        </>
+      )}
+    </Link>
+  );
+
   const NavContent = ({ compact = false }: { compact?: boolean }) => (
     <>
-      {navItems.map((item) => (
-        <Link
-          key={item.path}
-          to={item.path}
-          title={compact ? item.label : undefined}
-          aria-label={item.label}
-          aria-current={location.pathname === item.path ? 'page' : undefined}
-          onClick={() => setMobileOpen(false)}
-          className={`flex min-h-11 items-center gap-3 ${compact ? 'justify-center px-2' : 'px-4'} py-3 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            location.pathname === item.path
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-primary/10'
-          }`}
-        >
-          <item.icon className="h-4 w-4 shrink-0" />
-          <span className={compact ? 'sr-only' : 'text-sm'}>{item.label}</span>
-        </Link>
-      ))}
+      {itemsByPath.get('/dashboard') && <NavItem item={itemsByPath.get('/dashboard')!} compact={compact} />}
+      {compact ? (
+        navItems.filter(item => item.path !== '/dashboard').map(item => <NavItem key={item.path} item={item} compact={compact} />)
+      ) : (
+        navGroups.map(group => {
+          const items = group.paths.map(p => itemsByPath.get(p)).filter(Boolean) as typeof allNavItems;
+          if (items.length === 0) return null;
+          return (
+            <div key={group.label}>
+              <div className="flex items-center gap-2 px-4 pt-4 pb-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">{group.label}</span>
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+              <div className="space-y-1">
+                {items.map(item => <NavItem key={item.path} item={item} />)}
+              </div>
+            </div>
+          );
+        })
+      )}
     </>
   );
 
@@ -159,8 +199,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <div className="p-6 border-b shrink-0">
                     <div className="flex items-center gap-2">
                       <Store className="h-5 w-5 text-primary" />
-                      <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Shop Tracker
+                      <span className="text-base font-bold">
+                        Shop<span className="text-primary">Tracker</span>
                       </span>
                     </div>
                   </div>
@@ -177,8 +217,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             
             <Link to="/dashboard" className="flex items-center gap-2">
               <Store className="h-5 w-5 text-primary" />
-              <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent hidden sm:inline">
-                Shop Tracker
+              <span className="text-base font-bold hidden sm:inline">
+                Shop<span className="text-primary">Tracker</span>
               </span>
             </Link>
           </div>
@@ -233,9 +273,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       <div className="flex min-w-0">
         {/* Desktop Sidebar */}
-        <aside id="desktop-sidebar" className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-          <nav aria-label="Main navigation" className={`flex-1 min-w-0 overflow-y-auto overscroll-contain space-y-2 ${sidebarCollapsed ? 'p-2' : 'p-4'}`}>
+        <aside id="desktop-sidebar" className={`hidden md:flex shrink-0 sticky top-16 h-[calc(100dvh-4rem)] border-r bg-card flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+          {!sidebarCollapsed && (
+            <div className="shrink-0 flex items-center gap-2 px-4 py-4 border-b">
+              <Store className="h-5 w-5 text-primary shrink-0" />
+              <span className="text-base font-bold truncate">
+                Shop<span className="text-primary">Tracker</span>
+              </span>
+            </div>
+          )}
+          <nav aria-label="Main navigation" className={`flex-1 min-w-0 overflow-y-auto overscroll-contain space-y-1 ${sidebarCollapsed ? 'p-2' : 'p-2 sm:p-3'}`}>
             <NavContent compact={sidebarCollapsed} />
+            <div className="h-2" />
           </nav>
         </aside>
 
