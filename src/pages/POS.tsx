@@ -959,7 +959,7 @@ const POS = () => {
             </div>
 
             {/* Product Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 min-[500px]:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
               {displayedProducts.map((product) => {
                 const inCart = cart.find(i => i.id === product.id);
                 const isTapped = tappedProductId === product.id;
