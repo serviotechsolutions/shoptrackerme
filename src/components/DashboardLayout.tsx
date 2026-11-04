@@ -196,14 +196,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <SheetContent side="left" className="w-64 max-w-[90vw] p-0 flex flex-col">
                 <SheetTitle className="sr-only">Navigation</SheetTitle>
                 <div className="flex flex-col h-full max-h-[100dvh] bg-card min-h-0">
-                  <div className="p-6 border-b shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Store className="h-5 w-5 text-primary" />
-                      <span className="text-base font-bold">
-                        Shop<span className="text-primary">Tracker</span>
-                      </span>
-                    </div>
-                  </div>
+                  <div className="h-2 border-b shrink-0" />
                   <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-2 [-webkit-overflow-scrolling:touch]">
                     <NavContent />
                     <div className="h-6" />
