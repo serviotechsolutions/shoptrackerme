@@ -199,8 +199,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <div className="p-6 border-b shrink-0">
                     <div className="flex items-center gap-2">
                       <Store className="h-5 w-5 text-primary" />
-                      <span className="text-base font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Shop Tracker
+                      <span className="text-base font-bold">
+                        Shop<span className="text-primary">Tracker</span>
                       </span>
                     </div>
                   </div>
