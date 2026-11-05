@@ -395,7 +395,7 @@ const Dashboard = () => {
           {/* Top selling */}
           <Panel icon={BarChart3} title="Top Selling Products" action={<ViewAll to="/reports" />} className="md:col-span-1 lg:col-span-6 xl:col-span-3">
             {d.topSelling.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No sales this week</p> : (
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm"><colgroup><col className="w-7" /><col /><col className="w-10" /><col className="w-20" /></colgroup>
                 <thead><tr className="text-left text-xs text-muted-foreground"><th className="pb-2 font-normal">#</th><th className="pb-2 font-normal">Product</th><th className="pb-2 text-right font-normal">Sold</th><th className="pb-2 text-right font-normal">Revenue</th></tr></thead>
                 <tbody className="divide-y">
                   {d.topSelling.map((p, i) => (
