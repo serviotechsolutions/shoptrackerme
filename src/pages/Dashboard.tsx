@@ -304,7 +304,7 @@ const Dashboard = () => {
         )}
 
         {/* Main grid */}
-        <div className="grid gap-4 lg:grid-cols-12">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-12">
           {/* Chart */}
           <Panel icon={Activity} title="Sales, Profit & Orders Trend" className="md:col-span-2 lg:col-span-12 xl:col-span-6"
             action={
