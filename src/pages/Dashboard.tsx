@@ -23,6 +23,12 @@ type Range = '7D' | '30D' | '12M';
 
 
 const fmt = (n: number) => `UGX ${Math.round(n).toLocaleString('en-US')}`;
+const fmtK = (n: number, cur = 'UGX') => {
+  const a = Math.abs(n);
+  const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [v, u] of units) if (a >= v) return `${cur} ${(n / v).toFixed(a / v >= 100 ? 0 : 1).replace(/\.0$/, '')}${u}`;
+  return `${cur} ${Math.round(n)}`;
+};
 const short = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : `${Math.round(n)}`);
 const pct = (c: number, p: number) => (p === 0 ? (c > 0 ? 100 : 0) : ((c - p) / p) * 100);
 const ago = (iso: string) => {
@@ -208,8 +214,8 @@ const Dashboard = () => {
 
   const stats = [
     { icon: Package, title: 'Total Products', value: String(d.total), sub: <span className="text-sm font-medium text-success"><ArrowUp className="inline h-3.5 w-3.5" /> {d.newThisMonth} new this month</span>, to: '/products', link: 'View all' },
-    { icon: DollarSign, title: "Today's Sales", value: fmt(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
-    { icon: CircleDollarSign, title: "Today's Profit", value: fmt(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
+    { icon: DollarSign, title: "Today's Sales", value: fmtK(d.todaySales), sub: <><Change value={pct(d.todaySales, d.ySales)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/sales', link: 'View details', spark: d.spark.sales },
+    { icon: CircleDollarSign, title: "Today's Profit", value: fmtK(d.todayProfit), sub: <><Change value={pct(d.todayProfit, d.yProfit)} /> <span className="text-xs text-muted-foreground">vs yesterday</span></>, to: '/reports', link: 'View details', spark: d.spark.profit },
     { icon: ClipboardList, title: 'Orders Today', value: String(d.ordersToday), sub: <span className="text-xs text-muted-foreground"><span className={d.ordersDiff >= 0 ? 'text-success' : 'text-destructive'}>{d.ordersDiff >= 0 ? '↑' : '↓'} {Math.abs(d.ordersDiff)}</span> vs yesterday</span>, to: '/sales', link: 'View orders', spark: d.spark.orders },
     { icon: AlertTriangle, title: 'Low Stock Alerts', value: String(d.needs.length), sub: <span className="text-xs text-muted-foreground">Items need restocking</span>, to: '/stock-predictions', link: 'View items' },
     { icon: Star, title: 'Top Product', value: d.top?.[0] || '—', sub: <span className="text-xs text-muted-foreground">{d.top ? `${d.top[1]} sold today` : 'No sales yet today'}</span>, to: '/products', link: 'View products', image: d.topImage, small: true },
@@ -231,9 +237,9 @@ const Dashboard = () => {
   ];
 
   const summary = [
-    { icon: Receipt, label: 'Revenue', value: fmt(d.wRev), ch: pct(d.wRev, d.lwRev) },
-    { icon: Wallet, label: 'Cost', value: fmt(d.wRev - d.wProfit), ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
-    { icon: TrendingUp, label: 'Profit', value: fmt(d.wProfit), ch: pct(d.wProfit, d.lwProfit) },
+    { icon: Receipt, label: 'Revenue', value: fmtK(d.wRev), ch: pct(d.wRev, d.lwRev) },
+    { icon: Wallet, label: 'Cost', value: fmtK(d.wRev - d.wProfit), ch: pct(d.wRev - d.wProfit, d.lwRev - d.lwProfit) },
+    { icon: TrendingUp, label: 'Profit', value: fmtK(d.wProfit), ch: pct(d.wProfit, d.lwProfit) },
     { icon: Percent, label: 'Profit Margin', value: `${d.margin.toFixed(1)}%`, ch: d.margin - d.lwMargin },
   ];
 
@@ -389,7 +395,7 @@ const Dashboard = () => {
           {/* Top selling */}
           <Panel icon={BarChart3} title="Top Selling Products" action={<ViewAll to="/reports" />} className="md:col-span-1 lg:col-span-6 xl:col-span-3">
             {d.topSelling.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No sales this week</p> : (
-              <table className="w-full text-sm">
+              <table className="w-full table-fixed text-sm"><colgroup><col className="w-7" /><col /><col className="w-10" /><col className="w-20" /></colgroup>
                 <thead><tr className="text-left text-xs text-muted-foreground"><th className="pb-2 font-normal">#</th><th className="pb-2 font-normal">Product</th><th className="pb-2 text-right font-normal">Sold</th><th className="pb-2 text-right font-normal">Revenue</th></tr></thead>
                 <tbody className="divide-y">
                   {d.topSelling.map((p, i) => (
@@ -399,7 +405,7 @@ const Dashboard = () => {
                         {d.images.get(p.name) ? <img src={d.images.get(p.name)!} alt="" className="h-7 w-7 shrink-0 rounded object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded bg-muted"><Package className="h-3.5 w-3.5" /></span>}
                         <span className="truncate">{p.name}</span></div></td>
                       <td className="py-2 text-right">{p.q}</td>
-                      <td className="whitespace-nowrap py-2 text-right text-xs">{fmt(p.r)}</td>
+                      <td className="whitespace-nowrap py-2 text-right text-xs" title={fmt(p.r)}>{fmtK(p.r)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -415,7 +421,7 @@ const Dashboard = () => {
                   <li key={s.id} className="flex items-center gap-2 py-2 text-sm">
                     <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{(s.customer_name || 'W').charAt(0).toUpperCase()}</span>
                     <div className="min-w-0 flex-1"><p className="truncate">{s.customer_name || 'Walk-in'}</p><p className="text-xs capitalize text-muted-foreground">{s.payment_method}</p></div>
-                    <div className="text-right"><p className="whitespace-nowrap text-xs font-medium">{fmt(Number(s.total_amount))}</p><p className="text-xs text-muted-foreground">{ago(s.created_at)}</p></div>
+                    <div className="text-right"><p className="whitespace-nowrap text-xs font-medium" title={fmt(Number(s.total_amount))}>{fmtK(Number(s.total_amount))}</p><p className="text-xs text-muted-foreground">{ago(s.created_at)}</p></div>
                   </li>
                 ))}
               </ul>
