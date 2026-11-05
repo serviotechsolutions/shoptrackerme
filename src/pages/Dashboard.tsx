@@ -306,7 +306,7 @@ const Dashboard = () => {
         {/* Main grid */}
         <div className="grid gap-4 lg:grid-cols-12">
           {/* Chart */}
-          <Panel icon={Activity} title="Sales, Profit & Orders Trend" className="lg:col-span-12 xl:col-span-6"
+          <Panel icon={Activity} title="Sales, Profit & Orders Trend" className="md:col-span-2 lg:col-span-12 xl:col-span-6"
             action={
               <div className="flex rounded-lg border bg-muted/40 p-0.5">
                 {(['7D', '30D', '12M'] as Range[]).map(r => (
@@ -356,7 +356,7 @@ const Dashboard = () => {
           </Panel>
 
           {/* Inventory health + AI */}
-          <div className="grid min-w-0 gap-4 lg:col-span-6 xl:col-span-3">
+          <div className="grid min-w-0 gap-4 md:col-span-1 lg:col-span-6 xl:col-span-3">
             <Panel icon={PieIcon} title="Inventory Health">
               <div className="flex items-center gap-4">
                 <div className="relative h-28 w-28 shrink-0">
@@ -462,7 +462,7 @@ const Dashboard = () => {
           </Panel>
 
           {/* Shop health */}
-          <Panel icon={CheckCircle2} title="Shop Health Score" className="lg:col-span-12">
+          <Panel icon={CheckCircle2} title="Shop Health Score" className="md:col-span-2 lg:col-span-12">
             <div className="flex items-center gap-4">
               <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-[6px] border-success">
                 <span className="text-lg font-bold">{d.score}<span className="text-xs text-muted-foreground">/100</span></span>
