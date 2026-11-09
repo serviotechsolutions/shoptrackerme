@@ -1,78 +1,72 @@
-## Goal
-Replace the current free-text / jsonb "supplied_items" with a real relational **Supplier Product Catalogue**, and rewire Purchase Orders + GRN to use it. Existing PO/GRN records keep their snapshot prices — new PO prices come from the current catalogue.
+# Phase 1: Financial and inventory integrity
 
-## 1. Database (single migration)
-Create `public.supplier_products`:
+## Data preservation
+- Preserve all existing records, tables, columns, relationships and historical cost snapshots.
+- Use additive, backward-compatible changes only. No resets, hard deletes, inferred historical links or silent financial corrections.
+- Preserve the existing POS, customer, PO, GRN, receipt and pricing-advisor experience; no unrelated redesign.
+- Historical corrections or destructive operations require a separate explanation and explicit approval. Approval of this plan does not authorize either.
 
-- `id`, `tenant_id`, `supplier_id` (FK suppliers, cascade)
-- `product_id` (nullable FK products — link when catalogue item maps to an inventory product)
-- `name` (text, required)
-- `sku` (text, optional)
-- `unit` (text, default 'piece')
-- `unit_cost` (numeric, > 0)
-- `min_order_qty` (numeric, nullable)
-- `available_qty` (numeric, nullable — supplier's stock reference)
-- `brand`, `description` (text, optional)
-- `status` ('active' | 'inactive', default 'active')
-- `created_at`, `updated_at`
+## Confirmed baseline
+Read-only live checks confirmed **80 unlinked transaction lines, zero sales headers, seven customer-linked payments without sale links and two payment/item total mismatches**. Both checkout paths and GRN posting use separate writes. Reversal clamps quantities and does not reverse inventory value. No business records have been changed.
 
-CHECK: `unit_cost > 0`, `min_order_qty >= 0`, `available_qty >= 0`.
-UNIQUE(`supplier_id`, lower(`name`)).
-GRANTs to authenticated + service_role; RLS by tenant (using `get_user_tenant_id`); updated_at trigger.
+## 1. Isolated verification
+Create a separate empty PostgreSQL test database from inspected schema definitions, with synthetic shops, users and products only. Do not copy live business data. Test the actual transaction functions intended for deployment, including concurrent calls and injected failures. The initial local database setup failed because a PostgreSQL library is unavailable; resolve that before claiming database tests passed.
 
-Add to `purchase_order_items`:
-- `supplier_product_id uuid` (nullable FK → supplier_products, ON DELETE SET NULL)
-- `is_custom_item boolean default false`
-- `unit text` (snapshot)
+## 2. Atomic POS checkout
+- Share one authenticated server-side operation between normal and voice checkout.
+- Validate shop membership, role, products, quantities, customer, payment methods, price overrides and discounts.
+- Lock current product rows in deterministic order; reject insufficient stock instead of overwriting quantities from cart snapshots.
+- Create the sale header, transaction lines, linked payment, reconciled payment items, historical cost snapshots, inventory movements and applicable promotion redemption within one transaction.
+- Preserve displayed POS prices and explicit overrides. Calculate profit using current inventory costs independently of selling prices.
+- Add durable request identifiers and payload consistency checks. Repeated requests return the original committed result; uncertain responses retain the same identifier for retry. Add synchronous submission protection across keyboard, button and voice paths.
+- Preserve one payment header per sale; support split tender through additive payment-component records rather than breaking existing uniqueness.
+- Store actual tender and change separately. Reject underpayment until an explicit credit-sale policy is authorized, rather than falsely recording full payment. Do not invent new tax rules or a credit-sale interface.
 
-(These are additive — existing rows unaffected. `unit_cost` already snapshots price so historical PO totals stay frozen.)
+## 3. Customer linkage and accounts
+- Link selected customers during checkout; create voice-requested customers inside that transaction.
+- Add an audited post-checkout assignment operation linking the existing sale, transaction association and payment without creating duplicates. Preserve the customer-selection/Walk-in step.
+- Distinguish pending customer identification from unpaid money.
+- Apply consistent purchases, actual-payment and balance calculations in customer screens and statements. Keep uncertain legacy payments separate from confirmed sale settlement; do not infer missing historical relationships.
+- Preserve refunds/reversals already represented in records; do not invent missing historical refund data.
 
-Backfill: for existing suppliers with `supplied_items` jsonb, insert catalogue rows so nothing is lost. Legacy `products_supplied` / `supplied_items` columns stay in place (read-only fallback), we just stop writing to them.
+## 4. Atomic GRN creation and approval
+- Save GRN headers, lines and creation audit together. Immediate approval includes inventory posting in the same transaction.
+- Approve existing drafts with owner authorization, locked GRN/PO/product rows, current receipt totals and checked line references.
+- Reject draft/cancelled POs, cross-shop references, invalid quantities, ambiguous product matches and unaccepted excess.
+- Resolve or create products without creation races; propagate supplier, category, unit and catalogue-image metadata.
+- Update stock, moving weighted-average cost, purchase history, inventory movements, purchase metadata, receipt quantities, PO status and GRN approval atomically.
+- Keep selling prices unchanged. Preserve cost precision. Existing inventory quantities are whole units: explicitly reject unsupported fractional quantities rather than truncating them or changing live column types.
+- Repeated/concurrent approval posts stock exactly once. Pricing-advisor and catalogue prompts remain post-commit follow-ups, not prerequisites for posting success.
 
-## 2. Suppliers page (`src/pages/Suppliers.tsx`)
-Remove the inline "supplied_items" editor from the Add/Edit dialog. Replace with a **"Manage Catalogue"** button on each supplier row that opens a dedicated catalogue dialog with a proper table:
+## 5. Safe audited reversal
+- Require owner authorization, an approved GRN and a reason. Duplicate reversal must never deduct stock again.
+- Reverse quantity and value through compensating movements and a reversal reference; retain original GRNs and purchase history.
+- Verify subsequent movement history and current stock/value against original posting snapshots. Block reversal after subsequent consumption, incompatible later movements or insufficient stock; never clamp quantities or rewrite historical sale costs.
+- Verify the supplied example: 10 units at 100 plus 10 at 200 becomes 20 at 150; reversing the second receipt before later movements restores 10 at 100 and value 1,000.
+- Legacy GRNs lacking reliable posting evidence require reconciliation, not automatic reversal.
+- Provide an owner-authorized adjustment request with proposed quantity/value, evidence and reason when reversal is blocked. Requests are auditable and do not silently change stock; actual historical correction remains separately approved.
+- Recalculate PO received quantities/status and fully-received dates within reversal.
 
-Product | Unit | Supplier Unit Cost | Available Qty | Min Order Qty | Status | Actions
+## 6. Synchronization and protections
+- Refresh Products, POS, Sales, Payments, accounts, POs, GRNs, costing, forecasts, AI insights, reports and dashboard after committed operations using existing realtime subscriptions plus focused refresh/invalidation.
+- Enforce tenant isolation, owner approval/reversal and immutable new movement/audit records at the database boundary.
+- Protect newly posted finalized records against bypassing the posting rules without rewriting legacy data or disabling unrelated workflows.
 
-- Add / Edit row dialog with all catalogue fields.
-- Validation: no zero/negative price, no negative qty.
-- Show catalogue on `SupplierProfile.tsx` too (replace the "Products from this Supplier" tab or add a "Catalogue" tab that lists `supplier_products`).
+## 7. Acceptance tests and deliverables
+Execute tests using isolated synthetic records:
+- **Checkout:** single/multiple products, anonymous/customer sales, discounts, split tender, invalid/underpaid payments, insufficient stock, duplicate and uncertain retries, concurrent last-unit sale, rollback at each critical write.
+- **Linkage/accounts:** sale/line/payment references, customer history, post-checkout assignment without duplication, fully paid zero balance, discounted net payment-item reconciliation.
+- **GRNs:** first/higher/lower-cost purchases, partial/multiple deliveries, missing product creation, duplicate/concurrent approval, failed line creation and injected posting failures.
+- **Reversals:** supplied valuation example, subsequent consumption/purchases, insufficient stock, duplicate/concurrent reversal, compensating audit and PO reconciliation.
+- **Security:** unauthenticated, wrong-shop and unauthorized-role operations rejected.
+- **Browser:** normal/voice sale to payment/account/receipt, PO to partial receipt/inventory/POS and reversal using safely isolated test records. Never submit test sales against live inventory or contact real customers/providers.
 
-## 3. Purchase Orders page (`src/pages/PurchaseOrders.tsx`)
-Rebuild the create dialog:
+Deliver a read-only historical reconciliation report listing affected record IDs, plausible matches, ambiguities and recommendations. Make no historical corrections. Deliver a verification report listing changed files, migrations, functions, indexes, permissions, tests passed/failed/not run, remaining blockers and manual checks. Do not claim concurrency or production readiness from source inspection or page rendering alone.
 
-1. Select Supplier → fetch that supplier's active `supplier_products`.
-2. Line editor rows:
-   - Product: `<Select>` populated from catalogue (searchable). On pick, auto-fill Unit + Unit Cost (both **read-only**), show "Available: X" and "Min Order: Y" as hints.
-   - Order Quantity: editable, min 1. Warn if `< min_order_qty`.
-   - Line Total: auto `qty × unit_cost`.
-   - Delete button.
-3. "Custom Item" button appends a row with `is_custom_item = true` where Product Name, Unit, Qty, Unit Cost are all editable (validated > 0).
-4. Persist `supplier_product_id`, `unit`, `unit_cost` snapshot, `is_custom_item` per line.
-
-Editing a supplier's catalogue price after PO creation must NOT touch existing `purchase_order_items` — this is already guaranteed because we store snapshot `unit_cost` on the line.
-
-## 4. Goods Received Note (`src/pages/GoodsReceivedNotes.tsx`)
-- No workflow change: GRN keeps reading `unit_cost` from `purchase_order_items` (snapshot). Weighted-average costing continues to work.
-- After a GRN with any **custom items** is approved, show a follow-up dialog:
-  > "Add these custom items to <Supplier>'s catalogue for future purchases?"
-  Lists each custom line with editable price/unit/min qty and an Add-all button. Inserts into `supplier_products`.
-
-## 5. Validation rules (client + DB)
-- Supplier catalogue: `unit_cost > 0`, `min_order_qty ≥ 0`, `available_qty ≥ 0`.
-- PO lines: `quantity > 0`; warn (not block) when `quantity < min_order_qty`.
-- Custom items: name required, `unit_cost > 0`, `quantity > 0`.
-
-## 6. Files touched
-- New migration
-- `src/pages/Suppliers.tsx` — remove inline supplied_items editor; add "Manage Catalogue" launcher.
-- New `src/components/SupplierCatalogueDialog.tsx` — table + CRUD.
-- `src/pages/SupplierProfile.tsx` — add Catalogue tab reading `supplier_products`.
-- `src/pages/PurchaseOrders.tsx` — new line editor bound to catalogue.
-- `src/pages/GoodsReceivedNotes.tsx` — post-approval "add custom items to catalogue" prompt.
-
-## 7. Out of scope
-- Supplier login / accounts (explicitly not wanted).
-- Changing existing PO/GRN history or inventory weighted-average logic.
-
-If you approve I'll ship the migration first, then the UI changes in one batch.
+## Technical implementation
+- PostgreSQL security-definer operations with fixed search paths, authentication/tenant checks, deterministic row/advisory locks and restricted execute grants.
+- Add request/result tracking, immutable inventory movements, tender components, assignment audit and adjustment requests with explicit grants and tenant-scoped policies.
+- Add only nullable/defaulted metadata columns and compatible indexes; no backfill of uncertain financial relationships.
+- Integrate through a shared typed client helper, replacing existing multi-write POS/GRN paths rather than introducing competing business logic.
+- Keep failure-injection hooks exclusively in the isolated test environment.
+- Retain automated tests in the project and document the posting architecture in AGENTS.md.
